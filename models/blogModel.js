@@ -1,0 +1,52 @@
+const mongoose = require("mongoose");
+const slugify = require("slugify");
+
+const blogSchema = new mongoose.Schema({
+  title: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  slug: {
+    type: String,
+    unique: true,
+    required: true,
+  },
+  content: {
+    type: String,
+    required: true,
+  },
+  author: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  tags: {
+    type: [String],
+    default: [],
+  },
+  isArchived: {
+    type: Boolean,
+    default: false,
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now,
+  },
+  updatedAt: {
+    type: Date,
+    default: Date.now,
+  },
+});
+
+// Middleware to generate slug before saving
+blogSchema.pre("validate", function (next) {
+  if (this.title && !this.slug) {
+    this.slug = slugify(this.title, { lower: true, strict: true });
+  }
+  next();
+});
+
+const Blog = mongoose.model("Blog", blogSchema);
+
+module.exports = Blog;

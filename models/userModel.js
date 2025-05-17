@@ -9,11 +9,19 @@ const userSchema = new mongoose.Schema({
   email: {
     type: String,
     required: true,
-    unique: true, // Pastikan email unik
+    unique: true,
+    trim: true,
+    lowercase: true,
   },
   password: {
     type: String,
     required: true,
+  },
+  otp: {
+    type: String,
+  },
+  otpExpire: {
+    type: Date,
   },
   varificationCode: {
     type: Number,

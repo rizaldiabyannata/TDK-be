@@ -1,12 +1,11 @@
-const Blog = require("../models/blogModel"); // Adjust path as needed
-const logger = require("../utils/logger"); // Adjust path as needed
+const Blog = require("../models/blogModel");
+const logger = require("../utils/logger");
+const { ViewCount, DailyView } = require("../models/contentTrackingModel");
 
-// CREATE - Create a new blog post
 const createBlog = async (req, res) => {
   try {
     const { title, content, author, tags } = req.body;
 
-    // Validate required fields
     if (!title || !content || !author) {
       return res.status(400).json({
         success: false,
@@ -14,16 +13,13 @@ const createBlog = async (req, res) => {
       });
     }
 
-    // Create new blog post
     const newBlog = new Blog({
       title,
       content,
       author,
       tags: tags || [],
-      // slug will be auto-generated in the pre-validate hook
     });
 
-    // Save to database
     const savedBlog = await newBlog.save();
 
     logger.info(`Blog created: ${savedBlog.title} (${savedBlog._id})`);
@@ -42,7 +38,6 @@ const createBlog = async (req, res) => {
   }
 };
 
-// READ - Get all blog posts
 const getAllBlogs = async (req, res) => {
   try {
     const blogs = await Blog.find().sort({ createdAt: -1 });
@@ -64,11 +59,9 @@ const getAllBlogs = async (req, res) => {
   }
 };
 
-// READ - Get a single blog post by slug
 const getBlogBySlug = async (req, res) => {
   try {
     const { slug } = req.params;
-
     const blog = await Blog.findOne({ slug });
 
     if (!blog) {
@@ -79,11 +72,42 @@ const getBlogBySlug = async (req, res) => {
       });
     }
 
+    const viewCount = await ViewCount.findOne({
+      contentId: blog._id,
+      contentType: "blog",
+    });
+
+    const viewData = {
+      total: viewCount ? viewCount.total : blog.views.total,
+      unique: viewCount ? viewCount.unique : blog.views.unique,
+    };
+
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const recentDailyViews = await DailyView.find({
+      contentId: blog._id,
+      contentType: "blog",
+      date: { $gte: thirtyDaysAgo },
+    }).sort({ date: -1 });
+
+    const viewHistory =
+      recentDailyViews.length > 0
+        ? recentDailyViews.map((item) => ({
+            date: item.date,
+            count: item.count,
+          }))
+        : blog.viewHistory;
+
     logger.info(`Retrieved blog: ${blog.title} (${blog._id})`);
+
+    const blogData = blog.toObject();
+    blogData.views = viewData;
+    blogData.viewHistory = viewHistory;
 
     return res.status(200).json({
       success: true,
-      data: blog,
+      data: blogData,
     });
   } catch (error) {
     logger.error(`Error fetching blog: ${error.message}`, { error });
@@ -95,7 +119,6 @@ const getBlogBySlug = async (req, res) => {
   }
 };
 
-// READ - Get a single blog post by ID
 const getBlogById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -126,13 +149,11 @@ const getBlogById = async (req, res) => {
   }
 };
 
-// UPDATE - Update a blog post
 const updateBlog = async (req, res) => {
   try {
     const { id } = req.params;
     const { title, content, author, tags } = req.body;
 
-    // Find blog to update
     let blog = await Blog.findById(id);
 
     if (!blog) {
@@ -143,20 +164,16 @@ const updateBlog = async (req, res) => {
       });
     }
 
-    // Update fields
     blog.title = title || blog.title;
     blog.content = content || blog.content;
     blog.author = author || blog.author;
 
-    // Only update tags if they are provided
     if (tags) {
       blog.tags = tags;
     }
 
-    // If title changed, slug will be regenerated automatically via the pre-validate hook
     blog.updatedAt = Date.now();
 
-    // Save updated blog
     const updatedBlog = await blog.save();
 
     logger.info(`Blog updated: ${updatedBlog.title} (${updatedBlog._id})`);
@@ -175,7 +192,6 @@ const updateBlog = async (req, res) => {
   }
 };
 
-// DELETE - Delete a blog post
 const deleteBlog = async (req, res) => {
   try {
     const { id } = req.params;
@@ -207,7 +223,6 @@ const deleteBlog = async (req, res) => {
   }
 };
 
-// Optional: Get blogs by tag
 const getBlogsByTag = async (req, res) => {
   try {
     const { tag } = req.params;
@@ -230,7 +245,7 @@ const getBlogsByTag = async (req, res) => {
     });
   }
 };
-// Archive a blog post
+
 const archiveBlog = async (req, res) => {
   try {
     const { id } = req.params;
@@ -266,7 +281,6 @@ const archiveBlog = async (req, res) => {
   }
 };
 
-// Unarchive a blog post
 const unarchiveBlog = async (req, res) => {
   try {
     const { id } = req.params;
@@ -302,7 +316,6 @@ const unarchiveBlog = async (req, res) => {
   }
 };
 
-// Get all archived blogs
 const getArchivedBlogs = async (req, res) => {
   try {
     const archivedBlogs = await Blog.find({ isArchived: true }).sort({

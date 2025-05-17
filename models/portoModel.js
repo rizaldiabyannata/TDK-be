@@ -17,17 +17,42 @@ const portfolioSchema = new mongoose.Schema({
   },
   link: {
     type: String,
-    required: true,
   },
   slug: {
     type: String,
     unique: true,
     required: true,
   },
+  likes: {
+    type: Number,
+    default: 0,
+  },
   isArchived: {
     type: Boolean,
     default: false,
   },
+  views: {
+    total: {
+      type: Number,
+      default: 0,
+    },
+    unique: {
+      type: Number,
+      default: 0,
+    },
+  },
+  viewHistory: [
+    {
+      date: {
+        type: Date,
+        default: Date.now,
+      },
+      count: {
+        type: Number,
+        default: 0,
+      },
+    },
+  ],
   createdAt: {
     type: Date,
     default: Date.now,

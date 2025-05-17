@@ -1,154 +1,187 @@
-// redisConfig.js
 const redis = require("redis");
-const logger = require("../utils/logger"); // Adjust the path as needed
+const logger = require("../utils/logger");
 
-const REDIS_CONFIG = {
-  host: process.env.REDIS_HOST || "localhost",
-  port: process.env.REDIS_PORT || 6379,
-  password: process.env.REDIS_PASSWORD || undefined,
-  db: process.env.REDIS_DB || 0,
-  retry_strategy: function (options) {
-    if (options.error && options.error.code === "ECONNREFUSED") {
-      logger.error("Redis connection refused");
-      return new Error("The Redis server refused the connection");
-    }
-    if (options.total_retry_time > 1000 * 60 * 60) {
-      logger.error("Redis retry time exhausted");
-      return new Error("Retry time exhausted");
-    }
-    if (options.attempt > 10) {
-      logger.error("Redis maximum retry attempts reached");
-      return undefined; // Stop retrying
-    }
-    // Retry after increasing delay (exponential backoff)
-    return Math.min(options.attempt * 100, 3000);
-  },
+// Create Redis client with updated API
+const createClient = async () => {
+  // Configure Redis client
+  const client = redis.createClient({
+    url: `redis://${
+      process.env.REDIS_PASSWORD ? `:${process.env.REDIS_PASSWORD}@` : ""
+    }${process.env.REDIS_HOST || "localhost"}:${
+      process.env.REDIS_PORT || 6379
+    }/${process.env.REDIS_DB || 0}`,
+    socket: {
+      reconnectStrategy: (retries) => {
+        if (retries > 10) {
+          logger.error("Redis maximum retry attempts reached");
+          return new Error("Redis maximum retry attempts reached");
+        }
+        return Math.min(retries * 100, 3000);
+      },
+    },
+  });
+
+  // Register event handlers
+  client.on("connect", () => {
+    logger.info("Redis connection established");
+  });
+
+  client.on("ready", () => {
+    logger.info("Redis client is ready to use");
+  });
+
+  client.on("error", (err) => {
+    logger.error(`Redis error: ${err.message}`, { error: err });
+  });
+
+  client.on("reconnecting", () => {
+    logger.info("Redis client is reconnecting");
+  });
+
+  client.on("end", () => {
+    logger.info("Redis connection closed");
+  });
+
+  // Connect to Redis
+  try {
+    await client.connect();
+  } catch (err) {
+    logger.error(`Failed to connect to Redis: ${err.message}`, { error: err });
+    throw err;
+  }
+
+  return client;
 };
 
-// Create Redis client
-const client = redis.createClient(REDIS_CONFIG);
+// Init client variable to be populated after connection
+let clientPromise = createClient();
 
-// Handle connection events
-client.on("connect", () => {
-  logger.info("Redis connection established");
-});
-
-client.on("ready", () => {
-  logger.info("Redis client is ready to use");
-});
-
-client.on("error", (err) => {
-  logger.error(`Redis error: ${err.message}`, { error: err });
-});
-
-client.on("reconnecting", () => {
-  logger.info("Redis client is reconnecting");
-});
-
-client.on("end", () => {
-  logger.info("Redis connection closed");
-});
-
-// Helper functions for common Redis operations
+// Helper functions for Redis operations
 const redisClient = {
-  // Get the raw Redis client
-  getClient: () => client,
+  // Get the raw Redis client (async)
+  getClient: async () => {
+    return await clientPromise;
+  },
 
   // Check if Redis is connected
-  isConnected: () => client.connected,
+  isConnected: async () => {
+    try {
+      const client = await clientPromise;
+      return client.isReady;
+    } catch (error) {
+      return false;
+    }
+  },
 
   // Set a key with optional expiration (in seconds)
-  set: (key, value, expiry = null) => {
-    return new Promise((resolve, reject) => {
-      try {
-        const stringValue =
-          typeof value === "object" ? JSON.stringify(value) : String(value);
+  set: async (key, value, expiry = null) => {
+    try {
+      const client = await clientPromise;
+      const stringValue =
+        typeof value === "object" ? JSON.stringify(value) : String(value);
 
-        if (expiry) {
-          client.setex(key, expiry, stringValue, (err, reply) => {
-            if (err) return reject(err);
-            resolve(reply);
-          });
-        } else {
-          client.set(key, stringValue, (err, reply) => {
-            if (err) return reject(err);
-            resolve(reply);
-          });
-        }
-      } catch (error) {
-        reject(error);
+      if (expiry) {
+        return await client.setEx(key, expiry, stringValue);
+      } else {
+        return await client.set(key, stringValue);
       }
-    });
+    } catch (error) {
+      logger.error(`Redis SET error: ${error.message}`, { error });
+      throw error;
+    }
   },
 
   // Get a key (with JSON parsing attempt)
-  get: (key) => {
-    return new Promise((resolve, reject) => {
-      client.get(key, (err, reply) => {
-        if (err) return reject(err);
+  get: async (key) => {
+    try {
+      const client = await clientPromise;
+      const reply = await client.get(key);
 
-        if (reply === null) {
-          return resolve(null);
-        }
+      if (reply === null) {
+        return null;
+      }
 
-        // Try to parse JSON, return original string if not JSON
-        try {
-          return resolve(JSON.parse(reply));
-        } catch (e) {
-          return resolve(reply);
-        }
-      });
-    });
+      // Try to parse JSON, return original string if not JSON
+      try {
+        return JSON.parse(reply);
+      } catch (e) {
+        return reply;
+      }
+    } catch (error) {
+      logger.error(`Redis GET error: ${error.message}`, { error });
+      throw error;
+    }
   },
 
   // Delete a key
-  delete: (key) => {
-    return new Promise((resolve, reject) => {
-      client.del(key, (err, reply) => {
-        if (err) return reject(err);
-        resolve(reply);
-      });
-    });
+  delete: async (key) => {
+    try {
+      const client = await clientPromise;
+      return await client.del(key);
+    } catch (error) {
+      logger.error(`Redis DELETE error: ${error.message}`, { error });
+      throw error;
+    }
   },
 
   // Check if a key exists
-  exists: (key) => {
-    return new Promise((resolve, reject) => {
-      client.exists(key, (err, reply) => {
-        if (err) return reject(err);
-        resolve(reply === 1);
-      });
-    });
+  exists: async (key) => {
+    try {
+      const client = await clientPromise;
+      const result = await client.exists(key);
+      return result === 1;
+    } catch (error) {
+      logger.error(`Redis EXISTS error: ${error.message}`, { error });
+      throw error;
+    }
   },
 
   // Set expiration time on a key
-  expire: (key, seconds) => {
-    return new Promise((resolve, reject) => {
-      client.expire(key, seconds, (err, reply) => {
-        if (err) return reject(err);
-        resolve(reply === 1);
-      });
-    });
+  expire: async (key, seconds) => {
+    try {
+      const client = await clientPromise;
+      const result = await client.expire(key, seconds);
+      return result === 1;
+    } catch (error) {
+      logger.error(`Redis EXPIRE error: ${error.message}`, { error });
+      throw error;
+    }
   },
 
   // Flush the database
-  flushDb: () => {
-    return new Promise((resolve, reject) => {
-      client.flushdb((err, reply) => {
-        if (err) return reject(err);
-        resolve(reply);
-      });
-    });
+  flushDb: async () => {
+    try {
+      const client = await clientPromise;
+      return await client.flushDb();
+    } catch (error) {
+      logger.error(`Redis FLUSHDB error: ${error.message}`, { error });
+      throw error;
+    }
   },
 
   // Close the Redis connection
-  quit: () => {
-    return new Promise((resolve) => {
-      client.quit(() => {
-        logger.info("Redis connection closed gracefully");
-        resolve();
-      });
-    });
+  quit: async () => {
+    try {
+      const client = await clientPromise;
+      await client.quit();
+      logger.info("Redis connection closed gracefully");
+    } catch (error) {
+      logger.error(`Redis QUIT error: ${error.message}`, { error });
+      throw error;
+    }
+  },
+
+  // Test connection
+  testConnection: async () => {
+    try {
+      const client = await clientPromise;
+      await client.set("test-connection", "success");
+      const result = await client.get("test-connection");
+      return result === "success";
+    } catch (error) {
+      logger.error(`Redis test connection failed: ${error.message}`, { error });
+      return false;
+    }
   },
 };
 

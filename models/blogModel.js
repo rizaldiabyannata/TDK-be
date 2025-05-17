@@ -29,6 +29,32 @@ const blogSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  likes: {
+    type: Number,
+    default: 0,
+  },
+  views: {
+    total: {
+      type: Number,
+      default: 0,
+    },
+    unique: {
+      type: Number,
+      default: 0,
+    },
+  },
+  viewHistory: [
+    {
+      date: {
+        type: Date,
+        default: Date.now,
+      },
+      count: {
+        type: Number,
+        default: 0,
+      },
+    },
+  ],
   createdAt: {
     type: Date,
     default: Date.now,

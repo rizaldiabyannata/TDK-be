@@ -5,6 +5,9 @@ const cookieParser = require("cookie-parser");
 const morgan = require("morgan");
 const fs = require("fs");
 const path = require("path");
+const jwt = require("jsonwebtoken");
+
+const { scheduleViewSync } = require("./utils/syncViewsScheduler");
 
 const connectDB = require("./config/db");
 const routes = require("./routers/index");
@@ -16,6 +19,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(cookieParser());
+app.use(cors("*"));
 
 const accessLogStream = fs.createWriteStream(
   path.join(__dirname, "logs/access.log"),
@@ -27,6 +31,8 @@ app.use(morgan("combined", { stream: accessLogStream }));
 
 // Connect to MongoDB
 connectDB();
+
+scheduleViewSync();
 
 app.use("/api", routes);
 app.get("/api/runtime", (req, res) => {

@@ -16,6 +16,12 @@ const blogSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  coverImage: {
+    type: String,
+  },
+  summary: {
+    type: String,
+  },
   author: {
     type: String,
     required: true,
@@ -65,7 +71,6 @@ const blogSchema = new mongoose.Schema({
   },
 });
 
-// Middleware to generate slug before saving
 blogSchema.pre("validate", function (next) {
   if (this.title && !this.slug) {
     this.slug = slugify(this.title, { lower: true, strict: true });

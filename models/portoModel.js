@@ -11,7 +11,11 @@ const portfolioSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
-  image: {
+  shortdDescription: {
+    type: String,
+    required: true,
+  },
+  coverImage: {
     type: String,
     required: true,
   },

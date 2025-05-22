@@ -1,9 +1,15 @@
 const redis = require("redis");
 const logger = require("../utils/logger");
 
-// Create Redis client with updated API
+// Flag to track Redis availability
+let redisAvailable = false;
+let reconnectAttempts = 0;
+const MAX_RECONNECT_ATTEMPTS = 5;
+let reconnectTimer = null;
+
+const localCache = new Map();
+
 const createClient = async () => {
-  // Configure Redis client
   const client = redis.createClient({
     url: `redis://${
       process.env.REDIS_PASSWORD ? `:${process.env.REDIS_PASSWORD}@` : ""
@@ -12,9 +18,13 @@ const createClient = async () => {
     }/${process.env.REDIS_DB || 0}`,
     socket: {
       reconnectStrategy: (retries) => {
-        if (retries > 10) {
-          logger.error("Redis maximum retry attempts reached");
-          return new Error("Redis maximum retry attempts reached");
+        reconnectAttempts = retries;
+        if (retries > MAX_RECONNECT_ATTEMPTS) {
+          redisAvailable = false;
+          logger.warn(
+            `Redis unavailable after ${MAX_RECONNECT_ATTEMPTS} attempts, using local cache fallback`
+          );
+          return false; // Stop reconnecting but don't throw error
         }
         return Math.min(retries * 100, 3000);
       },
@@ -27,11 +37,22 @@ const createClient = async () => {
   });
 
   client.on("ready", () => {
+    redisAvailable = true;
+    reconnectAttempts = 0;
     logger.info("Redis client is ready to use");
+
+    // Clear any scheduled reconnection attempt
+    if (reconnectTimer) {
+      clearTimeout(reconnectTimer);
+      reconnectTimer = null;
+    }
   });
 
   client.on("error", (err) => {
-    logger.error(`Redis error: ${err.message}`, { error: err });
+    if (redisAvailable) {
+      logger.error(`Redis error: ${err.message}`, { error: err });
+    }
+    redisAvailable = false;
   });
 
   client.on("reconnecting", () => {
@@ -39,35 +60,93 @@ const createClient = async () => {
   });
 
   client.on("end", () => {
+    redisAvailable = false;
     logger.info("Redis connection closed");
+
+    // Schedule a reconnection attempt if not already scheduled
+    if (!reconnectTimer && reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+      reconnectTimer = setTimeout(async () => {
+        logger.info("Attempting to reconnect to Redis...");
+        reconnectTimer = null;
+        try {
+          await client.connect();
+        } catch (err) {
+          logger.error(`Failed to reconnect to Redis: ${err.message}`);
+        }
+      }, 5000); // Try to reconnect after 5 seconds
+    }
   });
 
   // Connect to Redis
   try {
     await client.connect();
+    redisAvailable = true;
   } catch (err) {
-    logger.error(`Failed to connect to Redis: ${err.message}`, { error: err });
-    throw err;
+    redisAvailable = false;
+    logger.warn(
+      `Failed to connect to Redis: ${err.message}. Using local cache fallback.`
+    );
+    // Don't throw error - allow application to continue
   }
 
   return client;
 };
 
 // Init client variable to be populated after connection
-let clientPromise = createClient();
+let clientPromise = createClient().catch((err) => {
+  logger.warn(
+    `Initial Redis connection failed: ${err.message}. Using local cache fallback.`
+  );
+  redisAvailable = false;
+  return null; // Return null instead of throwing
+});
 
-// Helper functions for Redis operations
+// Set a local cache entry with optional expiration
+const setLocalCache = (key, value, expiry = null) => {
+  const item = {
+    value: value,
+    created: Date.now(),
+  };
+
+  if (expiry) {
+    item.expires = Date.now() + expiry * 1000;
+  }
+
+  localCache.set(key, item);
+  return "OK";
+};
+
+// Get from local cache
+const getLocalCache = (key) => {
+  const item = localCache.get(key);
+
+  if (!item) return null;
+
+  // Check if expired
+  if (item.expires && item.expires < Date.now()) {
+    localCache.delete(key);
+    return null;
+  }
+
+  return item.value;
+};
+
+// Helper functions for Redis operations with fallback
 const redisClient = {
   // Get the raw Redis client (async)
   getClient: async () => {
-    return await clientPromise;
+    try {
+      return await clientPromise;
+    } catch (error) {
+      return null;
+    }
   },
 
   // Check if Redis is connected
   isConnected: async () => {
     try {
       const client = await clientPromise;
-      return client.isReady;
+      return client && client.isReady;
     } catch (error) {
       return false;
     }
@@ -77,6 +156,12 @@ const redisClient = {
   set: async (key, value, expiry = null) => {
     try {
       const client = await clientPromise;
+
+      if (!client || !redisAvailable) {
+        logger.debug(`Redis unavailable, using local cache for SET: ${key}`);
+        return setLocalCache(key, value, expiry);
+      }
+
       const stringValue =
         typeof value === "object" ? JSON.stringify(value) : String(value);
 
@@ -86,8 +171,8 @@ const redisClient = {
         return await client.set(key, stringValue);
       }
     } catch (error) {
-      logger.error(`Redis SET error: ${error.message}`, { error });
-      throw error;
+      logger.warn(`Redis SET error, using local cache: ${error.message}`);
+      return setLocalCache(key, value, expiry);
     }
   },
 
@@ -95,6 +180,12 @@ const redisClient = {
   get: async (key) => {
     try {
       const client = await clientPromise;
+
+      if (!client || !redisAvailable) {
+        logger.debug(`Redis unavailable, using local cache for GET: ${key}`);
+        return getLocalCache(key);
+      }
+
       const reply = await client.get(key);
 
       if (reply === null) {
@@ -108,8 +199,8 @@ const redisClient = {
         return reply;
       }
     } catch (error) {
-      logger.error(`Redis GET error: ${error.message}`, { error });
-      throw error;
+      logger.warn(`Redis GET error, using local cache: ${error.message}`);
+      return getLocalCache(key);
     }
   },
 
@@ -117,10 +208,16 @@ const redisClient = {
   delete: async (key) => {
     try {
       const client = await clientPromise;
+
+      if (!client || !redisAvailable) {
+        logger.debug(`Redis unavailable, using local cache for DELETE: ${key}`);
+        return localCache.delete(key) ? 1 : 0;
+      }
+
       return await client.del(key);
     } catch (error) {
-      logger.error(`Redis DELETE error: ${error.message}`, { error });
-      throw error;
+      logger.warn(`Redis DELETE error, using local cache: ${error.message}`);
+      return localCache.delete(key) ? 1 : 0;
     }
   },
 
@@ -128,11 +225,17 @@ const redisClient = {
   exists: async (key) => {
     try {
       const client = await clientPromise;
+
+      if (!client || !redisAvailable) {
+        logger.debug(`Redis unavailable, using local cache for EXISTS: ${key}`);
+        return localCache.has(key);
+      }
+
       const result = await client.exists(key);
       return result === 1;
     } catch (error) {
-      logger.error(`Redis EXISTS error: ${error.message}`, { error });
-      throw error;
+      logger.warn(`Redis EXISTS error, using local cache: ${error.message}`);
+      return localCache.has(key);
     }
   },
 
@@ -140,11 +243,27 @@ const redisClient = {
   expire: async (key, seconds) => {
     try {
       const client = await clientPromise;
+
+      if (!client || !redisAvailable) {
+        logger.debug(`Redis unavailable, using local cache for EXPIRE: ${key}`);
+        const item = localCache.get(key);
+        if (!item) return false;
+
+        item.expires = Date.now() + seconds * 1000;
+        localCache.set(key, item);
+        return true;
+      }
+
       const result = await client.expire(key, seconds);
       return result === 1;
     } catch (error) {
-      logger.error(`Redis EXPIRE error: ${error.message}`, { error });
-      throw error;
+      logger.warn(`Redis EXPIRE error, using local cache: ${error.message}`);
+      const item = localCache.get(key);
+      if (!item) return false;
+
+      item.expires = Date.now() + seconds * 1000;
+      localCache.set(key, item);
+      return true;
     }
   },
 
@@ -152,10 +271,20 @@ const redisClient = {
   flushDb: async () => {
     try {
       const client = await clientPromise;
+
+      if (!client || !redisAvailable) {
+        logger.debug(`Redis unavailable, clearing local cache for FLUSHDB`);
+        localCache.clear();
+        return "OK";
+      }
+
       return await client.flushDb();
     } catch (error) {
-      logger.error(`Redis FLUSHDB error: ${error.message}`, { error });
-      throw error;
+      logger.warn(
+        `Redis FLUSHDB error, clearing local cache: ${error.message}`
+      );
+      localCache.clear();
+      return "OK";
     }
   },
 
@@ -163,11 +292,19 @@ const redisClient = {
   quit: async () => {
     try {
       const client = await clientPromise;
-      await client.quit();
-      logger.info("Redis connection closed gracefully");
+      if (client && redisAvailable) {
+        await client.quit();
+        logger.info("Redis connection closed gracefully");
+      }
+
+      // Clear local cache on quit
+      localCache.clear();
+      redisAvailable = false;
     } catch (error) {
-      logger.error(`Redis QUIT error: ${error.message}`, { error });
-      throw error;
+      logger.warn(`Redis QUIT error: ${error.message}`);
+      // Still clear the local cache
+      localCache.clear();
+      redisAvailable = false;
     }
   },
 
@@ -175,13 +312,43 @@ const redisClient = {
   testConnection: async () => {
     try {
       const client = await clientPromise;
+      if (!client || !redisAvailable) return false;
+
       await client.set("test-connection", "success");
       const result = await client.get("test-connection");
       return result === "success";
     } catch (error) {
-      logger.error(`Redis test connection failed: ${error.message}`, { error });
+      logger.warn(`Redis test connection failed: ${error.message}`);
       return false;
     }
+  },
+
+  // Force reconnection attempt to Redis
+  reconnect: async () => {
+    try {
+      if (redisAvailable) {
+        logger.info("Redis is already connected");
+        return true;
+      }
+
+      logger.info("Forcing reconnection to Redis");
+      clientPromise = createClient();
+      const client = await clientPromise;
+      return client && client.isReady;
+    } catch (error) {
+      logger.error(`Forced Redis reconnection failed: ${error.message}`);
+      return false;
+    }
+  },
+
+  // Get Redis status information
+  getStatus: () => {
+    return {
+      available: redisAvailable,
+      reconnectAttempts,
+      localCacheSize: localCache.size,
+      reconnecting: reconnectTimer !== null,
+    };
   },
 };
 

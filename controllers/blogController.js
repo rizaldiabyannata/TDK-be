@@ -1,6 +1,6 @@
 const Blog = require("../models/blogModel");
 const logger = require("../utils/logger");
-const { ViewCount, DailyView } = require("../models/contentTrackingModel");
+const { ViewCount, DailyView } = require("../models/viewTrackingModel");
 
 const createBlog = async (req, res) => {
   try {
@@ -62,6 +62,17 @@ const getAllBlogs = async (req, res) => {
 const getBlogBySlug = async (req, res) => {
   try {
     const { slug } = req.params;
+
+    // Validasi bahwa model tersedia
+    if (!Blog || typeof Blog.findOne !== "function") {
+      logger.error("Blog model is not properly imported");
+      return res.status(500).json({
+        success: false,
+        message: "Server configuration error",
+        error: "Model not available",
+      });
+    }
+
     const blog = await Blog.findOne({ slug });
 
     if (!blog) {
@@ -72,32 +83,41 @@ const getBlogBySlug = async (req, res) => {
       });
     }
 
-    const viewCount = await ViewCount.findOne({
-      contentId: blog._id,
-      contentType: "blog",
-    });
+    // Handle view count with appropriate validation
+    let viewData = { total: blog.views.total, unique: blog.views.unique };
+    if (ViewCount && typeof ViewCount.findOne === "function") {
+      const viewCount = await ViewCount.findOne({
+        contentId: blog._id,
+        contentType: "blog",
+      });
 
-    const viewData = {
-      total: viewCount ? viewCount.total : blog.views.total,
-      unique: viewCount ? viewCount.unique : blog.views.unique,
-    };
+      if (viewCount) {
+        viewData = {
+          total: viewCount.total,
+          unique: viewCount.unique,
+        };
+      }
+    }
 
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    // Handle view history with appropriate validation
+    let viewHistory = blog.viewHistory || [];
+    if (DailyView && typeof DailyView.find === "function") {
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    const recentDailyViews = await DailyView.find({
-      contentId: blog._id,
-      contentType: "blog",
-      date: { $gte: thirtyDaysAgo },
-    }).sort({ date: -1 });
+      const recentDailyViews = await DailyView.find({
+        contentId: blog._id,
+        contentType: "blog",
+        date: { $gte: thirtyDaysAgo },
+      }).sort({ date: -1 });
 
-    const viewHistory =
-      recentDailyViews.length > 0
-        ? recentDailyViews.map((item) => ({
-            date: item.date,
-            count: item.count,
-          }))
-        : blog.viewHistory;
+      if (recentDailyViews && recentDailyViews.length > 0) {
+        viewHistory = recentDailyViews.map((item) => ({
+          date: item.date,
+          count: item.count,
+        }));
+      }
+    }
 
     logger.info(`Retrieved blog: ${blog.title} (${blog._id})`);
 
@@ -339,6 +359,72 @@ const getArchivedBlogs = async (req, res) => {
   }
 };
 
+const searchBlogs = async (req, res) => {
+  try {
+    const {
+      query,
+      tags,
+      sortBy = "createdAt",
+      sortOrder = -1,
+      page = 1,
+      limit = 10,
+    } = req.query;
+
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
+
+    const baseQuery = { isArchived: false };
+
+    if (query && query.trim() !== "") {
+      baseQuery.$text = { $search: query };
+    }
+
+    if (tags) {
+      const tagArray = Array.isArray(tags) ? tags : tags.split(",");
+      baseQuery.tags = { $in: tagArray };
+    }
+
+    const sortOptions = {};
+    sortOptions[sortBy] = parseInt(sortOrder);
+
+    const projection =
+      query && query.trim() !== "" ? { score: { $meta: "textScore" } } : {};
+
+    if (query && query.trim() !== "" && sortBy === "relevance") {
+      sortOptions.score = { $meta: "textScore" };
+    }
+
+    const blogs = await Blog.find(baseQuery, projection)
+      .select("title slug summary coverImage tags createdAt views likes")
+      .sort(sortOptions)
+      .skip(skip)
+      .limit(limitNum);
+
+    const total = await Blog.countDocuments(baseQuery);
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        blogs,
+        pagination: {
+          total,
+          page: pageNum,
+          limit: limitNum,
+          pages: Math.ceil(total / limitNum),
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Error searching blogs:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error searching blogs",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   createBlog,
   getAllBlogs,
@@ -350,4 +436,5 @@ module.exports = {
   getArchivedBlogs,
   unarchiveBlog,
   archiveBlog,
+  searchBlogs,
 };

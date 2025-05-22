@@ -4,14 +4,15 @@ const userRouters = require("./userRouters");
 const { testRedisConnection } = require("../test/test-redis-connection");
 const blogRouters = require("./blogRouter");
 const statisticRouter = require("./statisticRouter");
+const contentTrackingRouter = require("./ContentTrackingRouter");
 
 // import routes
 router.use("/test", (req, res) => {
   res.send("Test route is working");
 });
 
-router.use("/user", userRouters);
-router.use("/blog", blogRouters);
+router.use("/users", userRouters);
+router.use("/blogs", blogRouters);
 router.use("/statistic", statisticRouter);
 
 // In your Express routes
@@ -37,5 +38,6 @@ router.get("/health/redis", async (req, res) => {
     });
   }
 });
+router.use("/content-tracking", contentTrackingRouter);
 
 module.exports = router;

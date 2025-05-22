@@ -4,46 +4,48 @@ const {
   Visitor,
   ViewCount,
   DailyView,
-} = require("../models/contentTrackingModel");
+} = require("../models/viewTrackingModel");
 const Blog = require("../models/blogModel");
 const Portfolio = require("../models/portoModel");
 
-/**
- * Get the appropriate model based on content type
- */
 const getModelByType = (contentType) => {
   return contentType === "portfolio" ? Portfolio : Blog;
 };
 
-/**
- * View tracking middleware that uses separate collections
- * but keeps the original model structure intact
- */
 const trackView = (contentType) => {
-  return (req, res, next) => {
-    next();
+  return async (req, res, next) => {
+    try {
+      const requestData = {
+        contentId: req.params.id || req.params.slug,
+        visitorId: req.cookies.visitor_id,
+        ip: req.ip,
+        userAgent: req.headers["user-agent"],
+        referrer: req.headers.referer || "direct",
+        path: req.originalUrl,
+        isId: !!req.params.id,
+      };
 
-    const requestData = {
-      contentId: req.params.id || req.params.slug,
-      visitorId: req.cookies.visitor_id || uuidv4(),
-      ip: req.ip,
-      userAgent: req.headers["user-agent"],
-      referrer: req.headers.referer || "direct",
-      path: req.originalUrl,
-      isId: !!req.params.id,
-    };
+      if (!requestData.visitorId) {
+        const newVisitorId = uuidv4();
+        res.cookie("visitor_id", newVisitorId, {
+          maxAge: 365 * 24 * 60 * 60 * 1000,
+          httpOnly: true,
+        });
+        requestData.visitorId = newVisitorId;
+      }
 
-    setTimeout(() => {
+      next();
+
       processViewTracking(contentType, requestData).catch((error) => {
         logger.error(`View tracking error for ${contentType}:`, error);
       });
-    }, 100);
+    } catch (error) {
+      logger.error(`Error in view tracking middleware: ${error.message}`);
+      next();
+    }
   };
 };
 
-/**
- * Background process for view tracking
- */
 async function processViewTracking(contentType, requestData) {
   try {
     const { contentId, visitorId, isId } = requestData;
@@ -114,9 +116,6 @@ async function processViewTracking(contentType, requestData) {
   }
 }
 
-/**
- * Sync view counts from tracking collections to main models
- */
 async function syncViewsToMainModel(contentType, documentId) {
   try {
     const viewCount = await ViewCount.findOne({

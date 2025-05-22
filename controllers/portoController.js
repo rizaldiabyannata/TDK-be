@@ -1,12 +1,10 @@
-const Portfolio = require("../models/portoModel"); // Adjust path as needed
-const logger = require("../utils/logger"); // Adjust path as needed
+const Portfolio = require("../models/portoModel");
+const logger = require("../utils/logger");
 
-// CREATE - Create a new portfolio
 const createPortfolio = async (req, res) => {
   try {
     const { title, description, image, link } = req.body;
 
-    // Validate required fields
     if (!title || !description || !image || !link) {
       return res.status(400).json({
         success: false,
@@ -14,16 +12,13 @@ const createPortfolio = async (req, res) => {
       });
     }
 
-    // Create new portfolio
     const newPortfolio = new Portfolio({
       title,
       description,
       image,
       link,
-      // slug will be auto-generated in the pre-save hook
     });
 
-    // Save to database
     const savedPortfolio = await newPortfolio.save();
 
     logger.info(
@@ -44,7 +39,6 @@ const createPortfolio = async (req, res) => {
   }
 };
 
-// READ - Get all portfolio items
 const getAllPortfolios = async (req, res) => {
   try {
     const portfolios = await Portfolio.find().sort({ createdAt: -1 });
@@ -66,7 +60,6 @@ const getAllPortfolios = async (req, res) => {
   }
 };
 
-// READ - Get a single portfolio item by slug
 const getPortfolioBySlug = async (req, res) => {
   try {
     const { slug } = req.params;
@@ -97,7 +90,6 @@ const getPortfolioBySlug = async (req, res) => {
   }
 };
 
-// READ - Get a single portfolio item by ID
 const getPortfolioById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -128,13 +120,11 @@ const getPortfolioById = async (req, res) => {
   }
 };
 
-// UPDATE - Update a portfolio item
 const updatePortfolio = async (req, res) => {
   try {
     const { id } = req.params;
     const { title, description, image, link } = req.body;
 
-    // Find portfolio to update
     let portfolio = await Portfolio.findById(id);
 
     if (!portfolio) {
@@ -145,14 +135,12 @@ const updatePortfolio = async (req, res) => {
       });
     }
 
-    // Update fields
     portfolio.title = title || portfolio.title;
     portfolio.description = description || portfolio.description;
     portfolio.image = image || portfolio.image;
     portfolio.link = link || portfolio.link;
     portfolio.updatedAt = Date.now();
 
-    // Save updated portfolio
     const updatedPortfolio = await portfolio.save();
 
     logger.info(
@@ -173,7 +161,6 @@ const updatePortfolio = async (req, res) => {
   }
 };
 
-// DELETE - Delete a portfolio item
 const deletePortfolio = async (req, res) => {
   try {
     const { id } = req.params;
@@ -205,7 +192,6 @@ const deletePortfolio = async (req, res) => {
   }
 };
 
-// Archive a portfolio item
 const archivePortfolio = async (req, res) => {
   try {
     const { id } = req.params;
@@ -241,7 +227,6 @@ const archivePortfolio = async (req, res) => {
   }
 };
 
-// Unarchive a portfolio item
 const unarchivePortfolio = async (req, res) => {
   try {
     const { id } = req.params;
@@ -277,7 +262,6 @@ const unarchivePortfolio = async (req, res) => {
   }
 };
 
-// Get all archived portfolios
 const getArchivedPortfolios = async (req, res) => {
   try {
     const archivedPortfolios = await Portfolio.find({ isArchived: true }).sort({
@@ -303,6 +287,73 @@ const getArchivedPortfolios = async (req, res) => {
   }
 };
 
+const searchPortfolios = async (req, res) => {
+  try {
+    const {
+      query,
+      category,
+      sortBy = "createdAt",
+      sortOrder = -1,
+      page = 1,
+      limit = 10,
+    } = req.query;
+
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
+
+    const baseQuery = { isArchived: false };
+
+    if (query && query.trim() !== "") {
+      baseQuery.$text = { $search: query };
+    }
+
+    if (category) {
+      baseQuery.category = category;
+    }
+
+    const sortOptions = {};
+    sortOptions[sortBy] = parseInt(sortOrder);
+
+    const projection =
+      query && query.trim() !== "" ? { score: { $meta: "textScore" } } : {};
+
+    if (query && query.trim() !== "" && sortBy === "relevance") {
+      sortOptions.score = { $meta: "textScore" };
+    }
+
+    const portfolios = await Portfolio.find(baseQuery, projection)
+      .select(
+        "title slug shortdDescription coverImage category link createdAt views likes"
+      )
+      .sort(sortOptions)
+      .skip(skip)
+      .limit(limitNum);
+
+    const total = await Portfolio.countDocuments(baseQuery);
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        portfolios,
+        pagination: {
+          total,
+          page: pageNum,
+          limit: limitNum,
+          pages: Math.ceil(total / limitNum),
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Error searching portfolios:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error searching portfolios",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   createPortfolio,
   getAllPortfolios,
@@ -313,4 +364,5 @@ module.exports = {
   getArchivedPortfolios,
   unarchivePortfolio,
   archivePortfolio,
+  searchPortfolios,
 };

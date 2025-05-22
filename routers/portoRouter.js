@@ -1,5 +1,4 @@
 const express = require("express");
-
 const router = express.Router();
 const {
   createPortfolio,
@@ -11,35 +10,25 @@ const {
   getArchivedPortfolios,
   unarchivePortfolio,
   archivePortfolio,
-} = require("../controllers/portoController"); // Adjust path as needed
+  searchPortfolios,
+} = require("../controllers/portoController");
+
+const { authenticate } = require("../middleware/authMiddleware");
 
 const { trackView } = require("../middleware/viewTracker");
 
-// CREATE - Create a new portfolio
-router.post("/", createPortfolio);
-
-// READ - Get all portfolio items
+router.get("/search", searchPortfolios);
+router.get("/archived", authenticate, getArchivedPortfolios);
+router.post("/", authenticate, createPortfolio);
 router.get("/", getAllPortfolios);
 
-// READ - Get a single portfolio item by slug
-router.get("/slug/:slug", trackView, getPortfolioBySlug);
+router.get("/slug/:slug", trackView("portfolio"), getPortfolioBySlug);
 
-// READ - Get a single portfolio item by ID
-router.get("/:id", getPortfolioById);
+router.put("/:id/archive", authenticate, archivePortfolio);
+router.put("/:id/unarchive", authenticate, unarchivePortfolio);
 
-// UPDATE - Update a portfolio item
-router.put("/:id", updatePortfolio);
-
-// DELETE - Delete a portfolio item
-router.delete("/:id", deletePortfolio);
-
-// READ - Get all archived portfolios
-router.get("/archived", getArchivedPortfolios);
-
-// UPDATE - Archive a portfolio item
-router.put("/:id/archive", archivePortfolio);
-
-// UPDATE - Unarchive a portfolio item
-router.put("/:id/unarchive", unarchivePortfolio);
+router.get("/id/:id", trackView("portfolio"), getPortfolioById);
+router.put("/id/:id", authenticate, updatePortfolio);
+router.delete("/id/:id", authenticate, deletePortfolio);
 
 module.exports = router;

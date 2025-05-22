@@ -1,6 +1,6 @@
-const { HomePageContent } = require("../models/contentTrackingModel");
+const HomePageContent = require("../models/contentTrackingModel");
 const Blog = require("../models/blogModel");
-const Porto = require("../models/portoModel");
+const Portfolio = require("../models/portoModel"); // Sesuaikan dengan nama file model Anda
 const logger = require("../utils/logger");
 const mongoose = require("mongoose");
 
@@ -16,7 +16,6 @@ const getHomePageContent = async (req, res) => {
         select: "title slug category",
       });
 
-    // Create default content if none exists
     if (!homePageContent) {
       homePageContent = await HomePageContent.create({});
       logger.info("Created new home page content as none existed");
@@ -52,7 +51,7 @@ const updateFeaturedBlogs = async (req, res) => {
       });
     }
 
-    // Validate ObjectIds
+    // Validate that all IDs are valid ObjectIDs
     const validIds = blogIds.filter((id) =>
       mongoose.Types.ObjectId.isValid(id)
     );
@@ -65,8 +64,13 @@ const updateFeaturedBlogs = async (req, res) => {
       });
     }
 
-    // Verify blogs exist
-    const existingBlogs = await Blog.find({ _id: { $in: validIds } });
+    // Convert string IDs to ObjectIds
+    const objectIdBlogIds = validIds.map(
+      (id) => new mongoose.Types.ObjectId(id)
+    );
+
+    // Check that all blogs exist
+    const existingBlogs = await Blog.find({ _id: { $in: objectIdBlogIds } });
     const existingBlogIds = existingBlogs.map((blog) => blog._id);
 
     if (existingBlogs.length !== validIds.length) {
@@ -120,7 +124,7 @@ const updateHighlightedPortfolios = async (req, res) => {
       });
     }
 
-    // Validate ObjectIds
+    // Validate that all IDs are valid ObjectIDs
     const validIds = portfolioIds.filter((id) =>
       mongoose.Types.ObjectId.isValid(id)
     );
@@ -133,8 +137,15 @@ const updateHighlightedPortfolios = async (req, res) => {
       });
     }
 
-    // Verify portfolios exist
-    const existingPortfolios = await Porto.find({ _id: { $in: validIds } });
+    // Convert string IDs to ObjectIds
+    const objectIdPortfolioIds = validIds.map(
+      (id) => new mongoose.Types.ObjectId(id)
+    );
+
+    // Check that all portfolios exist
+    const existingPortfolios = await Portfolio.find({
+      _id: { $in: objectIdPortfolioIds },
+    });
     const existingPortfolioIds = existingPortfolios.map(
       (portfolio) => portfolio._id
     );
@@ -224,7 +235,9 @@ const addFeaturedBlog = async (req, res) => {
       });
     }
 
-    const blog = await Blog.findById(blogId);
+    const objectIdBlogId = new mongoose.Types.ObjectId(blogId);
+
+    const blog = await Blog.findById(objectIdBlogId);
     if (!blog) {
       logger.info(`Blog with ID ${blogId} not found`);
       return res.status(404).json({
@@ -237,12 +250,14 @@ const addFeaturedBlog = async (req, res) => {
 
     if (!homePageContent) {
       homePageContent = await HomePageContent.create({
-        featuredBlogs: [blogId],
+        featuredBlogs: [objectIdBlogId],
       });
       logger.info(`Created new home page content with featured blog ${blogId}`);
     } else {
-      // Check if blog is already featured
-      if (homePageContent.featuredBlogs.includes(blogId)) {
+      // Check if blog is already featured using proper ObjectId comparison
+      if (
+        homePageContent.featuredBlogs.some((id) => id.equals(objectIdBlogId))
+      ) {
         logger.info(`Blog ${blogId} is already featured`);
         return res.status(400).json({
           success: false,
@@ -250,7 +265,7 @@ const addFeaturedBlog = async (req, res) => {
         });
       }
 
-      homePageContent.featuredBlogs.push(blogId);
+      homePageContent.featuredBlogs.push(objectIdBlogId);
       homePageContent.lastUpdated = Date.now();
       await homePageContent.save();
       logger.info(`Added blog ${blogId} to featured blogs`);
@@ -283,6 +298,8 @@ const removeFeaturedBlog = async (req, res) => {
       });
     }
 
+    const objectIdBlogId = new mongoose.Types.ObjectId(blogId);
+
     let homePageContent = await HomePageContent.findOne();
 
     if (!homePageContent) {
@@ -293,8 +310,10 @@ const removeFeaturedBlog = async (req, res) => {
       });
     }
 
-    // Check if blog is featured
-    if (!homePageContent.featuredBlogs.includes(blogId)) {
+    // Check if blog is featured using proper ObjectId comparison
+    if (
+      !homePageContent.featuredBlogs.some((id) => id.equals(objectIdBlogId))
+    ) {
       logger.info(`Blog ${blogId} is not featured`);
       return res.status(400).json({
         success: false,
@@ -303,7 +322,7 @@ const removeFeaturedBlog = async (req, res) => {
     }
 
     homePageContent.featuredBlogs = homePageContent.featuredBlogs.filter(
-      (id) => id.toString() !== blogId
+      (id) => !id.equals(objectIdBlogId)
     );
     homePageContent.lastUpdated = Date.now();
     await homePageContent.save();
@@ -337,7 +356,9 @@ const addHighlightedPortfolio = async (req, res) => {
       });
     }
 
-    const portfolio = await Porto.findById(portfolioId);
+    const objectIdPortfolioId = new mongoose.Types.ObjectId(portfolioId);
+
+    const portfolio = await Portfolio.findById(objectIdPortfolioId);
     if (!portfolio) {
       logger.info(`Portfolio with ID ${portfolioId} not found`);
       return res.status(404).json({
@@ -350,14 +371,18 @@ const addHighlightedPortfolio = async (req, res) => {
 
     if (!homePageContent) {
       homePageContent = await HomePageContent.create({
-        highlightedPortfolios: [portfolioId],
+        highlightedPortfolios: [objectIdPortfolioId],
       });
       logger.info(
         `Created new home page content with highlighted portfolio ${portfolioId}`
       );
     } else {
-      // Check if portfolio is already highlighted
-      if (homePageContent.highlightedPortfolios.includes(portfolioId)) {
+      // Check if portfolio is already highlighted using proper ObjectId comparison
+      if (
+        homePageContent.highlightedPortfolios.some((id) =>
+          id.equals(objectIdPortfolioId)
+        )
+      ) {
         logger.info(`Portfolio ${portfolioId} is already highlighted`);
         return res.status(400).json({
           success: false,
@@ -365,7 +390,7 @@ const addHighlightedPortfolio = async (req, res) => {
         });
       }
 
-      homePageContent.highlightedPortfolios.push(portfolioId);
+      homePageContent.highlightedPortfolios.push(objectIdPortfolioId);
       homePageContent.lastUpdated = Date.now();
       await homePageContent.save();
       logger.info(`Added portfolio ${portfolioId} to highlighted portfolios`);
@@ -400,6 +425,8 @@ const removeHighlightedPortfolio = async (req, res) => {
       });
     }
 
+    const objectIdPortfolioId = new mongoose.Types.ObjectId(portfolioId);
+
     let homePageContent = await HomePageContent.findOne();
 
     if (!homePageContent) {
@@ -410,8 +437,12 @@ const removeHighlightedPortfolio = async (req, res) => {
       });
     }
 
-    // Check if portfolio is highlighted
-    if (!homePageContent.highlightedPortfolios.includes(portfolioId)) {
+    // Check if portfolio is highlighted using proper ObjectId comparison
+    if (
+      !homePageContent.highlightedPortfolios.some((id) =>
+        id.equals(objectIdPortfolioId)
+      )
+    ) {
       logger.info(`Portfolio ${portfolioId} is not highlighted`);
       return res.status(400).json({
         success: false,
@@ -421,7 +452,7 @@ const removeHighlightedPortfolio = async (req, res) => {
 
     homePageContent.highlightedPortfolios =
       homePageContent.highlightedPortfolios.filter(
-        (id) => id.toString() !== portfolioId
+        (id) => !id.equals(objectIdPortfolioId)
       );
     homePageContent.lastUpdated = Date.now();
     await homePageContent.save();

@@ -10,7 +10,7 @@ const homePageContentSchema = new mongoose.Schema({
   highlightedPortfolios: [
     {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Porto",
+      ref: "Portfolio",
     },
   ],
   lastUpdated: {

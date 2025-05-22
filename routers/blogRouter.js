@@ -10,40 +10,26 @@ const {
   getArchivedBlogs,
   archiveBlog,
   unarchiveBlog,
-} = require("../controllers/blogController"); // Adjust path as needed
+  searchBlogs,
+} = require("../controllers/blogController");
 const { trackView } = require("../middleware/viewTracker");
 const { authenticate } = require("../middleware/authMiddleware");
 
 const router = express.Router();
 
-// CREATE - Create a new blog post
+router.get("/search", searchBlogs);
+router.get("/archived", authenticate, getArchivedBlogs);
 router.post("/", authenticate, createBlog);
-
-// READ - Get all blog posts
 router.get("/", getAllBlogs);
 
-// READ - Get a single blog post by slug
-router.get("/slug/:slug", trackView("blog"), getBlogBySlug);
-
-// READ - Get a single blog post by ID
-router.get("/:id", trackView("blog"), getBlogById);
-
-// UPDATE - Update a blog post
-router.put("/:id", authenticate, updateBlog);
-
-// DELETE - Delete a blog post
-router.delete("/:id", authenticate, deleteBlog);
-
-// READ - Get blogs by tag
+router.get("/slug/:slug", trackView("blog"), getBlogBySlug); // Ini akan menangani /api/blog/slug/test5
 router.get("/tag/:tag", trackView("blog"), getBlogsByTag);
 
-// READ - Get all archived blogs
-router.get("/archived", authenticate, getArchivedBlogs);
+router.put("/id/:id/archive", authenticate, archiveBlog);
+router.put("/id/:id/unarchive", authenticate, unarchiveBlog);
 
-// UPDATE - Archive a blog post
-router.put("/:id/archive", authenticate, archiveBlog);
-
-// UPDATE - Unarchive a blog post
-router.put("/:id/unarchive", authenticate, unarchiveBlog);
+router.get("/id/:id", trackView("blog"), getBlogById); // Ini akan menangani /api/blog/id/someObjectId
+router.put("/id/:id", authenticate, updateBlog);
+router.delete("/id/:id", authenticate, deleteBlog);
 
 module.exports = router;

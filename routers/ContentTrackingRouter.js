@@ -10,11 +10,15 @@ router.put(
   authenticate,
   homePageController.updateFeaturedBlogs
 );
+
+// TODO : belum di testing
 router.put(
   "/highlighted-portfolios",
   authenticate,
   homePageController.updateHighlightedPortfolios
 );
+
+// TODO : belum di testing
 router.post("/reset", authenticate, homePageController.resetHomePageContent);
 
 router.post(
@@ -22,12 +26,15 @@ router.post(
   authenticate,
   homePageController.addFeaturedBlog
 );
+
+// TODO : belum di testing
 router.delete(
   "/featured-blogs/:blogId",
   authenticate,
   homePageController.removeFeaturedBlog
 );
 
+// TODO : belum di testing
 router.post(
   "/highlighted-portfolios",
   authenticate,

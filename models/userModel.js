@@ -7,6 +7,7 @@ const userSchema = new mongoose.Schema({
     required: true,
   },
   email: {
+    // TODO: ganti menjadi satu user aja dan tidak menggunakan email
     type: String,
     required: true,
     unique: true,

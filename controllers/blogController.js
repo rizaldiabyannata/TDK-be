@@ -1,6 +1,7 @@
 const Blog = require("../models/blogModel");
 const logger = require("../utils/logger");
 const { ViewCount, DailyView } = require("../models/viewTrackingModel");
+const slugify = require("slugify");
 
 const createBlog = async (req, res) => {
   try {
@@ -184,9 +185,21 @@ const updateBlog = async (req, res) => {
       });
     }
 
+    // Cek apakah title diubah
+    const titleChanged = title && title !== blog.title;
+
     blog.title = title || blog.title;
     blog.content = content || blog.content;
     blog.author = author || blog.author;
+
+    // Jika title diubah, update slug juga menggunakan slugify
+    if (titleChanged) {
+      blog.slug = slugify(blog.title, {
+        lower: true, // Mengubah ke huruf kecil
+        strict: true, // Menghapus karakter khusus
+        trim: true, // Menghapus spasi di awal dan akhir
+      });
+    }
 
     if (tags) {
       blog.tags = tags;

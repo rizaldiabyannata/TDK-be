@@ -11,8 +11,6 @@ const storage = multer.diskStorage({
 
     if (file.mimetype.startsWith("image/")) {
       uploadPath += "images/";
-    } else if (file.mimetype.startsWith("video/")) {
-      uploadPath += "videos/";
     } else if (file.mimetype === "application/pdf") {
       uploadPath += "documents/";
     } else {
@@ -51,12 +49,8 @@ const fileFilter = (req, file, cb) => {
     "image/jpeg",
     "image/jpg",
     "image/png",
-    "image/gif",
     "image/webp",
     "application/pdf",
-    "video/mp4",
-    "video/mpeg",
-    "video/quicktime",
   ];
 
   if (allowedFileTypes.includes(file.mimetype)) {

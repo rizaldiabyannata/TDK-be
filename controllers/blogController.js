@@ -2,25 +2,56 @@ const Blog = require("../models/blogModel");
 const logger = require("../utils/logger");
 const { ViewCount, DailyView } = require("../models/viewTrackingModel");
 const slugify = require("slugify");
+const { deleteFile } = require("../middleware/multerMiddleware");
 
 const createBlog = async (req, res) => {
   try {
-    const { title, content, author, tags } = req.body;
+    const { title, content, author, tags, summary } = req.body;
 
+    // Check required fields
     if (!title || !content || !author) {
+      // If an image was uploaded, delete it since we're not creating the blog
+      if (req.fileUrl) {
+        deleteFile(req.fileUrl.substring(1)); // Remove leading slash for deleteFile
+      }
+
       return res.status(400).json({
         success: false,
         message: "Required fields (title, content, author) are missing",
       });
     }
 
-    const newBlog = new Blog({
+    // Process tags with better error handling
+    let processedTags = [];
+    if (tags) {
+      if (Array.isArray(tags)) {
+        processedTags = tags;
+      } else {
+        // Try to parse as JSON, if it fails, treat as comma-separated string
+        try {
+          processedTags = JSON.parse(tags);
+        } catch (e) {
+          // If not valid JSON, assume it's a comma-separated string or single tag
+          processedTags = tags.split(",").map((tag) => tag.trim());
+        }
+      }
+    }
+
+    // Create blog object with image if it exists
+    const blogData = {
       title,
       content,
       author,
-      tags: tags || [],
-    });
+      summary: summary || "",
+      tags: processedTags,
+    };
 
+    // Add cover image URL if it was uploaded
+    if (req.fileUrl) {
+      blogData.coverImage = req.fileUrl;
+    }
+
+    const newBlog = new Blog(blogData);
     const savedBlog = await newBlog.save();
 
     logger.info(`Blog created: ${savedBlog.title} (${savedBlog._id})`);
@@ -30,6 +61,11 @@ const createBlog = async (req, res) => {
       data: savedBlog,
     });
   } catch (error) {
+    // If there was an error and an image was uploaded, delete it
+    if (req.fileUrl) {
+      deleteFile(req.fileUrl.substring(1)); // Remove leading slash for deleteFile
+    }
+
     logger.error(`Error creating blog: ${error.message}`, { error });
     return res.status(500).json({
       success: false,

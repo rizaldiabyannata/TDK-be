@@ -5,7 +5,6 @@ const cookieParser = require("cookie-parser");
 const morgan = require("morgan");
 const fs = require("fs");
 const path = require("path");
-const jwt = require("jsonwebtoken");
 
 const { scheduleViewSync } = require("./utils/syncViewsScheduler");
 
@@ -28,6 +27,8 @@ const accessLogStream = fs.createWriteStream(
 
 app.use(morgan("dev"));
 app.use(morgan("combined", { stream: accessLogStream }));
+
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // Connect to MongoDB
 connectDB();

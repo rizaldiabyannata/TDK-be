@@ -14,12 +14,13 @@ const {
 } = require("../controllers/blogController");
 const { trackView } = require("../middleware/viewTracker");
 const { authenticate } = require("../middleware/authMiddleware");
+const { uploadSingleFile } = require("../middleware/multerMiddleware");
 
 const router = express.Router();
 
 router.get("/search", searchBlogs);
 router.get("/archived", authenticate, getArchivedBlogs);
-router.post("/", authenticate, createBlog);
+router.post("/", authenticate, uploadSingleFile("coverImage"), createBlog);
 router.get("/", getAllBlogs);
 
 router.get("/slug/:slug", trackView("blog"), getBlogBySlug); // Ini akan menangani /api/blog/slug/test5

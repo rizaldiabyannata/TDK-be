@@ -137,3 +137,5 @@ dist
 
 .env
 redis.conf
+
+uploads/

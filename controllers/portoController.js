@@ -291,7 +291,6 @@ const searchPortfolios = async (req, res) => {
   try {
     const {
       query,
-      category,
       sortBy = "createdAt",
       sortOrder = -1,
       page = 1,
@@ -302,29 +301,54 @@ const searchPortfolios = async (req, res) => {
     const limitNum = parseInt(limit);
     const skip = (pageNum - 1) * limitNum;
 
-    const baseQuery = { isArchived: false };
+    // Base query always excludes archived portfolios
+    let baseQuery = { isArchived: false };
+    let useTextSearch = false;
 
+    // Only test for text index if we have a search query
     if (query && query.trim() !== "") {
-      baseQuery.$text = { $search: query };
+      try {
+        // This is a lightweight way to check if text index exists
+        await Portfolio.countDocuments({ $text: { $search: "test" } }).limit(1);
+        useTextSearch = true;
+      } catch (error) {
+        useTextSearch = false;
+      }
+
+      const searchTerms = query.trim();
+
+      if (useTextSearch) {
+        // Use text search if available
+        baseQuery.$text = { $search: searchTerms };
+      } else {
+        // Otherwise use regex search
+        baseQuery.$or = [
+          { title: { $regex: searchTerms, $options: "i" } },
+          { description: { $regex: searchTerms, $options: "i" } },
+          { shortdDescription: { $regex: searchTerms, $options: "i" } },
+        ];
+      }
     }
 
-    if (category) {
-      baseQuery.category = category;
-    }
-
+    // Set up sort options
     const sortOptions = {};
-    sortOptions[sortBy] = parseInt(sortOrder);
 
-    const projection =
-      query && query.trim() !== "" ? { score: { $meta: "textScore" } } : {};
-
-    if (query && query.trim() !== "" && sortBy === "relevance") {
+    if (useTextSearch && query && sortBy === "relevance") {
+      // Sort by text score if using text search and relevance sorting
       sortOptions.score = { $meta: "textScore" };
+    } else {
+      // Otherwise sort by the specified field
+      sortOptions[sortBy] = parseInt(sortOrder);
     }
 
+    // Set up projection for text score if needed
+    const projection =
+      useTextSearch && query ? { score: { $meta: "textScore" } } : {};
+
+    // Execute query
     const portfolios = await Portfolio.find(baseQuery, projection)
       .select(
-        "title slug shortdDescription coverImage category link createdAt views likes"
+        "title slug shortdDescription coverImage link views likes createdAt"
       )
       .sort(sortOptions)
       .skip(skip)

@@ -11,7 +11,7 @@ router.use("/test", (req, res) => {
   res.send("Test route is working");
 });
 
-router.use("/users", userRouters);
+router.use("/user", userRouters);
 router.use("/blogs", blogRouters);
 router.use("/statistic", statisticRouter);
 

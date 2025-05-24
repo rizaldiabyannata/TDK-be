@@ -9,7 +9,6 @@ const userSchema = new mongoose.Schema({
   email: {
     // TODO: ganti menjadi satu user aja dan tidak menggunakan email
     type: String,
-    required: true,
     unique: true,
     trim: true,
     lowercase: true,
@@ -17,19 +16,6 @@ const userSchema = new mongoose.Schema({
   password: {
     type: String,
     required: true,
-  },
-  otp: {
-    type: String,
-  },
-  otpExpire: {
-    type: Date,
-  },
-  varificationCode: {
-    type: Number,
-  },
-  verified: {
-    type: Boolean,
-    default: false,
   },
   createdAt: {
     type: Date,

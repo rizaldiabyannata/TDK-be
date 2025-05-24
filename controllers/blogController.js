@@ -387,27 +387,59 @@ const searchBlogs = async (req, res) => {
     const limitNum = parseInt(limit);
     const skip = (pageNum - 1) * limitNum;
 
-    const baseQuery = { isArchived: false };
+    // Base query always excludes archived blogs
+    let baseQuery = { isArchived: false };
+    let useTextSearch = false;
 
+    // Only test for text index if we have a search query
     if (query && query.trim() !== "") {
-      baseQuery.$text = { $search: query };
+      try {
+        // This is a lightweight way to check if text index exists
+        await Blog.countDocuments({ $text: { $search: "test" } }).limit(1);
+        useTextSearch = true;
+      } catch (error) {
+        useTextSearch = false;
+      }
+
+      const searchTerms = query.trim();
+
+      if (useTextSearch) {
+        // Use text search if available
+        baseQuery.$text = { $search: searchTerms };
+      } else {
+        // Otherwise use regex search
+        baseQuery.$or = [
+          { title: { $regex: searchTerms, $options: "i" } },
+          { summary: { $regex: searchTerms, $options: "i" } },
+          { content: { $regex: searchTerms, $options: "i" } },
+        ];
+      }
     }
 
+    // Add tags filter if specified
     if (tags) {
-      const tagArray = Array.isArray(tags) ? tags : tags.split(",");
+      const tagArray = Array.isArray(tags)
+        ? tags
+        : tags.split(",").map((tag) => tag.trim());
       baseQuery.tags = { $in: tagArray };
     }
 
+    // Set up sort options
     const sortOptions = {};
-    sortOptions[sortBy] = parseInt(sortOrder);
 
-    const projection =
-      query && query.trim() !== "" ? { score: { $meta: "textScore" } } : {};
-
-    if (query && query.trim() !== "" && sortBy === "relevance") {
+    if (useTextSearch && query && sortBy === "relevance") {
+      // Sort by text score if using text search and relevance sorting
       sortOptions.score = { $meta: "textScore" };
+    } else {
+      // Otherwise sort by the specified field
+      sortOptions[sortBy] = parseInt(sortOrder);
     }
 
+    // Set up projection for text score if needed
+    const projection =
+      useTextSearch && query ? { score: { $meta: "textScore" } } : {};
+
+    // Execute query
     const blogs = await Blog.find(baseQuery, projection)
       .select("title slug summary coverImage tags createdAt views likes")
       .sort(sortOptions)

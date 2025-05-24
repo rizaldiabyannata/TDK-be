@@ -1,21 +1,19 @@
-// TODO : ini akan di ubah lagi mungkin
-
 const express = require("express");
 const router = express.Router();
-const { authenticate, authorize } = require("../middleware/authMiddleware");
 const {
-  registerUser,
   loginUser,
   getUserProfile,
+  updateUser,
+  requestPasswordResetOTP,
+  verifyOTPAndResetPassword,
 } = require("../controllers/userController");
+const { authenticate } = require("../middleware/authMiddleware");
 
-// Route untuk registrasi user dengan validasi input
-router.post("/register", registerUser);
-
-// Route untuk login user
 router.post("/login", loginUser);
+router.post("/request-password-reset", authenticate, requestPasswordResetOTP);
+router.post("/reset-password", authenticate, verifyOTPAndResetPassword);
 
-// Route untuk mendapatkan profil user
 router.get("/profile", authenticate, getUserProfile);
+router.put("/update", authenticate, updateUser);
 
 module.exports = router;

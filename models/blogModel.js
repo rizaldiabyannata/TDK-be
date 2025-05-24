@@ -78,6 +78,12 @@ blogSchema.pre("validate", function (next) {
   next();
 });
 
+blogSchema.index({
+  title: "text",
+  summary: "text",
+  content: "text",
+});
+
 const Blog = mongoose.model("Blog", blogSchema);
 
 module.exports = Blog;

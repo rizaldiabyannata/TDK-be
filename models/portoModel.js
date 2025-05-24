@@ -74,6 +74,22 @@ portfolioSchema.pre("save", function (next) {
   next();
 });
 
+portfolioSchema.index(
+  {
+    title: "text",
+    description: "text",
+    shortdDescription: "text",
+  },
+  {
+    weights: {
+      title: 10,
+      shortdDescription: 5,
+      description: 1,
+    },
+    name: "portfolio_search_index",
+  }
+);
+
 const Portfolio = mongoose.model("Portfolio", portfolioSchema);
 
 module.exports = Portfolio;

@@ -3,6 +3,7 @@ const router = express.Router();
 const userRouters = require("./userRouters");
 const { testRedisConnection } = require("../test/test-redis-connection");
 const blogRouters = require("./blogRouter");
+const portfolioRouters = require("./portoRouter");
 const statisticRouter = require("./statisticRouter");
 const contentTrackingRouter = require("./ContentTrackingRouter");
 
@@ -13,6 +14,7 @@ router.use("/test", (req, res) => {
 
 router.use("/user", userRouters);
 router.use("/blogs", blogRouters);
+router.use("/portfolios", portfolioRouters);
 router.use("/statistic", statisticRouter);
 
 // In your Express routes

@@ -1,21 +1,27 @@
 const Portfolio = require("../models/portoModel");
 const logger = require("../utils/logger");
+const slugify = require("slugify");
+const { deleteFile } = require("../middleware/multerMiddleware");
 
 const createPortfolio = async (req, res) => {
   try {
-    const { title, description, image, link } = req.body;
+    const { title, description, shortDescription, link } = req.body;
 
-    if (!title || !description || !image || !link) {
+    if (!title || !description || !shortDescription) {
+      if (req.fileUrl) {
+        deleteFile(req.fileUrl.substri);
+      }
       return res.status(400).json({
         success: false,
-        message: "All fields (title, description, image, link) are required",
+        message: "Required fields are missing",
       });
     }
 
     const newPortfolio = new Portfolio({
       title,
       description,
-      image,
+      shortDescription,
+      coverImage: req.fileUrl,
       link,
     });
 
@@ -123,7 +129,8 @@ const getPortfolioById = async (req, res) => {
 const updatePortfolio = async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, description, image, link } = req.body;
+
+    const { title, description, shortDescription, link } = req.body || {};
 
     let portfolio = await Portfolio.findById(id);
 
@@ -135,10 +142,32 @@ const updatePortfolio = async (req, res) => {
       });
     }
 
+    console.log("Received body:", req.body);
+    console.log("Received file URL:", req.file);
+
+    const titleChanged = title && title !== portfolio.title;
+
     portfolio.title = title || portfolio.title;
     portfolio.description = description || portfolio.description;
-    portfolio.image = image || portfolio.image;
+    portfolio.shortDescription = shortDescription || portfolio.shortDescription;
     portfolio.link = link || portfolio.link;
+
+    if (req.fileUrl) {
+      // If a new file is uploaded, delete the old one
+      if (portfolio.coverImage) {
+        deleteFile(portfolio.coverImage);
+      }
+      portfolio.coverImage = req.fileUrl;
+    }
+
+    if (titleChanged) {
+      portfolio.slug = slugify(portfolio.title, {
+        lower: true, // Mengubah ke huruf kecil
+        strict: true, // Menghapus karakter khusus
+        trim: true, // Menghapus spasi di awal dan akhir
+      });
+    }
+
     portfolio.updatedAt = Date.now();
 
     const updatedPortfolio = await portfolio.save();
@@ -166,6 +195,18 @@ const deletePortfolio = async (req, res) => {
     const { id } = req.params;
 
     const portfolio = await Portfolio.findByIdAndDelete(id);
+
+    if (portfolio.coverImage) {
+      // Delete the cover image file if it exists
+      const fileDeleted = deleteFile(portfolio.coverImage);
+      if (!fileDeleted) {
+        logger.warn(
+          `Failed to delete cover image for portfolio ${portfolio._id}`
+        );
+      } else {
+        logger.info(`Cover image deleted for portfolio ${portfolio._id}`);
+      }
+    }
 
     if (!portfolio) {
       logger.info(`Portfolio with ID ${id} not found for deletion`);
@@ -325,7 +366,7 @@ const searchPortfolios = async (req, res) => {
         baseQuery.$or = [
           { title: { $regex: searchTerms, $options: "i" } },
           { description: { $regex: searchTerms, $options: "i" } },
-          { shortdDescription: { $regex: searchTerms, $options: "i" } },
+          { shortDescription: { $regex: searchTerms, $options: "i" } },
         ];
       }
     }
@@ -333,9 +374,9 @@ const searchPortfolios = async (req, res) => {
     // Set up sort options
     const sortOptions = {};
 
-    if (useTextSearch && query && sortBy === "relevance") {
+    if (useTextSearch && query) {
       // Sort by text score if using text search and relevance sorting
-      sortOptions.score = { $meta: "textScore" };
+      sortOptions.score = { $meta: "textScore" }; // Sort by text relevance score in descending order
     } else {
       // Otherwise sort by the specified field
       sortOptions[sortBy] = parseInt(sortOrder);
@@ -348,9 +389,9 @@ const searchPortfolios = async (req, res) => {
     // Execute query
     const portfolios = await Portfolio.find(baseQuery, projection)
       .select(
-        "title slug shortdDescription coverImage link views likes createdAt"
+        "title slug shortDescription coverImage link views likes createdAt"
       )
-      .sort(sortOptions)
+      .sort(sortOptions) // Apply sorting by relevance score or other fields
       .skip(skip)
       .limit(limitNum);
 

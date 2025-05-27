@@ -17,7 +17,7 @@ const createBlog = async (req, res) => {
 
       return res.status(400).json({
         success: false,
-        message: "Required fields (title, content, author) are missing",
+        message: "Required fields are missing",
       });
     }
 

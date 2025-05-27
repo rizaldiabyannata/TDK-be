@@ -11,7 +11,7 @@ const portfolioSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
-  shortdDescription: {
+  shortDescription: {
     type: String,
     required: true,
   },
@@ -26,10 +26,6 @@ const portfolioSchema = new mongoose.Schema({
     type: String,
     unique: true,
     required: true,
-  },
-  likes: {
-    type: Number,
-    default: 0,
   },
   isArchived: {
     type: Boolean,
@@ -67,28 +63,18 @@ const portfolioSchema = new mongoose.Schema({
   },
 });
 
-portfolioSchema.pre("save", function (next) {
-  if (this.isModified("title")) {
+portfolioSchema.pre("validate", function (next) {
+  if (this.title && !this.slug) {
     this.slug = slugify(this.title, { lower: true, strict: true });
   }
   next();
 });
 
-portfolioSchema.index(
-  {
-    title: "text",
-    description: "text",
-    shortdDescription: "text",
-  },
-  {
-    weights: {
-      title: 10,
-      shortdDescription: 5,
-      description: 1,
-    },
-    name: "portfolio_search_index",
-  }
-);
+portfolioSchema.index({
+  title: "text",
+  summary: "text",
+  content: "text",
+});
 
 const Portfolio = mongoose.model("Portfolio", portfolioSchema);
 

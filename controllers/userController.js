@@ -12,7 +12,7 @@ const generateToken = (user) => {
 };
 
 const loginUser = async (req, res) => {
-  const { email, password } = req.body;
+  const { name, password } = req.body;
 
   try {
     // Since we have only one admin user, we can find it
@@ -20,18 +20,18 @@ const loginUser = async (req, res) => {
 
     if (
       !admin ||
-      admin.email !== email ||
+      admin.name !== name ||
       !(await bcrypt.compare(password, admin.password))
     ) {
       logger.warn(
-        `Failed admin login attempt: Invalid credentials for ${email}`
+        `Failed admin login attempt: Invalid credentials for ${name}`
       );
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
     const token = generateToken(admin);
 
-    logger.info(`Admin logged in: ${email}`);
+    logger.info(`Admin logged in: ${name}`);
 
     res
       .cookie("token", token, { httpOnly: true, secure: false })
@@ -40,7 +40,8 @@ const loginUser = async (req, res) => {
         message: "Login successful",
         user: {
           _id: admin._id,
-          email: admin.email,
+          name: admin.name,
+          email: admin.email || null,
         },
       });
   } catch (error) {
@@ -104,10 +105,9 @@ const updateUser = async (req, res) => {
   }
 };
 
-// TODO : Testing untuk otp dan gmail belum di setting
 const requestPasswordResetOTP = async (req, res) => {
   try {
-    const { email } = req.body;
+    const email = req.user.email;
 
     if (!email) {
       return res.status(400).json({ message: "Email is required" });
@@ -144,7 +144,8 @@ const requestPasswordResetOTP = async (req, res) => {
 // Verify OTP and reset password
 const verifyOTPAndResetPassword = async (req, res) => {
   try {
-    const { email, otp, newPassword } = req.body;
+    const email = req.user.email; // Get email from authenticated user
+    const { otp, newPassword } = req.body;
 
     // Validate inputs
     if (!email || !otp || !newPassword) {
@@ -187,10 +188,34 @@ const verifyOTPAndResetPassword = async (req, res) => {
   }
 };
 
+const logoutUser = async (req, res) => {
+  try {
+    // Get user info before clearing (for logging purposes)
+    const userId = req.user?._id;
+    const userName = req.user?.name;
+
+    // Clear the token cookie
+    res.clearCookie("token");
+
+    logger.info(`Admin logged out: ${userName} (ID: ${userId})`);
+
+    res.status(200).json({
+      message: "Logout successful",
+    });
+  } catch (error) {
+    logger.error(`Error during logout: ${error.message}`);
+    res.status(500).json({
+      message: "Error during logout",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   loginUser,
   getUserProfile,
   updateUser,
   requestPasswordResetOTP,
   verifyOTPAndResetPassword,
+  logoutUser,
 };

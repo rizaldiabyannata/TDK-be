@@ -6,6 +6,7 @@ const {
   updateUser,
   requestPasswordResetOTP,
   verifyOTPAndResetPassword,
+  logoutUser,
 } = require("../controllers/userController");
 const { authenticate } = require("../middleware/authMiddleware");
 
@@ -15,5 +16,6 @@ router.post("/reset-password", authenticate, verifyOTPAndResetPassword);
 
 router.get("/profile", authenticate, getUserProfile);
 router.put("/update", authenticate, updateUser);
+router.post("/logout", authenticate, logoutUser);
 
 module.exports = router;

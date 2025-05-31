@@ -6,6 +6,7 @@ const blogRouters = require("./blogRouter");
 const portfolioRouters = require("./portoRouter");
 const statisticRouter = require("./statisticRouter");
 const contentTrackingRouter = require("./ContentTrackingRouter");
+const contactFormRouter = require("./contactFormRouter");
 
 // import routes
 router.use("/test", (req, res) => {
@@ -16,6 +17,8 @@ router.use("/user", userRouters);
 router.use("/blogs", blogRouters);
 router.use("/portfolios", portfolioRouters);
 router.use("/statistic", statisticRouter);
+router.use("/content-tracking", contentTrackingRouter);
+router.use("/contact-form", contactFormRouter);
 
 // In your Express routes
 router.get("/health/redis", async (req, res) => {
@@ -40,6 +43,5 @@ router.get("/health/redis", async (req, res) => {
     });
   }
 });
-router.use("/content-tracking", contentTrackingRouter);
 
 module.exports = router;

@@ -20,7 +20,13 @@ async function syncAllViewData() {
 
 async function syncContentTypeViews(contentType) {
   try {
+    // Pastikan hasil query tidak null atau undefined
     const viewCounts = await ViewCount.find({ contentType });
+
+    if (!viewCounts || viewCounts.length === 0) {
+      logger.warn(`No ${contentType} view records found to sync.`);
+      return; // Tidak ada data yang perlu disinkronkan
+    }
 
     logger.info(`Syncing ${viewCounts.length} ${contentType} view records`);
 

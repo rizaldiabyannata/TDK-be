@@ -1,8 +1,9 @@
 services:
+  # Redis service
   redis:
     image: redis:latest
-    ports:
-      - "6379:6379"
+    # ports:
+    #   - "6379:6379"
     command: redis-server /usr/local/etc/redis/redis.conf
     volumes:
       - ./redis.conf:/usr/local/etc/redis/redis.conf
@@ -10,19 +11,45 @@ services:
     networks:
       - app-network
 
-  # app:
-  #   build: .
-  #   depends_on:
-  #     - redis
-  #   environment:
-  #     - REDIS_HOST=redis
-  #     - REDIS_PORT=6379
-  #     - REDIS_PASSWORD=yourpassword
-  #   networks:
-  #     - app-network
+  # MongoDB service
+  mongo:
+    image: mongo:latest
+    container_name: mongo
+    ports:
+      - "27018"
+    volumes:
+      - mongo-data:/data/db
+    environment:
+      MONGO_INITDB_DATABASE: tdk-db
+    networks:
+      - app-network
+
+  # Node.js application service
+  app:
+    build: .
+    depends_on:
+      - redis
+      - mongo
+    environment:
+      NODE_ENV: ${NODE_ENV}
+      MONGO_URI: ${MONGO_URI}
+      REDIS_HOST: ${REDIS_HOST}
+      REDIS_PORT: ${REDIS_PORT}
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      REDIS_DB: ${REDIS_DB}
+      JWT_SECRET: ${JWT_SECRET}
+      EMAIL_USER: ${EMAIL_USER}
+      EMAIL_PASSWORD: ${EMAIL_PASSWORD}
+      ADMIN_USERNAME: ${ADMIN_USERNAME}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+    ports:
+      - "5000:5000"
+    networks:
+      - app-network
 
 volumes:
   redis-data:
+  mongo-data:
 
 networks:
   app-network:

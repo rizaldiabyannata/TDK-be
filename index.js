@@ -7,6 +7,7 @@ const fs = require("fs");
 const path = require("path");
 
 const { scheduleViewSync } = require("./utils/syncViewsScheduler");
+const seedAdmin = require("./seeder/seedAdmin");
 
 const connectDB = require("./config/db");
 const routes = require("./routers/index");
@@ -34,6 +35,17 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 connectDB();
 
 scheduleViewSync();
+
+app.get("/seed-admin", async (req, res) => {
+  const result = await seedAdmin();
+
+  // Cek apakah admin sudah ada atau berhasil dibuat
+  if (result.includes("already exists")) {
+    res.status(200).json({ message: result });
+  } else {
+    res.status(201).json({ message: result });
+  }
+});
 
 app.use("/api", routes);
 app.get("/api/runtime", (req, res) => {

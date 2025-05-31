@@ -5,7 +5,6 @@
   "scripts": {
     "backend": "nodemon index.js",
     "start": "bun index.js",
-    "seed-admin": "bun ./seeder/seedAdmin.js",
     "create-index": "bun ./maintain/create-indexes.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

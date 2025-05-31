@@ -1,17 +1,16 @@
 const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
-const User = require("../models/userModel");
-require("dotenv").config();
+const User = require("../models/userModel"); // Pastikan path ini benar
 
 // Admin configuration
 const admin = {
-  name: process.env.ADMIN_USERNAME || "admin",
-  password: process.env.ADMIN_PASSWORD || "StrongPassword123!",
+  name: process.env.ADMIN_USERNAME,
+  password: process.env.ADMIN_PASSWORD,
 };
 
 const seedAdmin = async () => {
   try {
-    // Connect to MongoDB
+    // Connect to MongoDB (gunakan MONGO_URI yang sudah didefinisikan di .env)
     await mongoose.connect(process.env.MONGO_URI);
     console.log("Connected to MongoDB");
 
@@ -20,7 +19,7 @@ const seedAdmin = async () => {
 
     if (existingAdmin) {
       console.log("Admin already exists. Seed aborted.");
-      process.exit(0);
+      return "Admin already exists.";
     }
 
     // Hash the admin password
@@ -33,13 +32,12 @@ const seedAdmin = async () => {
       password: hashedPassword,
     });
 
-    console.log(`Admin account created successfully: ${newAdmin.email}`);
-    process.exit(0);
+    console.log(`Admin account created successfully: ${newAdmin.name}`);
+    return `Admin account created successfully: ${newAdmin.name}`;
   } catch (error) {
     console.error("Error seeding admin:", error);
-    process.exit(1);
+    return "Error while creating admin";
   }
 };
 
-// Run the seed function
-seedAdmin();
+module.exports = seedAdmin;

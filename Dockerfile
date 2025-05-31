@@ -13,9 +13,6 @@ RUN bun install
 # Salin semua file aplikasi ke dalam container
 COPY . .
 
-# Jalankan script seed-admin sebelum aplikasi
-RUN bun run seed-admin
-
 # Expose port aplikasi (sesuaikan dengan PORT yang Anda gunakan di .env)
 EXPOSE 5000
 

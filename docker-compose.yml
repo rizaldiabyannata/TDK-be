@@ -14,7 +14,7 @@ services:
   # MongoDB service
   mongo:
     image: mongo:latest
-    container_name: mongo
+    container_name: mongo-tdk
     ports:
       - "27018:27017"
     volumes:

@@ -2,6 +2,26 @@ const Portfolio = require("../models/portoModel");
 const logger = require("../utils/logger");
 const slugify = require("slugify");
 const { deleteFile } = require("../middleware/multerMiddleware");
+const redisClient = require("../config/redisConfig");
+
+const CACHE_EXPIRY_SECONDS_PORTFOLIO = 300;
+const PORTFOLIO_ITEM_ID_CACHE_PREFIX = "portfolio_item_id:";
+const PORTFOLIO_ITEM_SLUG_CACHE_PREFIX = "portfolio_item_slug:";
+const PORTFOLIOS_LIST_ALL_CACHE_KEY = "portfolios_list_all_active";
+const PORTFOLIOS_LIST_ARCHIVED_CACHE_KEY = "portfolios_list_archived";
+const PORTFOLIOS_SEARCH_CACHE_PREFIX = "portfolios_search:";
+const PORTFOLIOS_QUERY_CACHE_PREFIX = "portfolios_query:";
+
+const clearPortfolioListCaches = async () => {
+  try {
+    await redisClient.delete(PORTFOLIOS_LIST_ALL_CACHE_KEY);
+    await redisClient.delete(PORTFOLIOS_LIST_ARCHIVED_CACHE_KEY);
+
+    logger.info("Common portfolio list caches cleared.");
+  } catch (error) {
+    logger.error("Error clearing portfolio list caches:", error);
+  }
+};
 
 const createPortfolio = async (req, res) => {
   try {
@@ -9,7 +29,9 @@ const createPortfolio = async (req, res) => {
 
     if (!title || !description || !shortDescription) {
       if (req.fileUrl) {
-        deleteFile(req.fileUrl.substri);
+        deleteFile(
+          req.fileUrl.startsWith("/") ? req.fileUrl.substring(1) : req.fileUrl
+        );
       }
       return res.status(400).json({
         success: false,
@@ -27,6 +49,8 @@ const createPortfolio = async (req, res) => {
 
     const savedPortfolio = await newPortfolio.save();
 
+    await clearPortfolioListCaches();
+
     logger.info(
       `Portfolio created: ${savedPortfolio.title} (${savedPortfolio._id})`
     );
@@ -36,6 +60,11 @@ const createPortfolio = async (req, res) => {
       data: savedPortfolio,
     });
   } catch (error) {
+    if (req.fileUrl) {
+      deleteFile(
+        req.fileUrl.startsWith("/") ? req.fileUrl.substring(1) : req.fileUrl
+      );
+    }
     logger.error(`Error creating portfolio: ${error.message}`, { error });
     return res.status(500).json({
       success: false,
@@ -46,11 +75,33 @@ const createPortfolio = async (req, res) => {
 };
 
 const getAllPortfolios = async (req, res) => {
+  const cacheKey = PORTFOLIOS_LIST_ALL_CACHE_KEY;
   try {
-    const portfolios = await Portfolio.find().sort({ createdAt: -1 });
+    const cachedData = await redisClient.get(cacheKey);
+    if (cachedData) {
+      logger.info(`Cache hit for getAllPortfolios: ${cacheKey}`);
+      const portfolios = JSON.parse(cachedData);
+      return res.status(200).json({
+        success: true,
+        count: portfolios.length,
+        data: portfolios,
+      });
+    }
 
-    logger.info(`Retrieved ${portfolios.length} portfolios`);
+    logger.info(
+      `Cache miss for getAllPortfolios: ${cacheKey}. Fetching from DB.`
+    );
+    const portfolios = await Portfolio.find({ isArchived: { $ne: true } })
+      .sort({ createdAt: -1 })
+      .lean();
 
+    await redisClient.set(
+      cacheKey,
+      JSON.stringify(portfolios),
+      CACHE_EXPIRY_SECONDS_PORTFOLIO
+    );
+
+    logger.info(`Retrieved ${portfolios.length} active portfolios`);
     return res.status(200).json({
       success: true,
       count: portfolios.length,
@@ -67,10 +118,23 @@ const getAllPortfolios = async (req, res) => {
 };
 
 const getPortfolioBySlug = async (req, res) => {
+  const { slug } = req.params;
+  const cacheKey = `${PORTFOLIO_ITEM_SLUG_CACHE_PREFIX}${slug}`;
   try {
-    const { slug } = req.params;
+    const cachedData = await redisClient.get(cacheKey);
+    if (cachedData) {
+      logger.info(`Cache hit for getPortfolioBySlug: ${slug}`);
+      const portfolio = JSON.parse(cachedData);
+      return res.status(200).json({
+        success: true,
+        data: portfolio,
+      });
+    }
 
-    const portfolio = await Portfolio.findOne({ slug });
+    logger.info(
+      `Cache miss for getPortfolioBySlug: ${slug}. Fetching from DB.`
+    );
+    const portfolio = await Portfolio.findOne({ slug }).lean();
 
     if (!portfolio) {
       logger.info(`Portfolio with slug ${slug} not found`);
@@ -80,14 +144,20 @@ const getPortfolioBySlug = async (req, res) => {
       });
     }
 
+    await redisClient.set(
+      cacheKey,
+      JSON.stringify(portfolio),
+      CACHE_EXPIRY_SECONDS_PORTFOLIO
+    );
     logger.info(`Retrieved portfolio: ${portfolio.title} (${portfolio._id})`);
-
     return res.status(200).json({
       success: true,
       data: portfolio,
     });
   } catch (error) {
-    logger.error(`Error fetching portfolio: ${error.message}`, { error });
+    logger.error(`Error fetching portfolio by slug: ${error.message}`, {
+      error,
+    });
     return res.status(500).json({
       success: false,
       message: "Failed to fetch portfolio",
@@ -97,10 +167,21 @@ const getPortfolioBySlug = async (req, res) => {
 };
 
 const getPortfolioById = async (req, res) => {
+  const { id } = req.params;
+  const cacheKey = `${PORTFOLIO_ITEM_ID_CACHE_PREFIX}${id}`;
   try {
-    const { id } = req.params;
+    const cachedData = await redisClient.get(cacheKey);
+    if (cachedData) {
+      logger.info(`Cache hit for getPortfolioById: ${id}`);
+      const portfolio = JSON.parse(cachedData);
+      return res.status(200).json({
+        success: true,
+        data: portfolio,
+      });
+    }
 
-    const portfolio = await Portfolio.findById(id);
+    logger.info(`Cache miss for getPortfolioById: ${id}. Fetching from DB.`);
+    const portfolio = await Portfolio.findById(id).lean();
 
     if (!portfolio) {
       logger.info(`Portfolio with ID ${id} not found`);
@@ -110,14 +191,18 @@ const getPortfolioById = async (req, res) => {
       });
     }
 
+    await redisClient.set(
+      cacheKey,
+      JSON.stringify(portfolio),
+      CACHE_EXPIRY_SECONDS_PORTFOLIO
+    );
     logger.info(`Retrieved portfolio: ${portfolio.title} (${portfolio._id})`);
-
     return res.status(200).json({
       success: true,
       data: portfolio,
     });
   } catch (error) {
-    logger.error(`Error fetching portfolio: ${error.message}`, { error });
+    logger.error(`Error fetching portfolio by ID: ${error.message}`, { error });
     return res.status(500).json({
       success: false,
       message: "Failed to fetch portfolio",
@@ -129,58 +214,79 @@ const getPortfolioById = async (req, res) => {
 const updatePortfolio = async (req, res) => {
   try {
     const { id } = req.params;
-
     const { title, description, shortDescription, link } = req.body || {};
 
-    let portfolio = await Portfolio.findById(id);
+    let portfolioToUpdate = await Portfolio.findById(id);
 
-    if (!portfolio) {
+    if (!portfolioToUpdate) {
       logger.info(`Portfolio with ID ${id} not found for update`);
+      if (req.fileUrl)
+        deleteFile(
+          req.fileUrl.startsWith("/") ? req.fileUrl.substring(1) : req.fileUrl
+        );
       return res.status(404).json({
         success: false,
         message: "Portfolio not found",
       });
     }
 
-    console.log("Received body:", req.body);
-    console.log("Received file URL:", req.file);
+    const oldSlug = portfolioToUpdate.slug;
+    const oldCoverImage = portfolioToUpdate.coverImage;
 
-    const titleChanged = title && title !== portfolio.title;
-
-    portfolio.title = title || portfolio.title;
-    portfolio.description = description || portfolio.description;
-    portfolio.shortDescription = shortDescription || portfolio.shortDescription;
-    portfolio.link = link || portfolio.link;
+    portfolioToUpdate.title = title || portfolioToUpdate.title;
+    portfolioToUpdate.description =
+      description || portfolioToUpdate.description;
+    portfolioToUpdate.shortDescription =
+      shortDescription || portfolioToUpdate.shortDescription;
+    portfolioToUpdate.link = link || portfolioToUpdate.link;
 
     if (req.fileUrl) {
-      // If a new file is uploaded, delete the old one
-      if (portfolio.coverImage) {
-        deleteFile(portfolio.coverImage);
+      portfolioToUpdate.coverImage = req.fileUrl;
+      if (oldCoverImage && oldCoverImage !== req.fileUrl) {
+        deleteFile(
+          oldCoverImage.startsWith("/")
+            ? oldCoverImage.substring(1)
+            : oldCoverImage
+        );
       }
-      portfolio.coverImage = req.fileUrl;
     }
 
+    const titleChanged = title && title !== portfolioToUpdate.title;
     if (titleChanged) {
-      portfolio.slug = slugify(portfolio.title, {
-        lower: true, // Mengubah ke huruf kecil
-        strict: true, // Menghapus karakter khusus
-        trim: true, // Menghapus spasi di awal dan akhir
+      portfolioToUpdate.slug = slugify(portfolioToUpdate.title, {
+        lower: true,
+        strict: true,
+        trim: true,
       });
     }
 
-    portfolio.updatedAt = Date.now();
+    portfolioToUpdate.updatedAt = Date.now();
+    const updatedPortfolio = await portfolioToUpdate.save();
 
-    const updatedPortfolio = await portfolio.save();
+    await redisClient.delete(
+      `${PORTFOLIO_ITEM_ID_CACHE_PREFIX}${updatedPortfolio._id}`
+    );
+    if (oldSlug !== updatedPortfolio.slug) {
+      await redisClient.delete(`${PORTFOLIO_ITEM_SLUG_CACHE_PREFIX}${oldSlug}`);
+    }
+    await redisClient.delete(
+      `${PORTFOLIO_ITEM_SLUG_CACHE_PREFIX}${updatedPortfolio.slug}`
+    );
+    await clearPortfolioListCaches();
 
     logger.info(
       `Portfolio updated: ${updatedPortfolio.title} (${updatedPortfolio._id})`
     );
-
     return res.status(200).json({
       success: true,
       data: updatedPortfolio,
     });
   } catch (error) {
+    if (req.fileUrl) {
+      deleteFile(
+        req.fileUrl.startsWith("/") ? req.fileUrl.substring(1) : req.fileUrl
+      );
+    }
     logger.error(`Error updating portfolio: ${error.message}`, { error });
     return res.status(500).json({
       success: false,
@@ -193,20 +299,7 @@ const updatePortfolio = async (req, res) => {
 const deletePortfolio = async (req, res) => {
   try {
     const { id } = req.params;
-
     const portfolio = await Portfolio.findByIdAndDelete(id);
-
-    if (portfolio.coverImage) {
-      // Delete the cover image file if it exists
-      const fileDeleted = deleteFile(portfolio.coverImage);
-      if (!fileDeleted) {
-        logger.warn(
-          `Failed to delete cover image for portfolio ${portfolio._id}`
-        );
-      } else {
-        logger.info(`Cover image deleted for portfolio ${portfolio._id}`);
-      }
-    }
 
     if (!portfolio) {
       logger.info(`Portfolio with ID ${id} not found for deletion`);
@@ -216,8 +309,33 @@ const deletePortfolio = async (req, res) => {
       });
     }
 
-    logger.info(`Portfolio deleted: ${portfolio.title} (${portfolio._id})`);
+    if (portfolio.coverImage) {
+      const imagePath = portfolio.coverImage.startsWith("/")
+        ? portfolio.coverImage.substring(1)
+        : portfolio.coverImage;
+      const fileDeleted = deleteFile(imagePath);
+      if (!fileDeleted) {
+        logger.warn(
+          `Failed to delete cover image ${imagePath} for portfolio ${portfolio._id}`
+        );
+      } else {
+        logger.info(
+          `Cover image ${imagePath} deleted for portfolio ${portfolio._id}`
+        );
+      }
+    }
 
+    await redisClient.delete(
+      `${PORTFOLIO_ITEM_ID_CACHE_PREFIX}${portfolio._id}`
+    );
+    if (portfolio.slug) {
+      await redisClient.delete(
+        `${PORTFOLIO_ITEM_SLUG_CACHE_PREFIX}${portfolio.slug}`
+      );
+    }
+    await clearPortfolioListCaches();
+
+    logger.info(`Portfolio deleted: ${portfolio.title} (${portfolio._id})`);
     return res.status(200).json({
       success: true,
       message: "Portfolio deleted successfully",
@@ -236,7 +354,6 @@ const deletePortfolio = async (req, res) => {
 const archivePortfolio = async (req, res) => {
   try {
     const { id } = req.params;
-
     const portfolio = await Portfolio.findById(id);
 
     if (!portfolio) {
@@ -247,16 +364,36 @@ const archivePortfolio = async (req, res) => {
       });
     }
 
+    if (portfolio.isArchived) {
+      logger.info(`Portfolio ${portfolio.title} (${id}) is already archived.`);
+      return res.status(200).json({
+        success: true,
+        message: "Portfolio is already archived.",
+        data: portfolio,
+      });
+    }
+
     portfolio.isArchived = true;
     portfolio.updatedAt = Date.now();
-    await portfolio.save();
+    const archivedPortfolio = await portfolio.save();
 
-    logger.info(`Portfolio archived: ${portfolio.title} (${portfolio._id})`);
+    await redisClient.delete(
+      `${PORTFOLIO_ITEM_ID_CACHE_PREFIX}${archivedPortfolio._id}`
+    );
+    if (archivedPortfolio.slug) {
+      await redisClient.delete(
+        `${PORTFOLIO_ITEM_SLUG_CACHE_PREFIX}${archivedPortfolio.slug}`
+      );
+    }
+    await clearPortfolioListCaches();
 
+    logger.info(
+      `Portfolio archived: ${archivedPortfolio.title} (${archivedPortfolio._id})`
+    );
     return res.status(200).json({
       success: true,
       message: "Portfolio archived successfully",
-      data: portfolio,
+      data: archivedPortfolio,
     });
   } catch (error) {
     logger.error(`Error archiving portfolio: ${error.message}`, { error });
@@ -271,7 +408,6 @@ const archivePortfolio = async (req, res) => {
 const unarchivePortfolio = async (req, res) => {
   try {
     const { id } = req.params;
-
     const portfolio = await Portfolio.findById(id);
 
     if (!portfolio) {
@@ -282,16 +418,36 @@ const unarchivePortfolio = async (req, res) => {
       });
     }
 
+    if (!portfolio.isArchived) {
+      logger.info(`Portfolio ${portfolio.title} (${id}) is not archived.`);
+      return res.status(200).json({
+        success: true,
+        message: "Portfolio is already not archived.",
+        data: portfolio,
+      });
+    }
+
     portfolio.isArchived = false;
     portfolio.updatedAt = Date.now();
-    await portfolio.save();
+    const unarchivedPortfolio = await portfolio.save();
 
-    logger.info(`Portfolio unarchived: ${portfolio.title} (${portfolio._id})`);
+    await redisClient.delete(
+      `${PORTFOLIO_ITEM_ID_CACHE_PREFIX}${unarchivedPortfolio._id}`
+    );
+    if (unarchivedPortfolio.slug) {
+      await redisClient.delete(
+        `${PORTFOLIO_ITEM_SLUG_CACHE_PREFIX}${unarchivedPortfolio.slug}`
+      );
+    }
+    await clearPortfolioListCaches();
 
+    logger.info(
+      `Portfolio unarchived: ${unarchivedPortfolio.title} (${unarchivedPortfolio._id})`
+    );
     return res.status(200).json({
       success: true,
       message: "Portfolio unarchived successfully",
-      data: portfolio,
+      data: unarchivedPortfolio,
     });
   } catch (error) {
     logger.error(`Error unarchiving portfolio: ${error.message}`, { error });
@@ -304,13 +460,35 @@ const unarchivePortfolio = async (req, res) => {
 };
 
 const getArchivedPortfolios = async (req, res) => {
+  const cacheKey = PORTFOLIOS_LIST_ARCHIVED_CACHE_KEY;
   try {
-    const archivedPortfolios = await Portfolio.find({ isArchived: true }).sort({
-      updatedAt: -1,
-    });
+    const cachedData = await redisClient.get(cacheKey);
+    if (cachedData) {
+      logger.info(`Cache hit for getArchivedPortfolios: ${cacheKey}`);
+      const archivedPortfolios = JSON.parse(cachedData);
+      return res.status(200).json({
+        success: true,
+        count: archivedPortfolios.length,
+        data: archivedPortfolios,
+      });
+    }
+
+    logger.info(
+      `Cache miss for getArchivedPortfolios: ${cacheKey}. Fetching from DB.`
+    );
+    const archivedPortfolios = await Portfolio.find({ isArchived: true })
+      .sort({
+        updatedAt: -1,
+      })
+      .lean();
+
+    await redisClient.set(
+      cacheKey,
+      JSON.stringify(archivedPortfolios),
+      CACHE_EXPIRY_SECONDS_PORTFOLIO
+    );
 
     logger.info(`Retrieved ${archivedPortfolios.length} archived portfolios`);
-
     return res.status(200).json({
       success: true,
       count: archivedPortfolios.length,
@@ -338,82 +516,173 @@ const searchPortfolios = async (req, res) => {
       limit = 10,
     } = req.query;
 
-    const pageNum = parseInt(page);
-    const limitNum = parseInt(limit);
+    const pageNum = parseInt(page, 10) || 1;
+    const limitNum = parseInt(limit, 10) || 10;
     const skip = (pageNum - 1) * limitNum;
 
-    // Base query always excludes archived portfolios
-    let baseQuery = { isArchived: false };
-    let useTextSearch = false;
+    const cacheKey = `${PORTFOLIOS_SEARCH_CACHE_PREFIX}q=${
+      query || ""
+    }:sortBy=${sortBy}:sortOrder=${sortOrder}:page=${pageNum}:limit=${limitNum}`;
 
-    // Only test for text index if we have a search query
+    const cachedData = await redisClient.get(cacheKey);
+    if (cachedData) {
+      logger.info(`Cache hit for searchPortfolios: ${cacheKey}`);
+      return res.status(200).json({
+        success: true,
+        data: JSON.parse(cachedData),
+      });
+    }
+    logger.info(
+      `Cache miss for searchPortfolios: ${cacheKey}. Fetching from DB.`
+    );
+
+    let baseQuery = { isArchived: { $ne: true } };
+    let useTextSearch = false;
+    let projection = {};
+
     if (query && query.trim() !== "") {
       try {
-        // This is a lightweight way to check if text index exists
         await Portfolio.countDocuments({ $text: { $search: "test" } }).limit(1);
         useTextSearch = true;
       } catch (error) {
         useTextSearch = false;
+        logger.info(
+          "Text index not available for Portfolios or error checking, using regex search."
+        );
       }
 
       const searchTerms = query.trim();
-
       if (useTextSearch) {
-        // Use text search if available
         baseQuery.$text = { $search: searchTerms };
+        projection.score = { $meta: "textScore" };
       } else {
-        // Otherwise use regex search
+        const regex = { $regex: searchTerms, $options: "i" };
         baseQuery.$or = [
-          { title: { $regex: searchTerms, $options: "i" } },
-          { description: { $regex: searchTerms, $options: "i" } },
-          { shortDescription: { $regex: searchTerms, $options: "i" } },
+          { title: regex },
+          { description: regex },
+          { shortDescription: regex },
         ];
       }
     }
 
-    // Set up sort options
     const sortOptions = {};
-
-    if (useTextSearch && query) {
-      // Sort by text score if using text search and relevance sorting
-      sortOptions.score = { $meta: "textScore" }; // Sort by text relevance score in descending order
+    if (useTextSearch && query && sortBy === "relevance") {
+      sortOptions.score = { $meta: "textScore" };
     } else {
-      // Otherwise sort by the specified field
-      sortOptions[sortBy] = parseInt(sortOrder);
+      sortOptions[sortBy] = parseInt(sortOrder, 10) === 1 ? 1 : -1;
     }
 
-    // Set up projection for text score if needed
-    const projection =
-      useTextSearch && query ? { score: { $meta: "textScore" } } : {};
-
-    // Execute query
     const portfolios = await Portfolio.find(baseQuery, projection)
       .select(
-        "title slug shortDescription coverImage link views likes createdAt"
+        "title slug shortDescription coverImage link views likes createdAt isArchived"
       )
-      .sort(sortOptions) // Apply sorting by relevance score or other fields
+      .sort(sortOptions)
       .skip(skip)
-      .limit(limitNum);
+      .limit(limitNum)
+      .lean();
 
     const total = await Portfolio.countDocuments(baseQuery);
+    const responseData = {
+      portfolios,
+      pagination: {
+        total,
+        page: pageNum,
+        limit: limitNum,
+        pages: Math.ceil(total / limitNum),
+      },
+    };
+
+    await redisClient.set(
+      cacheKey,
+      JSON.stringify(responseData),
+      CACHE_EXPIRY_SECONDS_PORTFOLIO
+    );
 
     return res.status(200).json({
       success: true,
-      data: {
-        portfolios,
-        pagination: {
-          total,
-          page: pageNum,
-          limit: limitNum,
-          pages: Math.ceil(total / limitNum),
-        },
-      },
+      data: responseData,
     });
   } catch (error) {
-    console.error("Error searching portfolios:", error);
+    logger.error(`Error searching portfolios: ${error.message}`, { error });
     return res.status(500).json({
       success: false,
       message: "Error searching portfolios",
+      error: error.message,
+    });
+  }
+};
+
+const queryPortfolios = async (req, res) => {
+  try {
+    const { query } = req.params;
+    const { page = 1, limit = 8 } = req.query;
+
+    const pageNum = parseInt(page, 10) || 1;
+    const limitNum = parseInt(limit, 10) || 8;
+    const skip = (pageNum - 1) * limitNum;
+
+    const cacheKey = `${PORTFOLIOS_QUERY_CACHE_PREFIX}q=${
+      query || ""
+    }:page=${pageNum}:limit=${limitNum}`;
+    const cachedData = await redisClient.get(cacheKey);
+
+    if (cachedData) {
+      logger.info(`Cache hit for queryPortfolios: ${cacheKey}`);
+      return res.status(200).json({
+        success: true,
+        data: JSON.parse(cachedData),
+      });
+    }
+    logger.info(
+      `Cache miss for queryPortfolios: ${cacheKey}. Fetching from DB.`
+    );
+
+    const regexQuery = { $regex: query, $options: "i" };
+    const baseQuery = {
+      $or: [
+        { title: regexQuery },
+        { description: regexQuery },
+        { shortDescription: regexQuery },
+      ],
+      isArchived: { $ne: true },
+    };
+
+    const portfolios = await Portfolio.find(baseQuery)
+      .select(
+        "title slug shortDescription coverImage link views likes createdAt"
+      )
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limitNum)
+      .lean();
+
+    const total = await Portfolio.countDocuments(baseQuery);
+
+    const responseData = {
+      portfolios,
+      pagination: {
+        total,
+        page: pageNum,
+        limit: limitNum,
+        pages: Math.ceil(total / limitNum),
+      },
+    };
+
+    await redisClient.set(
+      cacheKey,
+      JSON.stringify(responseData),
+      CACHE_EXPIRY_SECONDS_PORTFOLIO
+    );
+
+    return res.status(200).json({
+      success: true,
+      data: responseData,
+    });
+  } catch (error) {
+    logger.error(`Error querying portfolios: ${error.message}`, { error });
+    return res.status(500).json({
+      success: false,
+      message: "Failed to query portfolios",
       error: error.message,
     });
   }
@@ -430,4 +699,5 @@ module.exports = {
   unarchivePortfolio,
   archivePortfolio,
   searchPortfolios,
+  queryPortfolios,
 };

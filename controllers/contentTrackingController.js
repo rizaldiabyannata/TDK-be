@@ -1,28 +1,75 @@
 const HomePageContent = require("../models/contentTrackingModel");
 const Blog = require("../models/blogModel");
-const Portfolio = require("../models/portoModel"); // Sesuaikan dengan nama file model Anda
+const Portfolio = require("../models/portoModel");
 const logger = require("../utils/logger");
 const mongoose = require("mongoose");
+const redisClient = require("../config/redisConfig");
+
+const HOME_PAGE_CONTENT_CACHE_KEY = "home_page_content";
+const CACHE_EXPIRY_SECONDS_HOME = 300;
+
+const clearHomePageContentCache = async () => {
+  try {
+    await redisClient.delete(HOME_PAGE_CONTENT_CACHE_KEY);
+    logger.info("Home page content cache cleared.");
+  } catch (error) {
+    logger.error("Error clearing home page content cache:", error);
+  }
+};
 
 const getHomePageContent = async (req, res) => {
   try {
+    const cachedData = await redisClient.get(HOME_PAGE_CONTENT_CACHE_KEY);
+    if (cachedData) {
+      logger.info(`Cache hit for: ${HOME_PAGE_CONTENT_CACHE_KEY}`);
+      return res.status(200).json({
+        success: true,
+        data: JSON.parse(cachedData),
+      });
+    }
+
+    logger.info(
+      `Cache miss for: ${HOME_PAGE_CONTENT_CACHE_KEY}. Fetching from DB.`
+    );
     let homePageContent = await HomePageContent.findOne()
       .populate({
         path: "featuredBlogs",
         select: "title slug summary coverImage tags createdAt",
+        match: { isArchived: { $ne: true } },
       })
       .populate({
         path: "highlightedPortfolios",
-        select: "title slug category",
-      });
+        select: "title slug category coverImage shortDescription link",
+        match: { isArchived: { $ne: true } },
+      })
+      .lean();
 
     if (!homePageContent) {
-      homePageContent = await HomePageContent.create({});
+      const newContent = new HomePageContent({});
+      homePageContent = await newContent.save();
+      homePageContent = homePageContent.toObject();
       logger.info("Created new home page content as none existed");
+    } else {
+      if (homePageContent.featuredBlogs) {
+        homePageContent.featuredBlogs = homePageContent.featuredBlogs.filter(
+          (blog) => blog !== null
+        );
+      }
+      if (homePageContent.highlightedPortfolios) {
+        homePageContent.highlightedPortfolios =
+          homePageContent.highlightedPortfolios.filter(
+            (portfolio) => portfolio !== null
+          );
+      }
     }
 
-    logger.info(`Retrieved home page content (${homePageContent._id})`);
+    await redisClient.set(
+      HOME_PAGE_CONTENT_CACHE_KEY,
+      JSON.stringify(homePageContent),
+      CACHE_EXPIRY_SECONDS_HOME
+    );
 
+    logger.info(`Retrieved home page content (${homePageContent._id})`);
     return res.status(200).json({
       success: true,
       data: homePageContent,
@@ -51,7 +98,6 @@ const updateFeaturedBlogs = async (req, res) => {
       });
     }
 
-    // Validate that all IDs are valid ObjectIDs
     const validIds = blogIds.filter((id) =>
       mongoose.Types.ObjectId.isValid(id)
     );
@@ -64,20 +110,21 @@ const updateFeaturedBlogs = async (req, res) => {
       });
     }
 
-    // Convert string IDs to ObjectIds
     const objectIdBlogIds = validIds.map(
       (id) => new mongoose.Types.ObjectId(id)
     );
 
-    // Check that all blogs exist
-    const existingBlogs = await Blog.find({ _id: { $in: objectIdBlogIds } });
+    const existingBlogs = await Blog.find({
+      _id: { $in: objectIdBlogIds },
+      isArchived: { $ne: true },
+    });
     const existingBlogIds = existingBlogs.map((blog) => blog._id);
 
     if (existingBlogs.length !== validIds.length) {
-      logger.info("Some blogs were not found in the database");
+      logger.info("Some blogs were not found or are archived");
       return res.status(404).json({
         success: false,
-        message: "Some blogs were not found",
+        message: "Some blogs were not found or are archived",
       });
     }
 
@@ -96,6 +143,8 @@ const updateFeaturedBlogs = async (req, res) => {
         `Updated featured blogs for home page content (${homePageContent._id})`
       );
     }
+
+    await clearHomePageContentCache();
 
     return res.status(200).json({
       success: true,
@@ -124,7 +173,6 @@ const updateHighlightedPortfolios = async (req, res) => {
       });
     }
 
-    // Validate that all IDs are valid ObjectIDs
     const validIds = portfolioIds.filter((id) =>
       mongoose.Types.ObjectId.isValid(id)
     );
@@ -137,24 +185,23 @@ const updateHighlightedPortfolios = async (req, res) => {
       });
     }
 
-    // Convert string IDs to ObjectIds
     const objectIdPortfolioIds = validIds.map(
       (id) => new mongoose.Types.ObjectId(id)
     );
 
-    // Check that all portfolios exist
     const existingPortfolios = await Portfolio.find({
       _id: { $in: objectIdPortfolioIds },
+      isArchived: { $ne: true },
     });
     const existingPortfolioIds = existingPortfolios.map(
       (portfolio) => portfolio._id
     );
 
     if (existingPortfolios.length !== validIds.length) {
-      logger.info("Some portfolios were not found in the database");
+      logger.info("Some portfolios were not found or are archived");
       return res.status(404).json({
         success: false,
-        message: "Some portfolios were not found",
+        message: "Some portfolios were not found or are archived",
       });
     }
 
@@ -173,6 +220,8 @@ const updateHighlightedPortfolios = async (req, res) => {
         `Updated highlighted portfolios for home page content (${homePageContent._id})`
       );
     }
+
+    await clearHomePageContentCache();
 
     return res.status(200).json({
       success: true,
@@ -206,6 +255,8 @@ const resetHomePageContent = async (req, res) => {
       logger.info(`Reset home page content (${homePageContent._id})`);
     }
 
+    await clearHomePageContentCache();
+
     return res.status(200).json({
       success: true,
       message: "Home page content reset successfully",
@@ -237,12 +288,15 @@ const addFeaturedBlog = async (req, res) => {
 
     const objectIdBlogId = new mongoose.Types.ObjectId(blogId);
 
-    const blog = await Blog.findById(objectIdBlogId);
+    const blog = await Blog.findOne({
+      _id: objectIdBlogId,
+      isArchived: { $ne: true },
+    });
     if (!blog) {
-      logger.info(`Blog with ID ${blogId} not found`);
+      logger.info(`Blog with ID ${blogId} not found or is archived`);
       return res.status(404).json({
         success: false,
-        message: "Blog not found",
+        message: "Blog not found or is archived",
       });
     }
 
@@ -254,7 +308,6 @@ const addFeaturedBlog = async (req, res) => {
       });
       logger.info(`Created new home page content with featured blog ${blogId}`);
     } else {
-      // Check if blog is already featured using proper ObjectId comparison
       if (
         homePageContent.featuredBlogs.some((id) => id.equals(objectIdBlogId))
       ) {
@@ -270,6 +323,8 @@ const addFeaturedBlog = async (req, res) => {
       await homePageContent.save();
       logger.info(`Added blog ${blogId} to featured blogs`);
     }
+
+    await clearHomePageContentCache();
 
     return res.status(200).json({
       success: true,
@@ -299,7 +354,6 @@ const removeFeaturedBlog = async (req, res) => {
     }
 
     const objectIdBlogId = new mongoose.Types.ObjectId(blogId);
-
     let homePageContent = await HomePageContent.findOne();
 
     if (!homePageContent) {
@@ -310,7 +364,6 @@ const removeFeaturedBlog = async (req, res) => {
       });
     }
 
-    // Check if blog is featured using proper ObjectId comparison
     if (
       !homePageContent.featuredBlogs.some((id) => id.equals(objectIdBlogId))
     ) {
@@ -327,6 +380,7 @@ const removeFeaturedBlog = async (req, res) => {
     homePageContent.lastUpdated = Date.now();
     await homePageContent.save();
 
+    await clearHomePageContentCache();
     logger.info(`Removed blog ${blogId} from featured blogs`);
 
     return res.status(200).json({
@@ -358,12 +412,15 @@ const addHighlightedPortfolio = async (req, res) => {
 
     const objectIdPortfolioId = new mongoose.Types.ObjectId(portfolioId);
 
-    const portfolio = await Portfolio.findById(objectIdPortfolioId);
+    const portfolio = await Portfolio.findOne({
+      _id: objectIdPortfolioId,
+      isArchived: { $ne: true },
+    });
     if (!portfolio) {
-      logger.info(`Portfolio with ID ${portfolioId} not found`);
+      logger.info(`Portfolio with ID ${portfolioId} not found or is archived`);
       return res.status(404).json({
         success: false,
-        message: "Portfolio not found",
+        message: "Portfolio not found or is archived",
       });
     }
 
@@ -377,7 +434,6 @@ const addHighlightedPortfolio = async (req, res) => {
         `Created new home page content with highlighted portfolio ${portfolioId}`
       );
     } else {
-      // Check if portfolio is already highlighted using proper ObjectId comparison
       if (
         homePageContent.highlightedPortfolios.some((id) =>
           id.equals(objectIdPortfolioId)
@@ -395,6 +451,8 @@ const addHighlightedPortfolio = async (req, res) => {
       await homePageContent.save();
       logger.info(`Added portfolio ${portfolioId} to highlighted portfolios`);
     }
+
+    await clearHomePageContentCache();
 
     return res.status(200).json({
       success: true,
@@ -424,9 +482,7 @@ const removeHighlightedPortfolio = async (req, res) => {
         message: "Valid portfolio ID is required",
       });
     }
-
     const objectIdPortfolioId = new mongoose.Types.ObjectId(portfolioId);
-
     let homePageContent = await HomePageContent.findOne();
 
     if (!homePageContent) {
@@ -437,7 +493,6 @@ const removeHighlightedPortfolio = async (req, res) => {
       });
     }
 
-    // Check if portfolio is highlighted using proper ObjectId comparison
     if (
       !homePageContent.highlightedPortfolios.some((id) =>
         id.equals(objectIdPortfolioId)
@@ -457,6 +512,7 @@ const removeHighlightedPortfolio = async (req, res) => {
     homePageContent.lastUpdated = Date.now();
     await homePageContent.save();
 
+    await clearHomePageContentCache();
     logger.info(`Removed portfolio ${portfolioId} from highlighted portfolios`);
 
     return res.status(200).json({

@@ -26,6 +26,8 @@ router.get("/", getAllBlogs);
 router.get("/slug/:slug", trackView("blog"), getBlogBySlug); // Ini akan menangani /api/blog/slug/test5
 router.get("/tag/:tag", trackView("blog"), getBlogsByTag);
 
+router.get("/query/:query");
+
 router.put("/id/:id/archive", authenticate, archiveBlog);
 router.put("/id/:id/unarchive", authenticate, unarchiveBlog);
 

@@ -3,10 +3,10 @@ const path = require("path");
 const fs = require("fs");
 const logger = require("../utils/logger");
 
-// Setup storage configuration
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    // Tentukan folder upload berdasarkan type file
+    
     let uploadPath = "uploads/";
 
     if (file.mimetype.startsWith("image/")) {
@@ -17,7 +17,7 @@ const storage = multer.diskStorage({
       uploadPath += "others/";
     }
 
-    // Buat direktori jika belum ada
+    
     if (!fs.existsSync(uploadPath)) {
       fs.mkdirSync(uploadPath, { recursive: true });
     }
@@ -25,26 +25,26 @@ const storage = multer.diskStorage({
     cb(null, uploadPath);
   },
   filename: (req, file, cb) => {
-    // Buat nama file yang unik dengan timestamp
+    
     const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
     const fileExt = path.extname(file.originalname);
 
-    // Mengganti spasi dengan tanda hubung dan mengubah ke lowercase
+    
     const fileName = file.originalname
       .replace(fileExt, "")
       .toLowerCase()
       .replace(/\s+/g, "-")
       .replace(/[^\w\-]+/g, "")
       .replace(/\-\-+/g, "-")
-      .substring(0, 60); // Batasi panjang nama file
+      .substring(0, 60); 
 
     cb(null, `${fileName}-${uniqueSuffix}${fileExt}`);
   },
 });
 
-// File filter untuk memvalidasi tipe file
+
 const fileFilter = (req, file, cb) => {
-  // Allowed file types
+  
   const allowedFileTypes = [
     "image/jpeg",
     "image/jpg",
@@ -65,16 +65,16 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
-// Konfigurasi Multer
+
 const upload = multer({
   storage: storage,
   fileFilter: fileFilter,
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB max file size
+    fileSize: 10 * 1024 * 1024, 
   },
 });
 
-// Middleware untuk upload satu file
+
 const uploadSingleFile = (fieldName) => {
   return (req, res, next) => {
     const uploader = upload.single(fieldName);
@@ -82,7 +82,7 @@ const uploadSingleFile = (fieldName) => {
     uploader(req, res, (err) => {
       if (err) {
         if (err instanceof multer.MulterError) {
-          // Error dari Multer
+          
           if (err.code === "LIMIT_FILE_SIZE") {
             logger.error(`File size limit exceeded: ${err.message}`);
             return res.status(400).json({
@@ -100,7 +100,7 @@ const uploadSingleFile = (fieldName) => {
           });
         }
 
-        // Error lainnya
+        
         logger.error(`Error during file upload: ${err.message}`, {
           error: err,
         });
@@ -110,7 +110,7 @@ const uploadSingleFile = (fieldName) => {
         });
       }
 
-      // Jika tidak ada file yang diunggah
+      
       if (!req.file) {
         return res.status(400).json({
           success: false,
@@ -118,12 +118,12 @@ const uploadSingleFile = (fieldName) => {
         });
       }
 
-      // Log sukses
+      
       logger.info(
         `File successfully uploaded: ${req.file.filename} (${req.file.size} bytes)`
       );
 
-      // Tambahkan file URL ke objek request
+      
       req.fileUrl = `/${req.file.path.replace(/\\/g, "/")}`;
 
       next();
@@ -131,7 +131,7 @@ const uploadSingleFile = (fieldName) => {
   };
 };
 
-// Middleware untuk upload banyak file
+
 const uploadMultipleFiles = (fieldName, maxCount = 5) => {
   return (req, res, next) => {
     const uploader = upload.array(fieldName, maxCount);
@@ -139,7 +139,7 @@ const uploadMultipleFiles = (fieldName, maxCount = 5) => {
     uploader(req, res, (err) => {
       if (err) {
         if (err instanceof multer.MulterError) {
-          // Error dari Multer
+          
           if (err.code === "LIMIT_FILE_SIZE") {
             logger.error(`File size limit exceeded: ${err.message}`);
             return res.status(400).json({
@@ -165,7 +165,7 @@ const uploadMultipleFiles = (fieldName, maxCount = 5) => {
           });
         }
 
-        // Error lainnya
+        
         logger.error(`Error during files upload: ${err.message}`, {
           error: err,
         });
@@ -175,7 +175,7 @@ const uploadMultipleFiles = (fieldName, maxCount = 5) => {
         });
       }
 
-      // Jika tidak ada file yang diunggah
+      
       if (!req.files || req.files.length === 0) {
         return res.status(400).json({
           success: false,
@@ -183,10 +183,10 @@ const uploadMultipleFiles = (fieldName, maxCount = 5) => {
         });
       }
 
-      // Log sukses
+      
       logger.info(`${req.files.length} files successfully uploaded`);
 
-      // Tambahkan file URLs ke objek request
+      
       req.fileUrls = req.files.map((file) => {
         return `/${file.path.replace(/\\/g, "/")}`;
       });
@@ -196,10 +196,10 @@ const uploadMultipleFiles = (fieldName, maxCount = 5) => {
   };
 };
 
-// Helper untuk menghapus file yang sudah diupload
+
 const deleteFile = (filePath) => {
   try {
-    // Menghapus '/' di awal path jika ada
+    
     const normalizedPath = filePath.startsWith("/")
       ? filePath.slice(1)
       : filePath;
@@ -220,7 +220,7 @@ const deleteFile = (filePath) => {
   }
 };
 
-// Middleware untuk upload berbagai jenis file (fields)
+
 const uploadFields = (fields) => {
   return (req, res, next) => {
     const uploader = upload.fields(fields);
@@ -228,7 +228,7 @@ const uploadFields = (fields) => {
     uploader(req, res, (err) => {
       if (err) {
         if (err instanceof multer.MulterError) {
-          // Error dari Multer
+          
           if (err.code === "LIMIT_FILE_SIZE") {
             logger.error(`File size limit exceeded: ${err.message}`);
             return res.status(400).json({
@@ -254,7 +254,7 @@ const uploadFields = (fields) => {
           });
         }
 
-        // Error lainnya
+        
         logger.error(`Error during files upload: ${err.message}`, {
           error: err,
         });
@@ -264,7 +264,7 @@ const uploadFields = (fields) => {
         });
       }
 
-      // Jika tidak ada file yang diunggah
+      
       if (!req.files || Object.keys(req.files).length === 0) {
         return res.status(400).json({
           success: false,
@@ -272,7 +272,7 @@ const uploadFields = (fields) => {
         });
       }
 
-      // Log sukses
+      
       const totalFiles = Object.values(req.files).reduce(
         (sum, files) => sum + files.length,
         0
@@ -283,7 +283,7 @@ const uploadFields = (fields) => {
         } fields`
       );
 
-      // Tambahkan file URLs ke objek request
+      
       req.fieldFileUrls = {};
 
       for (const [fieldName, files] of Object.entries(req.files)) {

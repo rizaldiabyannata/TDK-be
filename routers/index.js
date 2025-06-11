@@ -8,9 +8,9 @@ const statisticRouter = require("./statisticRouter");
 const contentTrackRouter = require("./contentTrackRouter"); 
 const contactFormRouter = require("./contactFormRouter");
 
-// import routes
+
 router.use("/test", (req, res) => {
-  res.send("Test route is working");
+  res.send("Test route is working");  
 });
 
 router.use("/user", userRouters);
@@ -20,7 +20,7 @@ router.use("/statistic", statisticRouter);
 router.use("/content-tracking", contentTrackRouter);
 router.use("/contact-form", contactFormRouter);
 
-// In your Express routes
+
 router.get("/health/redis", async (req, res) => {
   try {
     const redisConnected = await testRedisConnection();

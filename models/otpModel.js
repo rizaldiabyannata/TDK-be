@@ -20,11 +20,10 @@ const otpSchema = new mongoose.Schema({
   createdAt: {
     type: Date,
     default: Date.now,
-    index: { expires: "1h" }, // Auto delete after 1 hour as backup
+    index: { expires: "1h" },
   },
 });
 
-// Index for faster lookups
 otpSchema.index({ email: 1 });
 
 module.exports = mongoose.model("Otp", otpSchema);

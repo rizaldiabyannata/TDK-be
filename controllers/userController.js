@@ -15,7 +15,6 @@ const loginUser = async (req, res) => {
   const { name, password } = req.body;
 
   try {
-    // Since we have only one admin user, we can find it
     const admin = await User.findOne();
 
     if (
@@ -76,12 +75,10 @@ const updateUser = async (req, res) => {
     const userId = req.user._id;
     const { email } = req.body;
 
-    // Prepare update object with only provided fields
     const updateData = {};
 
     if (email) updateData.email = email;
 
-    // Find and update the admin user
     const updatedUser = await User.findByIdAndUpdate(userId, updateData, {
       new: true,
       runValidators: true,
@@ -113,19 +110,15 @@ const requestPasswordResetOTP = async (req, res) => {
       return res.status(400).json({ message: "Email is required" });
     }
 
-    // Check if the email matches our admin user
     const admin = await User.findOne({ email });
     if (!admin) {
-      // For security reasons, still return success even if email doesn't match
       return res.status(200).json({
         message: "If this is the admin email, an OTP has been sent",
       });
     }
 
-    // Generate and store OTP (encrypted with bcrypt in the service)
     const plainOTP = await otpService.createPasswordResetOTP(email);
 
-    // Send OTP via email
     await otpService.sendPasswordResetOTP(email, plainOTP);
 
     logger.info(`Admin password reset OTP sent to: ${email}`);
@@ -141,40 +134,33 @@ const requestPasswordResetOTP = async (req, res) => {
   }
 };
 
-// Verify OTP and reset password
 const verifyOTPAndResetPassword = async (req, res) => {
   try {
-    const email = req.user.email; // Get email from authenticated user
+    const email = req.user.email;
     const { otp, newPassword } = req.body;
 
-    // Validate inputs
     if (!email || !otp || !newPassword) {
       return res.status(400).json({
         message: "Email, OTP, and new password are required",
       });
     }
 
-    // Verify OTP (service will handle bcrypt comparison)
     const otpRecord = await otpService.verifyPasswordResetOTP(email, otp);
     if (!otpRecord) {
       return res.status(400).json({ message: "Invalid or expired OTP" });
     }
 
-    // Find the admin user
     const admin = await User.findOne({ email });
     if (!admin) {
       return res.status(404).json({ message: "Admin user not found" });
     }
 
-    // Hash the new password
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(newPassword, salt);
 
-    // Update password
     admin.password = hashedPassword;
     await admin.save();
 
-    // Delete the used OTP
     await otpService.deleteOTP(otpRecord._id);
 
     logger.info(`Admin password reset successful for: ${email}`);
@@ -190,11 +176,9 @@ const verifyOTPAndResetPassword = async (req, res) => {
 
 const logoutUser = async (req, res) => {
   try {
-    // Get user info before clearing (for logging purposes)
     const userId = req.user?._id;
     const userName = req.user?.name;
 
-    // Clear the token cookie
     res.clearCookie("token");
 
     logger.info(`Admin logged out: ${userName} (ID: ${userId})`);

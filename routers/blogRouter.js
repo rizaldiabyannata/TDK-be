@@ -11,6 +11,7 @@ const {
   archiveBlog,
   unarchiveBlog,
   searchBlogs,
+  queryBlogs,
 } = require("../controllers/blogController");
 const { trackView } = require("../middleware/viewTracker");
 const { authenticate } = require("../middleware/authMiddleware");
@@ -23,15 +24,15 @@ router.get("/archived", authenticate, getArchivedBlogs);
 router.post("/", authenticate, uploadSingleFile("coverImage"), createBlog);
 router.get("/", getAllBlogs);
 
-router.get("/slug/:slug", trackView("blog"), getBlogBySlug); // Ini akan menangani /api/blog/slug/test5
+router.get("/slug/:slug", trackView("blog"), getBlogBySlug);
 router.get("/tag/:tag", trackView("blog"), getBlogsByTag);
 
-router.get("/query/:query");
+router.get("/query/:query", queryBlogs);
 
 router.put("/id/:id/archive", authenticate, archiveBlog);
 router.put("/id/:id/unarchive", authenticate, unarchiveBlog);
 
-router.get("/id/:id", trackView("blog"), getBlogById); // Ini akan menangani /api/blog/id/someObjectId
+router.get("/id/:id", trackView("blog"), getBlogById);
 router.put("/id/:id", authenticate, updateBlog);
 router.delete("/id/:id", authenticate, deleteBlog);
 

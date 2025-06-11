@@ -6,6 +6,17 @@ const morgan = require("morgan");
 const fs = require("fs");
 const path = require("path");
 
+const logsDir = path.join(__dirname, "logs");
+const uploadsDir = path.join(__dirname, "uploads");
+const imagesDir = path.join(uploadsDir, "images");
+
+if (!fs.existsSync(logsDir)) {
+  fs.mkdirSync(logsDir, { recursive: true });
+}
+if (!fs.existsSync(imagesDir)) {
+  fs.mkdirSync(imagesDir, { recursive: true });
+}
+
 const { scheduleViewSync } = require("./utils/syncViewsScheduler");
 const seedAdmin = require("./seeder/seedAdmin");
 
@@ -29,7 +40,7 @@ const accessLogStream = fs.createWriteStream(
 app.use(morgan("dev"));
 app.use(morgan("combined", { stream: accessLogStream }));
 
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+app.use("/uploads", express.static(path.join(__dirname, "x")));
 
 // Connect to MongoDB
 connectDB();

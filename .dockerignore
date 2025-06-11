@@ -1,0 +1,15 @@
+# Abaikan folder dependensi
+node_modules
+
+# Abaikan file log debug npm
+npm-debug.log
+
+# Abaikan file environment lokal, jangan masukkan ke image
+.env
+
+# Folder data yang tidak perlu dimasukkan ke dalam image
+uploads
+logs
+
+# File sistem operasi (opsional, tapi baik untuk ada)
+.DS_Store

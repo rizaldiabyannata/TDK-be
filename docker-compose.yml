@@ -46,6 +46,10 @@ services:
       - "5000:5000"
     networks:
       - app-network
+    # Tambahan untuk mapping folder uploads agar bisa diakses dari dalam kontainer
+    volumes:
+      - ./uploads:/usr/src/app/uploads
+      - ./logs:/usr/src/app/logs
 
 volumes:
   redis-data:

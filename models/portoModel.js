@@ -30,6 +30,7 @@ const portfolioSchema = new mongoose.Schema({
   isArchived: {
     type: Boolean,
     default: false,
+    index: true,
   },
   views: {
     total: {
@@ -72,9 +73,11 @@ portfolioSchema.pre("validate", function (next) {
 
 portfolioSchema.index({
   title: "text",
-  summary: "text",
-  content: "text",
+  description: "text",
+  shortDescription: "text",
 });
+
+portfolioSchema.index({ isArchived: 1, createdAt: -1 });
 
 const Portfolio = mongoose.model("Portfolio", portfolioSchema);
 

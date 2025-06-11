@@ -17,4 +17,4 @@ COPY . .
 EXPOSE 5000
 
 # Tentukan perintah untuk menjalankan aplikasi Bun.js
-CMD ["bun", "run", "start"]
+CMD ["bun", "start"]

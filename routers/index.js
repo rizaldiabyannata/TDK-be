@@ -5,7 +5,7 @@ const { testRedisConnection } = require("../test/test-redis-connection");
 const blogRouters = require("./blogRouter");
 const portfolioRouters = require("./portoRouter");
 const statisticRouter = require("./statisticRouter");
-const contentTrackingRouter = require("./ContentTrackingRouter");
+const contentTrackingRouter = require("./contentTrackingRouter");
 const contactFormRouter = require("./contactFormRouter");
 
 // import routes

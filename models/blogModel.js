@@ -34,6 +34,7 @@ const blogSchema = new mongoose.Schema({
   isArchived: {
     type: Boolean,
     default: false,
+    index: true,
   },
   likes: {
     type: Number,
@@ -83,6 +84,8 @@ blogSchema.index({
   summary: "text",
   content: "text",
 });
+
+blogSchema.index({ isArchived: 1, createdAt: -1 });
 
 const Blog = mongoose.model("Blog", blogSchema);
 

@@ -5,7 +5,7 @@ const { testRedisConnection } = require("../test/test-redis-connection");
 const blogRouters = require("./blogRouter");
 const portfolioRouters = require("./portoRouter");
 const statisticRouter = require("./statisticRouter");
-const contentTrackingRouter = require("./contentTrackingRouter");
+const contentTrackRouter = require("./contentTrackRouter"); 
 const contactFormRouter = require("./contactFormRouter");
 
 // import routes
@@ -17,7 +17,7 @@ router.use("/user", userRouters);
 router.use("/blogs", blogRouters);
 router.use("/portfolios", portfolioRouters);
 router.use("/statistic", statisticRouter);
-router.use("/content-tracking", contentTrackingRouter);
+router.use("/content-tracking", contentTrackRouter);
 router.use("/contact-form", contactFormRouter);
 
 // In your Express routes

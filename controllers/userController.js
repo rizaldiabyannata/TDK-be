@@ -33,7 +33,7 @@ const loginUser = async (req, res) => {
     logger.info(`Admin logged in: ${name}`);
 
     res
-      .cookie("token", token, { httpOnly: true, secure: false })
+      .cookie("token", token, { httpOnly: true, secure: process.env.NODE_ENV === 'production', })
       .status(200)
       .json({
         message: "Login successful",

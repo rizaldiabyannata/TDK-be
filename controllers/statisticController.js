@@ -1,3 +1,6 @@
+//TODO : fix bug: unique more biger than total views
+//TODO : fix bug: daily view count not show in response
+
 const Portfolio = require("../models/portoModel");
 const Blog = require("../models/blogModel");
 const logger = require("../utils/logger");
@@ -8,71 +11,127 @@ const getDashboardStats = async (req, res) => {
     const endDate = new Date();
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
+    startDate.setHours(0, 0, 0, 0);
 
-    const portfolios = await Portfolio.find();
-    const portfolioTotalViews = portfolios.reduce(
-      (sum, item) => sum + item.views.total,
-      0
-    );
-    const portfolioUniqueViews = portfolios.reduce(
-      (sum, item) => sum + item.views.unique,
-      0
-    );
+    // 1. Menggunakan Agregasi untuk mendapatkan total views
+    const portfolioStatsPromise = Portfolio.aggregate([
+      {
+        $group: {
+          _id: null,
+          totalViews: { $sum: "$views.total" },
+          uniqueViews: { $sum: "$views.unique" },
+        },
+      },
+    ]);
 
-    const blogs = await Blog.find();
-    const blogTotalViews = blogs.reduce(
-      (sum, item) => sum + item.views.total,
-      0
-    );
-    const blogUniqueViews = blogs.reduce(
-      (sum, item) => sum + item.views.unique,
-      0
-    );
+    const blogStatsPromise = Blog.aggregate([
+      {
+        $group: {
+          _id: null,
+          totalViews: { $sum: "$views.total" },
+          uniqueViews: { $sum: "$views.unique" },
+        },
+      },
+    ]);
 
-    const topPortfolios = await Portfolio.find()
+    // 2. Mengambil konten teratas secara paralel
+    const topPortfoliosPromise = Portfolio.find()
       .sort({ "views.total": -1 })
       .limit(5)
       .select("title slug views");
 
-    const topBlogs = await Blog.find()
+    const topBlogsPromise = Blog.find()
       .sort({ "views.total": -1 })
       .limit(5)
       .select("title slug views");
 
-    const dailyData = [];
+    // 3. Agregasi untuk data harian
+    const dailyPortfolioViewsPromise = Portfolio.aggregate([
+      { $unwind: "$viewHistory" },
+      {
+        $match: {
+          "viewHistory.date": { $gte: startDate, $lt: endDate },
+        },
+      },
+      {
+        $group: {
+          _id: { $dateToString: { format: "%Y-%m-%d", date: "$viewHistory.date" } },
+          views: { $sum: "$viewHistory.count" },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]);
+
+    const dailyBlogViewsPromise = Blog.aggregate([
+        { $unwind: "$viewHistory" },
+        {
+          $match: {
+            "viewHistory.date": { $gte: startDate, $lt: endDate },
+          },
+        },
+        {
+          $group: {
+            _id: { $dateToString: { format: "%Y-%m-%d", date: "$viewHistory.date" } },
+            views: { $sum: "$viewHistory.count" },
+          },
+        },
+        { $sort: { _id: 1 } },
+      ]);
+
+
+    // Menjalankan semua promise secara bersamaan untuk efisiensi
+    const [
+      portfolioStats,
+      blogStats,
+      topPortfolios,
+      topBlogs,
+      dailyPortfolioViews,
+      dailyBlogViews,
+    ] = await Promise.all([
+      portfolioStatsPromise,
+      blogStatsPromise,
+      topPortfoliosPromise,
+      topBlogsPromise,
+      dailyPortfolioViewsPromise,
+      dailyBlogViewsPromise,
+    ]);
+
+    const portfolioTotalViews = portfolioStats[0]?.totalViews || 0;
+    const portfolioUniqueViews = portfolioStats[0]?.uniqueViews || 0;
+    const blogTotalViews = blogStats[0]?.totalViews || 0;
+    const blogUniqueViews = blogStats[0]?.uniqueViews || 0;
+    
+    // Menggabungkan data harian dari blog dan portfolio
+    const dailyDataMap = new Map();
     for (let i = 0; i < days; i++) {
-      const date = new Date(startDate);
-      date.setDate(date.getDate() + i);
-      date.setHours(0, 0, 0, 0);
-
-      const nextDate = new Date(date);
-      nextDate.setDate(nextDate.getDate() + 1);
-
-      const portfolioDayViews = portfolios.reduce((sum, portfolio) => {
-        const dayEntry = portfolio.viewHistory.find(
-          (entry) =>
-            new Date(entry.date).getTime() >= date.getTime() &&
-            new Date(entry.date).getTime() < nextDate.getTime()
-        );
-        return sum + (dayEntry ? dayEntry.count : 0);
-      }, 0);
-
-      const blogDayViews = blogs.reduce((sum, blog) => {
-        const dayEntry = blog.viewHistory.find(
-          (entry) =>
-            new Date(entry.date).getTime() >= date.getTime() &&
-            new Date(entry.date).getTime() < nextDate.getTime()
-        );
-        return sum + (dayEntry ? dayEntry.count : 0);
-      }, 0);
-
-      dailyData.push({
-        date: date.toISOString().split("T")[0],
-        portfolioViews: portfolioDayViews,
-        blogViews: blogDayViews,
-        totalViews: portfolioDayViews + blogDayViews,
-      });
+        const date = new Date(startDate);
+        date.setDate(date.getDate() + i);
+        const dateString = date.toISOString().split("T")[0];
+        dailyDataMap.set(dateString, {
+            date: dateString,
+            portfolioViews: 0,
+            blogViews: 0,
+            totalViews: 0,
+        });
     }
+
+    dailyPortfolioViews.forEach(item => {
+        if(dailyDataMap.has(item._id)) {
+            dailyDataMap.get(item._id).portfolioViews = item.views;
+        }
+    });
+
+    dailyBlogViews.forEach(item => {
+        if(dailyDataMap.has(item._id)) {
+            dailyDataMap.get(item._id).blogViews = item.views;
+        }
+    });
+
+    const dailyData = Array.from(dailyDataMap.values()).map(item => ({
+        ...item,
+        totalViews: item.portfolioViews + item.blogViews,
+    }));
+
 
     return res.status(200).json({
       success: true,

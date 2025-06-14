@@ -100,7 +100,7 @@ const getAllBlogs = async (req, res) => {
     const cachedData = await redisClient.get(cacheKey);
     if (cachedData) {
       logger.info(`Cache hit for getAllBlogs: ${cacheKey}`);
-      const blogs = JSON.parse(cachedData);
+      const blogs = cachedData;
       return res.status(200).json({
         success: true,
         count: blogs.length,
@@ -155,7 +155,7 @@ const getBlogBySlug = async (req, res) => {
 
     if (cachedBlog) {
       logger.info(`Cache hit for blog slug: ${slug}`);
-      blogForProcessing = JSON.parse(cachedBlog);
+      blogForProcessing = cachedBlog; // Langsung gunakan objek dari cache
     } else {
       logger.info(`Cache miss for blog slug: ${slug}. Fetching from DB.`);
       const dbBlog = await Blog.findOne({ slug }).lean();
@@ -238,7 +238,7 @@ const getBlogById = async (req, res) => {
     const cachedData = await redisClient.get(cacheKey);
     if (cachedData) {
       logger.info(`Cache hit for getBlogById: ${id}`);
-      const blog = JSON.parse(cachedData);
+      const blog = cachedData
       return res.status(200).json({
         success: true,
         data: blog,
@@ -405,7 +405,7 @@ const getBlogsByTag = async (req, res) => {
     const cachedData = await redisClient.get(cacheKey);
     if (cachedData) {
       logger.info(`Cache hit for getBlogsByTag: ${normalizedTag}`);
-      const blogs = JSON.parse(cachedData);
+      const blogs = cachedData;
       return res.status(200).json({
         success: true,
         count: blogs.length,
@@ -552,7 +552,7 @@ const getArchivedBlogs = async (req, res) => {
     const cachedData = await redisClient.get(cacheKey);
     if (cachedData) {
       logger.info(`Cache hit for getArchivedBlogs: ${cacheKey}`);
-      const archivedBlogs = JSON.parse(cachedData);
+      const archivedBlogs = cachedData;
       return res.status(200).json({
         success: true,
         count: archivedBlogs.length,
@@ -621,7 +621,7 @@ const searchBlogs = async (req, res) => {
       logger.info(`Cache hit for searchBlogs: ${cacheKey}`);
       return res.status(200).json({
         success: true,
-        data: JSON.parse(cachedData),
+        data: cachedData,
       });
     }
     logger.info(`Cache miss for searchBlogs: ${cacheKey}. Fetching from DB.`);
@@ -731,7 +731,7 @@ const queryBlogs = async (req, res) => {
       logger.info(`Cache hit for queryBlogs: ${cacheKey}`);
       return res.status(200).json({
         success: true,
-        data: JSON.parse(cachedData),
+        data: cachedData,
       });
     }
     logger.info(`Cache miss for queryBlogs: ${cacheKey}. Fetching from DB.`);

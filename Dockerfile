@@ -1,20 +1,42 @@
-# Gunakan image dasar Bun.js
-FROM oven/bun:latest
+# ==================================
+#      Tahap 1: Builder
+# ==================================
+# Menggunakan base image resmi dari Bun
+FROM oven/bun:1.0 AS builder
 
-# Tentukan direktori kerja di dalam container
-WORKDIR /app
+# Menetapkan direktori kerja
+WORKDIR /usr/src/app
 
-# Salin file package.json dan .env ke dalam container
+# Bun menggunakan bun.lockb secara default. Menyalin ini terlebih dahulu
+# akan memanfaatkan layer caching.
 COPY package.json bun.lockb ./
 
-# Install dependensi menggunakan Bun.js
-RUN bun install
+# Menginstal dependensi menggunakan 'bun install'.
+# '--frozen-lockfile' disarankan untuk CI/builds agar memastikan versi yang sama persis.
+RUN bun install --frozen-lockfile
 
-# Salin semua file aplikasi ke dalam container
+# Menyalin sisa kode sumber aplikasi
 COPY . .
 
-# Expose port aplikasi (sesuaikan dengan PORT yang Anda gunakan di .env)
+# ==================================
+#      Tahap 2: Produksi
+# ==================================
+# Memulai dari image Bun yang sama untuk produksi
+FROM oven/bun:1.0
+
+WORKDIR /usr/src/app
+
+# Menyalin dependensi dan kode aplikasi dari tahap 'builder'
+COPY --from=builder /usr/src/app .
+
+# Membuat user dan group baru untuk keamanan
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+RUN chown -R appuser:appgroup /usr/src/app
+USER appuser
+
+# Memberi tahu Docker bahwa container akan listen di port 5000
 EXPOSE 5000
 
-# Tentukan perintah untuk menjalankan aplikasi Bun.js
-CMD ["bun", "start"]
+# Perintah untuk menjalankan aplikasi menggunakan Bun
+# 'bun run' akan menjalankan skrip dari package.json, atau langsung 'bun index.js'
+CMD ["bun", "index.js"]

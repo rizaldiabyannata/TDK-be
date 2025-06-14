@@ -5,6 +5,7 @@ const cookieParser = require("cookie-parser");
 const morgan = require("morgan");
 const fs = require("fs");
 const path = require("path");
+const helmet = require('helmet');
 
 const logsDir = path.join(__dirname, "logs");
 const uploadsDir = path.join(__dirname, "uploads");
@@ -31,6 +32,7 @@ app.use(cors());
 app.use(express.json());
 app.use(cookieParser());
 app.use(cors("*"));
+app.use(helmet());
 
 const accessLogStream = fs.createWriteStream(
   path.join(__dirname, "logs/access.log"),
@@ -40,7 +42,7 @@ const accessLogStream = fs.createWriteStream(
 app.use(morgan("dev"));
 app.use(morgan("combined", { stream: accessLogStream }));
 
-app.use("/uploads", express.static(path.join(__dirname, "x")));
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // Connect to MongoDB
 connectDB();
@@ -76,6 +78,20 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`Server is running on port ${PORT}`);
 });
+
+const gracefulShutdown = () => {
+  console.log('Received kill signal, shutting down gracefully.');
+  server.close(() => {
+    console.log('HTTP server closed.');
+    mongoose.connection.close(false, () => {
+      console.log('MongoDb connection closed.');
+      process.exit(0);
+    });
+  });
+};
+
+process.on('SIGTERM', gracefulShutdown);
+process.on('SIGINT', gracefulShutdown);
 
 // Export the app for testing
 module.exports = app;

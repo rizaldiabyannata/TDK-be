@@ -80,7 +80,7 @@ const getAllPortfolios = async (req, res) => {
     const cachedData = await redisClient.get(cacheKey);
     if (cachedData) {
       logger.info(`Cache hit for getAllPortfolios: ${cacheKey}`);
-      const portfolios = JSON.parse(cachedData);
+      const portfolios = cachedData
       return res.status(200).json({
         success: true,
         count: portfolios.length,
@@ -124,7 +124,7 @@ const getPortfolioBySlug = async (req, res) => {
     const cachedData = await redisClient.get(cacheKey);
     if (cachedData) {
       logger.info(`Cache hit for getPortfolioBySlug: ${slug}`);
-      const portfolio = JSON.parse(cachedData);
+      const portfolio = cachedData;
       return res.status(200).json({
         success: true,
         data: portfolio,
@@ -173,7 +173,7 @@ const getPortfolioById = async (req, res) => {
     const cachedData = await redisClient.get(cacheKey);
     if (cachedData) {
       logger.info(`Cache hit for getPortfolioById: ${id}`);
-      const portfolio = JSON.parse(cachedData);
+      const portfolio = cachedData;
       return res.status(200).json({
         success: true,
         data: portfolio,
@@ -465,7 +465,7 @@ const getArchivedPortfolios = async (req, res) => {
     const cachedData = await redisClient.get(cacheKey);
     if (cachedData) {
       logger.info(`Cache hit for getArchivedPortfolios: ${cacheKey}`);
-      const archivedPortfolios = JSON.parse(cachedData);
+      const archivedPortfolios = cachedData;
       return res.status(200).json({
         success: true,
         count: archivedPortfolios.length,
@@ -529,7 +529,7 @@ const searchPortfolios = async (req, res) => {
       logger.info(`Cache hit for searchPortfolios: ${cacheKey}`);
       return res.status(200).json({
         success: true,
-        data: JSON.parse(cachedData),
+        data: cachedData
       });
     }
     logger.info(
@@ -630,7 +630,7 @@ const queryPortfolios = async (req, res) => {
       logger.info(`Cache hit for queryPortfolios: ${cacheKey}`);
       return res.status(200).json({
         success: true,
-        data: JSON.parse(cachedData),
+        data: cachedData
       });
     }
     logger.info(

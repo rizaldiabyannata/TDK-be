@@ -1,800 +1,303 @@
 const Blog = require("../models/blogModel");
-const logger = require("../utils/logger");
-const { ViewCount, DailyView } = require("../models/viewTrackingModel");
-const slugify = require("slugify");
-const { deleteFile } = require("../middleware/multerMiddleware");
 const redisClient = require("../config/redisConfig");
+const logger = require("../utils/logger");
 
-const CACHE_EXPIRY_SECONDS = 300;
-const BLOG_ITEM_ID_CACHE_PREFIX = "blog_item_id:";
-const BLOG_ITEM_SLUG_CACHE_PREFIX = "blog_item_slug:";
-const BLOGS_LIST_ALL_CACHE_KEY = "blogs_list_all_active";
-const BLOGS_LIST_ARCHIVED_CACHE_KEY = "blogs_list_archived";
-const BLOGS_LIST_TAG_CACHE_PREFIX = "blogs_list_tag:";
-const BLOGS_SEARCH_CACHE_PREFIX = "blogs_search:";
-const BLOGS_QUERY_CACHE_PREFIX = "blogs_query:";
+const CACHE_KEY_PREFIX_BLOG = "blog:";
+const CACHE_KEY_ARCHIVE = "blogArchive";
 
-const clearListCaches = async (tags = []) => {
-  try {
-    await redisClient.delete(BLOGS_LIST_ALL_CACHE_KEY);
-    await redisClient.delete(BLOGS_LIST_ARCHIVED_CACHE_KEY);
-    if (tags && tags.length > 0) {
-      const uniqueTags = [...new Set(tags)];
-      const tagDeletePromises = uniqueTags.map((tag) =>
-        redisClient.delete(`${BLOGS_LIST_TAG_CACHE_PREFIX}${tag}`)
-      );
-      await Promise.all(tagDeletePromises);
+const getFromDbOrCache = async (cacheKey, dbQuery) => {
+  if (redisClient.isReady) {
+    const cachedData = await redisClient.get(cacheKey);
+    if (cachedData) {
+      logger.info(`Cache HIT untuk kunci: ${cacheKey}`);
+      return JSON.parse(cachedData);
     }
-    logger.info("Common list caches and relevant tag caches cleared.");
-  } catch (error) {
-    logger.error("Error clearing list/tag caches:", error);
+  } else {
+    logger.warn("Redis client tidak siap, cache dilewati.");
   }
+
+  logger.info(`Cache MISS untuk kunci: ${cacheKey}. Mengambil dari DB.`);
+  const dbData = await dbQuery();
+
+  if (redisClient.isReady && dbData) {
+    const expiry = cacheKey.includes("Archive") ? 21600 : 3600;
+    await redisClient.set(cacheKey, JSON.stringify(dbData), { EX: expiry });
+  }
+
+  return dbData;
 };
 
-const createBlog = async (req, res) => {
+const invalidateBlogCache = async (slug = null) => {
+  if (!redisClient.isReady) {
+    logger.warn("Redis client tidak siap, tidak dapat menghapus cache.");
+    return;
+  }
   try {
-    const { title, content, author, tags, summary } = req.body;
+    await redisClient.del(CACHE_KEY_ARCHIVE);
+    logger.info(`Cache dihapus untuk kunci: ${CACHE_KEY_ARCHIVE}`);
 
-    if (!title || !content || !author) {
-      if (req.fileUrl) {
-        deleteFile(req.fileUrl.substring(1));
-      }
-      return res.status(400).json({
-        success: false,
-        message: "Required fields are missing",
-      });
+    if (slug) {
+      await redisClient.del(`${CACHE_KEY_PREFIX_BLOG}${slug}`);
+      logger.info(`Cache dihapus untuk kunci: ${CACHE_KEY_PREFIX_BLOG}${slug}`);
     }
-
-    let processedTags = [];
-    if (tags) {
-      if (Array.isArray(tags)) {
-        processedTags = tags;
-      } else {
-        try {
-          processedTags = JSON.parse(tags);
-        } catch (e) {
-          processedTags = tags.split(",").map((tag) => tag.trim());
-        }
-      }
-    }
-
-    const blogData = {
-      title,
-      content,
-      author,
-      summary: summary || "",
-      tags: processedTags,
-    };
-
-    if (req.fileUrl) {
-      blogData.coverImage = req.fileUrl;
-    }
-
-    const newBlog = new Blog(blogData);
-    const savedBlog = await newBlog.save();
-
-    await clearListCaches(savedBlog.tags);
-
-    logger.info(`Blog created: ${savedBlog.title} (${savedBlog._id})`);
-
-    return res.status(201).json({
-      success: true,
-      data: savedBlog,
-    });
   } catch (error) {
-    if (req.fileUrl) {
-      deleteFile(req.fileUrl.substring(1));
-    }
-    logger.error(`Error creating blog: ${error.message}`, { error });
-    return res.status(500).json({
-      success: false,
-      message: "Failed to create blog post",
-      error: error.message,
-    });
+    logger.error(`Gagal menghapus cache: ${error.message}`);
   }
 };
 
 const getAllBlogs = async (req, res) => {
-  const cacheKey = BLOGS_LIST_ALL_CACHE_KEY;
   try {
-    const cachedData = await redisClient.get(cacheKey);
-    if (cachedData) {
-      logger.info(`Cache hit for getAllBlogs: ${cacheKey}`);
-      const blogs = cachedData;
-      return res.status(200).json({
-        success: true,
-        count: blogs.length,
-        data: blogs,
-      });
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 5;
+    const searchTerm = req.query.search || "";
+    const status = req.query.status || "active";
+    const skip = (page - 1) * limit;
+
+    const filter = {};
+    if (status === "active") {
+      filter.isArchived = false;
+    } else if (status === "archived") {
+      filter.isArchived = true;
     }
 
-    logger.info(`Cache miss for getAllBlogs: ${cacheKey}. Fetching from DB.`);
+    if (searchTerm) {
+      filter.$or = [
+        { title: { $regex: searchTerm, $options: "i" } },
+        { content: { $regex: searchTerm, $options: "i" } },
+      ];
+    }
 
-    const blogs = await Blog.find({ isArchived: { $ne: true } })
-      .sort({ createdAt: -1 })
-      .lean();
+    const [blogs, totalBlogs] = await Promise.all([
+      Blog.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit),
+      Blog.countDocuments(filter),
+    ]);
 
-    await redisClient.set(
-      cacheKey,
-      JSON.stringify(blogs),
-      CACHE_EXPIRY_SECONDS
-    );
+    const totalPages = Math.ceil(totalBlogs / limit);
 
-    logger.info(`Retrieved ${blogs.length} active blog posts`);
-    return res.status(200).json({
-      success: true,
-      count: blogs.length,
+    res.json({
       data: blogs,
+      pagination: {
+        currentPage: page,
+        totalPages: totalPages,
+        totalBlogs: totalBlogs,
+        limit: limit,
+      },
     });
   } catch (error) {
-    logger.error(`Error fetching blogs: ${error.message}`, { error });
-    return res.status(500).json({
-      success: false,
-      message: "Failed to fetch blog posts",
-      error: error.message,
-    });
+    logger.error(`Error di getAllBlogs: ${error.message}`);
+    res.status(500).json({ message: "Server Error" });
+  }
+};
+
+const getBlogArchive = async (req, res) => {
+  try {
+    const archives = await getFromDbOrCache(CACHE_KEY_ARCHIVE, () =>
+      Blog.aggregate([
+        {
+          $group: {
+            _id: {
+              year: { $year: "$createdAt" },
+              month: { $month: "$createdAt" },
+            },
+            count: { $sum: 1 },
+          },
+        },
+        {
+          $sort: {
+            "_id.year": -1,
+            "_id.month": -1,
+          },
+        },
+        {
+          $group: {
+            _id: "$_id.year",
+            months: {
+              $push: {
+                month: "$_id.month",
+                count: "$count",
+              },
+            },
+          },
+        },
+        {
+          $project: {
+            _id: 0,
+            year: "$_id",
+            months: "$months",
+          },
+        },
+        {
+          $sort: {
+            year: -1,
+          },
+        },
+      ])
+    );
+    res.json(archives);
+  } catch (error) {
+    logger.error(`Error di getBlogArchive: ${error.message}`);
+    res.status(500).json({ message: "Server Error" });
   }
 };
 
 const getBlogBySlug = async (req, res) => {
   const { slug } = req.params;
-  const cacheKey = `${BLOG_ITEM_SLUG_CACHE_PREFIX}${slug}`;
-
+  const cacheKey = `${CACHE_KEY_PREFIX_BLOG}${slug}`;
   try {
-    if (!Blog || typeof Blog.findOne !== "function") {
-      logger.error("Blog model is not properly imported");
-      return res.status(500).json({
-        success: false,
-        message: "Server configuration error",
-        error: "Model not available",
-      });
+    const blog = await getFromDbOrCache(cacheKey, () => Blog.findOne({ slug }));
+    if (!blog) {
+      return res.status(404).json({ message: "Blog not found" });
     }
-
-    let blogForProcessing;
-    const cachedBlog = await redisClient.get(cacheKey);
-
-    if (cachedBlog) {
-      logger.info(`Cache hit for blog slug: ${slug}`);
-      blogForProcessing = cachedBlog; // Langsung gunakan objek dari cache
-    } else {
-      logger.info(`Cache miss for blog slug: ${slug}. Fetching from DB.`);
-      const dbBlog = await Blog.findOne({ slug }).lean();
-      if (!dbBlog) {
-        logger.info(`Blog with slug ${slug} not found`);
-        return res.status(404).json({
-          success: false,
-          message: "Blog post not found",
-        });
-      }
-      blogForProcessing = dbBlog;
-      await redisClient.set(
-        cacheKey,
-        JSON.stringify(blogForProcessing),
-        CACHE_EXPIRY_SECONDS
-      );
-    }
-
-    let viewData = {
-      total: blogForProcessing.views?.total || 0,
-      unique: blogForProcessing.views?.unique || 0,
-    };
-    if (ViewCount && typeof ViewCount.findOne === "function") {
-      const viewCount = await ViewCount.findOne({
-        contentId: blogForProcessing._id,
-        contentType: "blog",
-      });
-      if (viewCount) {
-        viewData = { total: viewCount.total, unique: viewCount.unique };
-      }
-    }
-
-    let viewHistory = blogForProcessing.viewHistory || [];
-    if (DailyView && typeof DailyView.find === "function") {
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      const recentDailyViews = await DailyView.find({
-        contentId: blogForProcessing._id,
-        contentType: "blog",
-        date: { $gte: thirtyDaysAgo },
-      })
-        .sort({ date: -1 })
-        .lean();
-      if (recentDailyViews && recentDailyViews.length > 0) {
-        viewHistory = recentDailyViews.map((item) => ({
-          date: item.date,
-          count: item.count,
-        }));
-      }
-    }
-
-    logger.info(
-      `Retrieved blog: ${blogForProcessing.title} (${blogForProcessing._id})`
-    );
-
-    const finalBlogData = {
-      ...blogForProcessing,
-      views: viewData,
-      viewHistory: viewHistory,
-    };
-
-    return res.status(200).json({
-      success: true,
-      data: finalBlogData,
-    });
+    res.json(blog);
   } catch (error) {
-    logger.error(`Error fetching blog by slug: ${error.message}`, { error });
-    return res.status(500).json({
-      success: false,
-      message: "Failed to fetch blog post",
-      error: error.message,
-    });
+    logger.error(`Error di getBlogBySlug: ${error.message}`);
+    res.status(500).json({ message: "Server Error" });
   }
 };
 
-const getBlogById = async (req, res) => {
-  const { id } = req.params;
-  const cacheKey = `${BLOG_ITEM_ID_CACHE_PREFIX}${id}`;
+const createBlog = async (req, res) => {
+  const { title, content } = req.body;
+
+  if (!title || !content) {
+    return res.status(400).json({ message: "Title and content are required" });
+  }
+  if (!req.fileUrl) {
+    return res.status(400).json({ message: "Cover image is required" });
+  }
+
   try {
-    const cachedData = await redisClient.get(cacheKey);
-    if (cachedData) {
-      logger.info(`Cache hit for getBlogById: ${id}`);
-      const blog = cachedData
-      return res.status(200).json({
-        success: true,
-        data: blog,
-      });
-    }
+    const newBlog = new Blog({
+      title: title,
+      content: content,
+      coverImage: req.fileUrl,
+    });
+    const savedBlog = await newBlog.save();
 
-    logger.info(`Cache miss for getBlogById: ${id}. Fetching from DB.`);
-    const blog = await Blog.findById(id).lean();
+    await invalidateBlogCache();
 
-    if (!blog) {
-      logger.info(`Blog with ID ${id} not found`);
-      return res.status(404).json({
-        success: false,
-        message: "Blog post not found",
-      });
-    }
-
-    await redisClient.set(cacheKey, JSON.stringify(blog), CACHE_EXPIRY_SECONDS);
-    logger.info(`Retrieved blog: ${blog.title} (${blog._id})`);
-    return res.status(200).json({
-      success: true,
-      data: blog,
+    res.status(201).json({
+      message: "Blog created successfully",
+      data: {
+        slug: savedBlog.slug,
+        title: savedBlog.title,
+        content: savedBlog.content,
+        coverImage: savedBlog.coverImage,
+        createdAt: savedBlog.createdAt,
+      },
     });
   } catch (error) {
-    logger.error(`Error fetching blog by ID: ${error.message}`, { error });
-    return res.status(500).json({
-      success: false,
-      message: "Failed to fetch blog post",
-      error: error.message,
-    });
+    logger.error(`Error di createBlog: ${error.message}`);
+
+    if (req.fileUrl) {
+      const filePath = path.join(process.cwd(), "public", req.fileUrl);
+
+      try {
+        await fs.unlink(filePath);
+        logger.info(
+          `File cleanup: ${filePath} telah dihapus karena terjadi error saat menyimpan blog.`
+        );
+      } catch (unlinkError) {
+        logger.error(
+          `Gagal melakukan cleanup file ${filePath}: ${unlinkError.message}`
+        );
+      }
+    }
+
+    res.status(400).json({ message: error.message });
   }
 };
 
 const updateBlog = async (req, res) => {
+  const { slug } = req.params;
   try {
-    const { id } = req.params;
-    const { title, content, author, tags, summary } = req.body;
-
-    const blogToUpdate = await Blog.findById(id);
-
-    if (!blogToUpdate) {
-      logger.info(`Blog with ID ${id} not found for update`);
-      if (req.fileUrl) deleteFile(req.fileUrl.substring(1));
-      return res.status(404).json({
-        success: false,
-        message: "Blog post not found",
-      });
-    }
-
-    const oldSlug = blogToUpdate.slug;
-    const oldTags = [...blogToUpdate.tags];
-    const oldCoverImage = blogToUpdate.coverImage;
-
-    blogToUpdate.title = title || blogToUpdate.title;
-    blogToUpdate.content = content || blogToUpdate.content;
-    blogToUpdate.author = author || blogToUpdate.author;
-    blogToUpdate.summary =
-      summary !== undefined ? summary : blogToUpdate.summary;
-
-    if (title && title !== oldSlug) {
-      blogToUpdate.slug = slugify(blogToUpdate.title, {
-        lower: true,
-        strict: true,
-        trim: true,
-      });
-    }
-
-    if (tags) {
-      if (Array.isArray(tags)) {
-        blogToUpdate.tags = tags;
-      } else {
-        try {
-          blogToUpdate.tags = JSON.parse(tags);
-        } catch (e) {
-          blogToUpdate.tags = tags.split(",").map((tag) => tag.trim());
-        }
-      }
-    }
-
-    if (req.fileUrl) {
-      blogToUpdate.coverImage = req.fileUrl;
-
-      if (oldCoverImage && oldCoverImage !== req.fileUrl) {
-        deleteFile(oldCoverImage.substring(1));
-      }
-    }
-
-    blogToUpdate.updatedAt = Date.now();
-    const updatedBlog = await blogToUpdate.save();
-
-    await redisClient.delete(`${BLOG_ITEM_ID_CACHE_PREFIX}${updatedBlog._id}`);
-    if (oldSlug !== updatedBlog.slug) {
-      await redisClient.delete(`${BLOG_ITEM_SLUG_CACHE_PREFIX}${oldSlug}`);
-    }
-    await redisClient.delete(
-      `${BLOG_ITEM_SLUG_CACHE_PREFIX}${updatedBlog.slug}`
-    );
-
-    const allAffectedTags = [...new Set([...oldTags, ...updatedBlog.tags])];
-    await clearListCaches(allAffectedTags);
-
-    logger.info(`Blog updated: ${updatedBlog.title} (${updatedBlog._id})`);
-    return res.status(200).json({
-      success: true,
-      data: updatedBlog,
+    const updatedBlog = await Blog.findOneAndUpdate({ slug }, req.body, {
+      new: true,
+      runValidators: true,
     });
+    if (!updatedBlog) {
+      return res.status(404).json({ message: "Blog not found" });
+    }
+    await invalidateBlogCache(slug);
+    if (req.body.slug && req.body.slug !== slug) {
+      await invalidateBlogCache(req.body.slug);
+    }
+    res.json(updatedBlog);
   } catch (error) {
-    logger.error(`Error updating blog: ${error.message}`, { error });
-
-    if (req.fileUrl) {
-      deleteFile(req.fileUrl.substring(1));
-    }
-    return res.status(500).json({
-      success: false,
-      message: "Failed to update blog post",
-      error: error.message,
-    });
+    logger.error(`Error di updateBlog: ${error.message}`);
+    res.status(400).json({ message: error.message });
   }
 };
 
 const deleteBlog = async (req, res) => {
+  const { slug } = req.params;
   try {
-    const { id } = req.params;
-    const blog = await Blog.findByIdAndDelete(id);
-
-    if (!blog) {
-      logger.info(`Blog with ID ${id} not found for deletion`);
-      return res.status(404).json({
-        success: false,
-        message: "Blog post not found",
-      });
+    const deletedBlog = await Blog.findOneAndDelete({ slug });
+    if (!deletedBlog) {
+      return res.status(404).json({ message: "Blog not found" });
     }
-
-    if (blog.coverImage) {
-      deleteFile(blog.coverImage.substring(1));
-    }
-
-    await redisClient.delete(`${BLOG_ITEM_ID_CACHE_PREFIX}${blog._id}`);
-    await redisClient.delete(`${BLOG_ITEM_SLUG_CACHE_PREFIX}${blog.slug}`);
-    await clearListCaches(blog.tags);
-
-    logger.info(`Blog deleted: ${blog.title} (${blog._id})`);
-    return res.status(200).json({
-      success: true,
-      message: "Blog post deleted successfully",
-      data: blog,
-    });
+    await invalidateBlogCache(slug);
+    res.json({ message: "Blog deleted successfully" });
   } catch (error) {
-    logger.error(`Error deleting blog: ${error.message}`, { error });
-    return res.status(500).json({
-      success: false,
-      message: "Failed to delete blog post",
-      error: error.message,
-    });
+    logger.error(`Error di deleteBlog: ${error.message}`);
+    res.status(500).json({ message: "Server Error" });
   }
 };
 
-const getBlogsByTag = async (req, res) => {
-  const { tag } = req.params;
-
-  const normalizedTag = tag.toLowerCase();
-  const cacheKey = `${BLOGS_LIST_TAG_CACHE_PREFIX}${normalizedTag}`;
-  try {
-    const cachedData = await redisClient.get(cacheKey);
-    if (cachedData) {
-      logger.info(`Cache hit for getBlogsByTag: ${normalizedTag}`);
-      const blogs = cachedData;
-      return res.status(200).json({
-        success: true,
-        count: blogs.length,
-        data: blogs,
-      });
-    }
-
-    logger.info(
-      `Cache miss for getBlogsByTag: ${normalizedTag}. Fetching from DB.`
-    );
-
-    const blogs = await Blog.find({
-      tags: { $regex: new RegExp(`^${normalizedTag}$`, "i") },
-      isArchived: { $ne: true },
-    })
-      .sort({ createdAt: -1 })
-      .lean();
-
-    await redisClient.set(
-      cacheKey,
-      JSON.stringify(blogs),
-      CACHE_EXPIRY_SECONDS
-    );
-
-    logger.info(`Retrieved ${blogs.length} blogs with tag: ${normalizedTag}`);
-    return res.status(200).json({
-      success: true,
-      count: blogs.length,
-      data: blogs,
-    });
-  } catch (error) {
-    logger.error(`Error fetching blogs by tag: ${error.message}`, { error });
-    return res.status(500).json({
-      success: false,
-      message: "Failed to fetch blogs by tag",
-      error: error.message,
-    });
-  }
-};
-
+/**
+ * Mengarsipkan sebuah artikel blog.
+ */
 const archiveBlog = async (req, res) => {
+  const { slug } = req.params;
   try {
-    const { id } = req.params;
-    const blog = await Blog.findById(id);
-
-    if (!blog) {
-      logger.info(`Blog with ID ${id} not found for archiving`);
-      return res.status(404).json({
-        success: false,
-        message: "Blog post not found",
-      });
-    }
-
-    if (blog.isArchived) {
-      logger.info(`Blog ${blog.title} (${id}) is already archived.`);
-      return res.status(200).json({
-        success: true,
-        message: "Blog post is already archived.",
-        data: blog,
-      });
-    }
-
-    blog.isArchived = true;
-    blog.updatedAt = Date.now();
-    const archivedBlog = await blog.save();
-
-    await redisClient.delete(`${BLOG_ITEM_ID_CACHE_PREFIX}${archivedBlog._id}`);
-    await redisClient.delete(
-      `${BLOG_ITEM_SLUG_CACHE_PREFIX}${archivedBlog.slug}`
+    const updatedBlog = await Blog.findOneAndUpdate(
+      { slug },
+      { isArchived: true },
+      { new: true }
     );
-    await clearListCaches(archivedBlog.tags);
 
-    logger.info(`Blog archived: ${archivedBlog.title} (${archivedBlog._id})`);
-    return res.status(200).json({
-      success: true,
-      message: "Blog post archived successfully",
-      data: archivedBlog,
-    });
+    if (!updatedBlog) {
+      return res.status(404).json({ message: "Blog not found" });
+    }
+
+    await invalidateBlogCache(slug);
+    res.json({ message: "Blog archived successfully", data: updatedBlog });
   } catch (error) {
-    logger.error(`Error archiving blog: ${error.message}`, { error });
-    return res.status(500).json({
-      success: false,
-      message: "Failed to archive blog post",
-      error: error.message,
-    });
+    logger.error(`Error archiving blog: ${error.message}`);
+    res.status(500).json({ message: "Server Error" });
   }
 };
 
+/**
+ * Mengembalikan artikel blog dari arsip.
+ */
 const unarchiveBlog = async (req, res) => {
+  const { slug } = req.params;
   try {
-    const { id } = req.params;
-    const blog = await Blog.findById(id);
+    const updatedBlog = await Blog.findOneAndUpdate(
+      { slug },
+      { isArchived: false },
+      { new: true }
+    );
 
-    if (!blog) {
-      logger.info(`Blog with ID ${id} not found for unarchiving`);
-      return res.status(404).json({
-        success: false,
-        message: "Blog post not found",
-      });
+    if (!updatedBlog) {
+      return res.status(404).json({ message: "Blog not found" });
     }
 
-    if (!blog.isArchived) {
-      logger.info(`Blog ${blog.title} (${id}) is not archived.`);
-      return res.status(200).json({
-        success: true,
-        message: "Blog post is already not archived.",
-        data: blog,
-      });
-    }
-
-    blog.isArchived = false;
-    blog.updatedAt = Date.now();
-    const unarchivedBlog = await blog.save();
-
-    await redisClient.delete(
-      `${BLOG_ITEM_ID_CACHE_PREFIX}${unarchivedBlog._id}`
-    );
-    await redisClient.delete(
-      `${BLOG_ITEM_SLUG_CACHE_PREFIX}${unarchivedBlog.slug}`
-    );
-    await clearListCaches(unarchivedBlog.tags);
-
-    logger.info(
-      `Blog unarchived: ${unarchivedBlog.title} (${unarchivedBlog._id})`
-    );
-    return res.status(200).json({
-      success: true,
-      message: "Blog post unarchived successfully",
-      data: unarchivedBlog,
-    });
+    await invalidateBlogCache(slug);
+    res.json({ message: "Blog unarchived successfully", data: updatedBlog });
   } catch (error) {
-    logger.error(`Error unarchiving blog: ${error.message}`, { error });
-    return res.status(500).json({
-      success: false,
-      message: "Failed to unarchive blog post",
-      error: error.message,
-    });
-  }
-};
-
-const getArchivedBlogs = async (req, res) => {
-  const cacheKey = BLOGS_LIST_ARCHIVED_CACHE_KEY;
-  try {
-    const cachedData = await redisClient.get(cacheKey);
-    if (cachedData) {
-      logger.info(`Cache hit for getArchivedBlogs: ${cacheKey}`);
-      const archivedBlogs = cachedData;
-      return res.status(200).json({
-        success: true,
-        count: archivedBlogs.length,
-        data: archivedBlogs,
-      });
-    }
-
-    logger.info(
-      `Cache miss for getArchivedBlogs: ${cacheKey}. Fetching from DB.`
-    );
-    const archivedBlogs = await Blog.find({ isArchived: true })
-      .sort({ updatedAt: -1 })
-      .lean();
-
-    await redisClient.set(
-      cacheKey,
-      JSON.stringify(archivedBlogs),
-      CACHE_EXPIRY_SECONDS
-    );
-
-    logger.info(`Retrieved ${archivedBlogs.length} archived blog posts`);
-    return res.status(200).json({
-      success: true,
-      count: archivedBlogs.length,
-      data: archivedBlogs,
-    });
-  } catch (error) {
-    logger.error(`Error fetching archived blogs: ${error.message}`, { error });
-    return res.status(500).json({
-      success: false,
-      message: "Failed to fetch archived blog posts",
-      error: error.message,
-    });
-  }
-};
-
-const searchBlogs = async (req, res) => {
-  try {
-    const {
-      query,
-      tags: queryTags,
-      sortBy = "createdAt",
-      sortOrder = -1,
-      page = 1,
-      limit = 10,
-    } = req.query;
-
-    const pageNum = parseInt(page, 10) || 1;
-    const limitNum = parseInt(limit, 10) || 10;
-    const skip = (pageNum - 1) * limitNum;
-
-    let tagsForCacheKey = "";
-    if (queryTags) {
-      const tagArray = Array.isArray(queryTags)
-        ? queryTags
-        : queryTags.split(",").map((t) => t.trim().toLowerCase());
-      tagsForCacheKey = tagArray.sort().join(",");
-    }
-
-    const cacheKey = `${BLOGS_SEARCH_CACHE_PREFIX}q=${
-      query || ""
-    }:tags=${tagsForCacheKey}:sortBy=${sortBy}:sortOrder=${sortOrder}:page=${pageNum}:limit=${limitNum}`;
-
-    const cachedData = await redisClient.get(cacheKey);
-    if (cachedData) {
-      logger.info(`Cache hit for searchBlogs: ${cacheKey}`);
-      return res.status(200).json({
-        success: true,
-        data: cachedData,
-      });
-    }
-    logger.info(`Cache miss for searchBlogs: ${cacheKey}. Fetching from DB.`);
-
-    let baseQuery = { isArchived: false };
-    let useTextSearch = false;
-    let projection = {};
-
-    if (query && query.trim() !== "") {
-      try {
-        await Blog.countDocuments({ $text: { $search: "test" } }).limit(1);
-        useTextSearch = true;
-      } catch (error) {
-        useTextSearch = false;
-        logger.info(
-          "Text index not available or error checking for it, using regex search."
-        );
-      }
-
-      const searchTerms = query.trim();
-      if (useTextSearch) {
-        baseQuery.$text = { $search: searchTerms };
-        projection.score = { $meta: "textScore" };
-      } else {
-        const regex = { $regex: searchTerms, $options: "i" };
-        baseQuery.$or = [
-          { title: regex },
-          { summary: regex },
-          { content: regex },
-        ];
-      }
-    }
-
-    if (queryTags) {
-      const tagArray = Array.isArray(queryTags)
-        ? queryTags
-        : queryTags.split(",").map((tag) => tag.trim());
-      if (tagArray.length > 0) {
-        baseQuery.tags = {
-          $in: tagArray.map((tag) => new RegExp(`^${tag}$`, "i")),
-        };
-      }
-    }
-
-    const sortOptions = {};
-    if (useTextSearch && query && sortBy === "relevance") {
-      sortOptions.score = { $meta: "textScore" };
-    } else {
-      sortOptions[sortBy] = parseInt(sortOrder, 10) === 1 ? 1 : -1;
-    }
-
-    const blogs = await Blog.find(baseQuery, projection)
-      .select(
-        "title slug summary coverImage tags createdAt views likes isArchived"
-      )
-      .sort(sortOptions)
-      .skip(skip)
-      .limit(limitNum)
-      .lean();
-
-    const total = await Blog.countDocuments(baseQuery);
-    const responseData = {
-      blogs,
-      pagination: {
-        total,
-        page: pageNum,
-        limit: limitNum,
-        pages: Math.ceil(total / limitNum),
-      },
-    };
-
-    await redisClient.set(
-      cacheKey,
-      JSON.stringify(responseData),
-      CACHE_EXPIRY_SECONDS
-    );
-
-    return res.status(200).json({
-      success: true,
-      data: responseData,
-    });
-  } catch (error) {
-    logger.error(`Error searching blogs: ${error.message}`, { error });
-    return res.status(500).json({
-      success: false,
-      message: "Error searching blogs",
-      error: error.message,
-    });
-  }
-};
-
-const queryBlogs = async (req, res) => {
-  try {
-    const { query } = req.params;
-    const { page = 1, limit = 8 } = req.query;
-
-    const pageNum = parseInt(page, 10) || 1;
-    const limitNum = parseInt(limit, 10) || 8;
-    const skip = (pageNum - 1) * limitNum;
-
-    const cacheKey = `${BLOGS_QUERY_CACHE_PREFIX}q=${
-      query || ""
-    }:page=${pageNum}:limit=${limitNum}`;
-    const cachedData = await redisClient.get(cacheKey);
-
-    if (cachedData) {
-      logger.info(`Cache hit for queryBlogs: ${cacheKey}`);
-      return res.status(200).json({
-        success: true,
-        data: cachedData,
-      });
-    }
-    logger.info(`Cache miss for queryBlogs: ${cacheKey}. Fetching from DB.`);
-
-    const regexQuery = { $regex: query, $options: "i" };
-    const baseQuery = {
-      $or: [
-        { title: regexQuery },
-        { content: regexQuery },
-        { summary: regexQuery },
-      ],
-      isArchived: { $ne: true },
-    };
-
-    const blogs = await Blog.find(baseQuery)
-      .select("title slug summary coverImage tags createdAt views likes")
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limitNum)
-      .lean();
-
-    const total = await Blog.countDocuments(baseQuery);
-    const responseData = {
-      blogs,
-      pagination: {
-        total,
-        page: pageNum,
-        limit: limitNum,
-        pages: Math.ceil(total / limitNum),
-      },
-    };
-
-    await redisClient.set(
-      cacheKey,
-      JSON.stringify(responseData),
-      CACHE_EXPIRY_SECONDS
-    );
-
-    return res.status(200).json({
-      success: true,
-      data: responseData,
-    });
-  } catch (error) {
-    logger.error(`Error querying blogs: ${error.message}`, { error });
-    return res.status(500).json({
-      success: false,
-      message: "Failed to query blogs",
-      error: error.message,
-    });
+    logger.error(`Error unarchiving blog: ${error.message}`);
+    res.status(500).json({ message: "Server Error" });
   }
 };
 
 module.exports = {
-  createBlog,
   getAllBlogs,
+  getBlogArchive,
   getBlogBySlug,
-  getBlogById,
+  createBlog,
   updateBlog,
   deleteBlog,
-  getBlogsByTag,
-  getArchivedBlogs,
-  unarchiveBlog,
   archiveBlog,
-  searchBlogs,
-  queryBlogs,
+  unarchiveBlog,
 };

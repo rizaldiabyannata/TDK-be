@@ -1,39 +1,74 @@
 const express = require("express");
 const router = express.Router();
-const {
-  createPortfolio,
-  getAllPortfolios,
-  getPortfolioBySlug,
-  getPortfolioById,
-  updatePortfolio,
-  deletePortfolio,
-  getArchivedPortfolios,
-  unarchivePortfolio,
-  archivePortfolio,
-  searchPortfolios,
-} = require("../controllers/portoController");
 
+// Impor fungsi controller dan middleware yang diperlukan
+const {
+  getAllPortos,
+  getPortoArchive,
+  getPortoBySlug,
+  createPorto,
+  updatePorto,
+  deletePorto,
+  archivePorto,
+  unarchivePorto,
+} = require("../controllers/portoController"); // Pastikan path ini benar
 const { authenticate } = require("../middleware/authMiddleware");
 const { trackView } = require("../middleware/viewTracker");
-const { uploadSingleFile } = require("../middleware/multerMiddleware");
 
-router.get("/search", searchPortfolios);
-router.get("/archived", authenticate, getArchivedPortfolios);
-router.post("/", authenticate, uploadSingleFile("coverImage"), createPortfolio);
-router.get("/", getAllPortfolios);
+/**
+ * @route   GET /api/portos
+ * @desc    Dapatkan semua item portofolio dengan filter
+ * @access  Publik
+ */
+router.get("/", getAllPortos);
 
-router.get("/slug/:slug", trackView("portfolio"), getPortfolioBySlug);
+/**
+ * @route   GET /api/portos/archives
+ * @desc    Dapatkan data arsip portofolio
+ * @access  Publik
+ */
+router.get("/archives", getPortoArchive);
 
-router.put("/:id/archive", authenticate, archivePortfolio);
-router.put("/:id/unarchive", authenticate, unarchivePortfolio);
+/**
+ * @route   POST /api/portos
+ * @desc    Buat item portofolio baru
+ * @access  Private (Admin)
+ */
+router.post("/", authenticate, createPorto);
 
-router.get("/id/:id", authenticate, getPortfolioById);
-router.put(
-  "/id/:id",
-  authenticate,
-  uploadSingleFile("coverImage"),
-  updatePortfolio
-);
-router.delete("/id/:id", authenticate, deletePortfolio);
+/**
+ * @route   PATCH /api/portos/:slug/archive
+ * @desc    Mengarsipkan item portofolio
+ * @access  Private (Admin)
+ */
+router.patch("/:slug/archive", authenticate, archivePorto);
+
+/**
+ * @route   PATCH /api/portos/:slug/unarchive
+ * @desc    Mengembalikan item portofolio dari arsip
+ * @access  Private (Admin)
+ */
+router.patch("/:slug/unarchive", authenticate, unarchivePorto);
+
+/**
+ * @route   GET /api/portos/:slug
+ * @desc    Dapatkan satu item portofolio berdasarkan slug
+ * @access  Publik
+ */
+router.get("/:slug", trackView("Portfolio"), getPortoBySlug);
+
+/**
+ * @route   PUT /api/portos/:slug
+ * @desc    Perbarui item portofolio
+ * @access  Private (Admin)
+ */
+router.put("/:slug", authenticate, updatePorto);
+
+/**
+ * @route   DELETE /api/portos/:slug
+ * @desc    Hapus item portofolio
+ * @access  Private (Admin)
+ */
+router.delete("/:slug", authenticate, deletePorto);
 
 module.exports = router;

@@ -18,6 +18,7 @@ const blogSchema = new mongoose.Schema({
   },
   coverImage: {
     type: String,
+    required: true,
   },
   summary: {
     type: String,
@@ -25,20 +26,13 @@ const blogSchema = new mongoose.Schema({
   author: {
     type: String,
     required: true,
+    default: "PT.Total Desain Konsultan",
     trim: true,
-  },
-  tags: {
-    type: [String],
-    default: [],
   },
   isArchived: {
     type: Boolean,
     default: false,
     index: true,
-  },
-  likes: {
-    type: Number,
-    default: 0,
   },
   views: {
     total: {

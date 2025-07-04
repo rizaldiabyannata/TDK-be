@@ -1,39 +1,75 @@
 const express = require("express");
-const {
-  createBlog,
-  getAllBlogs,
-  getBlogBySlug,
-  getBlogById,
-  updateBlog,
-  deleteBlog,
-  getBlogsByTag,
-  getArchivedBlogs,
-  archiveBlog,
-  unarchiveBlog,
-  searchBlogs,
-  queryBlogs,
-} = require("../controllers/blogController");
-const { trackView } = require("../middleware/viewTracker");
-const { authenticate } = require("../middleware/authMiddleware");
-const { uploadSingleFile } = require("../middleware/multerMiddleware");
-
 const router = express.Router();
 
-router.get("/search", searchBlogs);
-router.get("/archived", authenticate, getArchivedBlogs);
-router.post("/", authenticate, uploadSingleFile("coverImage"), createBlog);
+// Impor fungsi controller dan middleware yang diperlukan
+const {
+  getAllBlogs,
+  getBlogArchive,
+  getBlogBySlug,
+  createBlog,
+  updateBlog,
+  deleteBlog,
+  archiveBlog,
+  unarchiveBlog,
+} = require("../controllers/blogController"); // Pastikan path ini benar
+const { authenticate } = require("../middleware/authMiddleware");
+const { trackView } = require("../middleware/viewTracker");
+const { uploadSingleFile } = require("../middleware/multerMiddleware");
+
+/**
+ * @route   GET /api/blogs
+ * @desc    Dapatkan semua artikel blog dengan filter
+ * @access  Publik
+ */
 router.get("/", getAllBlogs);
 
-router.get("/slug/:slug", trackView("blog"), getBlogBySlug);
-router.get("/tag/:tag", trackView("blog"), getBlogsByTag);
+/**
+ * @route   GET /api/blogs/archives
+ * @desc    Dapatkan data arsip blog
+ * @access  Publik
+ */
+router.get("/archives", getBlogArchive);
 
-router.get("/query/:query", queryBlogs);
+/**
+ * @route   POST /api/blogs
+ * @desc    Buat artikel blog baru
+ * @access  Private (Admin)
+ */
+router.post("/", authenticate, uploadSingleFile("coverImage"), createBlog);
 
-router.put("/id/:id/archive", authenticate, archiveBlog);
-router.put("/id/:id/unarchive", authenticate, unarchiveBlog);
+/**
+ * @route   PATCH /api/blogs/:slug/archive
+ * @desc    Mengarsipkan artikel blog
+ * @access  Private (Admin)
+ */
+router.patch("/:slug/archive", authenticate, archiveBlog);
 
-router.get("/id/:id", trackView("blog"), getBlogById);
-router.put("/id/:id", authenticate, updateBlog);
-router.delete("/id/:id", authenticate, deleteBlog);
+/**
+ * @route   PATCH /api/blogs/:slug/unarchive
+ * @desc    Mengembalikan artikel blog dari arsip
+ * @access  Private (Admin)
+ */
+router.patch("/:slug/unarchive", authenticate, unarchiveBlog);
+
+/**
+ * @route   GET /api/blogs/:slug
+ * @desc    Dapatkan satu artikel blog berdasarkan slug
+ * @access  Publik
+ */
+router.get("/:slug", trackView("Blog"), getBlogBySlug);
+
+/**
+ * @route   PUT /api/blogs/:slug
+ * @desc    Perbarui artikel blog
+ * @access  Private (Admin)
+ */
+router.put("/:slug", authenticate, updateBlog);
+
+/**
+ * @route   DELETE /api/blogs/:slug
+ * @desc    Hapus artikel blog
+ * @access  Private (Admin)
+ */
+router.delete("/:slug", authenticate, deleteBlog);
 
 module.exports = router;

@@ -1,45 +1,49 @@
 const express = require("express");
 const router = express.Router();
-const homePageController = require("../controllers/contentTrackingController");
+const contentTrackingController = require("../controllers/contentTrackingController");
 const { authenticate } = require("../middleware/authMiddleware");
 
-router.get("/", homePageController.getHomePageContent);
+router.get("/", contentTrackingController.getHomePageContent);
 
 router.put(
   "/featured-blogs",
   authenticate,
-  homePageController.updateFeaturedBlogs
+  contentTrackingController.updateFeaturedBlogs
 );
 
 router.put(
   "/highlighted-portfolios",
   authenticate,
-  homePageController.updateHighlightedPortfolios
+  contentTrackingController.updateHighlightedPortfolios
 );
 
-router.post("/reset", authenticate, homePageController.resetHomePageContent);
+router.post(
+  "/reset",
+  authenticate,
+  contentTrackingController.resetHomePageContent
+);
 
 router.post(
   "/featured-blogs",
   authenticate,
-  homePageController.addFeaturedBlog
+  contentTrackingController.addFeaturedBlog
 );
 
 router.delete(
   "/featured-blogs/:blogId",
   authenticate,
-  homePageController.removeFeaturedBlog
+  contentTrackingController.removeFeaturedBlog
 );
 
 router.post(
   "/highlighted-portfolios",
   authenticate,
-  homePageController.addHighlightedPortfolio
+  contentTrackingController.addHighlightedPortfolio
 );
 router.delete(
   "/highlighted-portfolios/:portfolioId",
   authenticate,
-  homePageController.removeHighlightedPortfolio
+  contentTrackingController.removeHighlightedPortfolio
 );
 
 module.exports = router;

@@ -1,42 +1,46 @@
-const mongoose = require("mongoose");
-const bcrypt = require("bcrypt");
+const bcrypt = require("bcryptjs");
 const User = require("../models/userModel"); // Pastikan path ini benar
+const logger = require("../utils/logger"); // Gunakan logger standar untuk konsistensi
 
-// Admin configuration
-const admin = {
+// Konfigurasi Admin dari environment variables
+const adminConfig = {
   name: process.env.ADMIN_USERNAME,
   password: process.env.ADMIN_PASSWORD,
 };
 
 const seedAdmin = async () => {
   try {
-    // Connect to MongoDB (gunakan MONGO_URI yang sudah didefinisikan di .env)
-    await mongoose.connect(process.env.MONGO_URI);
-    console.log("Connected to MongoDB");
-
-    // Check if admin already exists
-    const existingAdmin = await User.findOne();
-
-    if (existingAdmin) {
-      console.log("Admin already exists. Seed aborted.");
-      return "Admin already exists.";
+    // Validasi apakah konfigurasi admin ada
+    if (!adminConfig.email || !adminConfig.password || !adminConfig.name) {
+      logger.warn(
+        "Admin credentials are not set in .env file. Skipping admin seed."
+      );
+      return;
     }
 
-    // Hash the admin password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(admin.password, salt);
+    // Cek apakah admin dengan email tersebut sudah ada
+    const existingAdmin = await User.findOne({ email: adminConfig.email });
 
-    // Create admin user
-    const newAdmin = await User.create({
-      name: admin.name,
+    if (existingAdmin) {
+      logger.info("Admin user already exists. Seeding skipped.");
+      return; // Hentikan proses jika admin sudah ada
+    }
+
+    // Hash password admin
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(adminConfig.password, salt);
+
+    // Buat pengguna admin baru
+    await User.create({
+      name: adminConfig.name,
       password: hashedPassword,
     });
 
-    console.log(`Admin account created successfully: ${newAdmin.name}`);
-    return `Admin account created successfully: ${newAdmin.name}`;
+    logger.info(`Admin account for ${adminConfig.email} created successfully.`);
   } catch (error) {
-    console.error("Error seeding admin:", error);
-    return "Error while creating admin";
+    logger.error(`Error during admin seeding: ${error.message}`);
+    // Hentikan aplikasi jika proses seeding gagal, karena ini adalah langkah kritis
+    process.exit(1);
   }
 };
 

@@ -1,164 +1,93 @@
-const { v4: uuidv4 } = require("uuid");
+const redisClient = require("../config/redisConfig");
 const logger = require("../utils/logger");
-const {
-  Visitor,
-  ViewCount,
-  DailyView,
-} = require("../models/viewTrackingModel");
 const Blog = require("../models/blogModel");
-const Portfolio = require("../models/portoModel");
+const Porto = require("../models/portoModel");
 
-const getModelByType = (contentType) => {
-  return contentType === "portfolio" ? Portfolio : Blog;
+// Map untuk memilih model berdasarkan tipe
+const models = {
+  Blog: Blog,
+  Portfolio: Porto,
 };
 
-const trackView = (contentType) => {
+/**
+ * Middleware untuk melacak total, unique, dan riwayat harian sebuah konten.
+ * @param {'Blog' | 'Portfolio'} type - Tipe konten yang akan dilacak.
+ */
+const trackView = (type) => {
   return async (req, res, next) => {
+    const Model = models[type];
+    if (!Model) {
+      logger.warn(`Tipe model tidak valid di viewTracker: ${type}`);
+      return next();
+    }
+
+    const { slug } = req.params;
+    const ip = req.headers["x-forwarded-for"] || req.ip;
+
+    // --- LOGIKA YANG DIPERBAIKI UNTUK RIWAYAT HARIAN & TOTAL VIEW ---
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Set waktu ke tengah malam untuk mewakili satu hari
+
     try {
-      const requestData = {
-        contentId: req.params.id || req.params.slug,
-        visitorId: req.cookies.visitor_id,
-        ip: req.ip,
-        userAgent: req.headers["user-agent"],
-        referrer: req.headers.referer || "direct",
-        path: req.originalUrl,
-        isId: !!req.params.id,
-      };
+      // Langkah 1: Coba perbarui riwayat untuk hari ini jika sudah ada.
+      // Operasi ini juga akan menambah 'views.total'.
+      const updateResult = await Model.updateOne(
+        { slug: slug, "viewHistory.date": today },
+        {
+          $inc: {
+            "views.total": 1,
+            "viewHistory.$.count": 1,
+          },
+        }
+      );
 
-      if (!requestData.visitorId) {
-        const newVisitorId = uuidv4();
-        res.cookie("visitor_id", newVisitorId, {
-          maxAge: 365 * 24 * 60 * 60 * 1000,
-          httpOnly: true,
-        });
-        requestData.visitorId = newVisitorId;
+      // Langkah 2: Jika tidak ada riwayat untuk hari ini yang diperbarui (modifiedCount === 0),
+      // maka tambahkan entri baru untuk hari ini. Ini akan dijalankan jika slug ada
+      // tapi entri tanggal untuk hari ini tidak ada.
+      // Kondisi 'viewHistory.date': { $ne: today } mencegah race condition.
+      if (updateResult.modifiedCount === 0) {
+        await Model.updateOne(
+          { slug: slug, "viewHistory.date": { $ne: today } },
+          {
+            $inc: { "views.total": 1 }, // Tambah total view di sini
+            $push: {
+              viewHistory: { date: today, count: 1 },
+            },
+          }
+        );
       }
-
-      next();
-
-      processViewTracking(contentType, requestData).catch((error) => {
-        logger.error(`View tracking error for ${contentType}:`, error);
-      });
     } catch (error) {
-      logger.error(`Error in view tracking middleware: ${error.message}`);
-      next();
-    }
-  };
-};
-
-async function processViewTracking(contentType, requestData) {
-  try {
-    const { contentId, visitorId, isId } = requestData;
-    if (!contentId) return;
-
-    const ContentModel = getModelByType(contentType);
-    const query = isId ? { _id: contentId } : { slug: contentId };
-    const contentDoc = await ContentModel.findOne(query);
-
-    if (!contentDoc) {
-      logger.warn(`${contentType} not found for tracking: ${contentId}`);
-      return;
-    }
-
-    const documentId = contentDoc._id;
-
-    const existingVisit = await Visitor.findOne({
-      contentId: documentId,
-      contentType: contentType,
-      visitorId: visitorId,
-    });
-
-    const isUniqueVisit = !existingVisit;
-
-    if (isUniqueVisit) {
-      await Visitor.create({
-        contentId: documentId,
-        contentType: contentType,
-        visitorId: visitorId,
-        lastVisit: new Date(),
-      });
-    } else {
-      await Visitor.updateOne(
-        { _id: existingVisit._id },
-        { $set: { lastVisit: new Date() } }
+      logger.error(
+        `Gagal memperbarui riwayat penayangan untuk ${slug}: ${error.message}`
       );
     }
 
-    const viewCountUpdate = await ViewCount.findOneAndUpdate(
-      { contentId: documentId, contentType: contentType },
-      {
-        $inc: { total: 1 },
-        ...(isUniqueVisit ? { $inc: { unique: 1 } } : {}),
-      },
-      { upsert: true, new: true }
-    );
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    await DailyView.findOneAndUpdate(
-      { contentId: documentId, contentType: contentType, date: today },
-      { $inc: { count: 1 } },
-      { upsert: true }
-    );
-
-    logger.info(
-      `View tracked for ${contentType} ${
-        contentDoc.title || documentId
-      }: Total=${viewCountUpdate.total}, Unique=${viewCountUpdate.unique}`
-    );
-
-    if (viewCountUpdate.total % 10 === 0 || isUniqueVisit) {
-      syncViewsToMainModel(contentType, documentId);
+    // --- Logika untuk Unique View (dijalankan secara terpisah dan tidak berubah) ---
+    if (!redisClient.isReady) {
+      logger.warn(
+        `Redis client tidak siap, pelacakan unique view untuk ${slug} dilewati.`
+      );
+      return next();
     }
-  } catch (error) {
-    logger.error(`Error tracking view: ${error.message}`, { error });
-  }
-}
 
-async function syncViewsToMainModel(contentType, documentId) {
-  try {
-    const viewCount = await ViewCount.findOne({
-      contentId: documentId,
-      contentType: contentType,
-    });
+    const redisKey = `view:${type}:${slug}:${ip}`;
 
-    if (!viewCount) return;
+    try {
+      const keyExists = await redisClient.get(redisKey);
+      if (!keyExists) {
+        // Jika ini unique view, tambah 'views.unique' dan set Redis.
+        await Model.updateOne({ slug }, { $inc: { "views.unique": 1 } });
+        await redisClient.set(redisKey, "1", { EX: 86400 }); // 24 jam
+        logger.info(`Unique view dicatat untuk ${type} ${slug} dari IP ${ip}`);
+      }
+    } catch (error) {
+      logger.error(
+        `Error saat melacak unique view di Redis untuk ${slug}: ${error.message}`
+      );
+    }
 
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-    const dailyViews = await DailyView.find({
-      contentId: documentId,
-      contentType: contentType,
-      date: { $gte: thirtyDaysAgo },
-    }).sort({ date: -1 });
-
-    const viewHistoryData = dailyViews.map((item) => ({
-      date: item.date,
-      count: item.count,
-    }));
-
-    const ContentModel = getModelByType(contentType);
-    await ContentModel.findByIdAndUpdate(documentId, {
-      $set: {
-        "views.total": viewCount.total,
-        "views.unique": viewCount.unique,
-        viewHistory: viewHistoryData,
-      },
-    });
-
-    await ViewCount.updateOne(
-      { _id: viewCount._id },
-      { $set: { lastSynced: new Date() } }
-    );
-
-    logger.info(
-      `Synced view data for ${contentType} ${documentId} to main model`
-    );
-  } catch (error) {
-    logger.error(`Error syncing view data: ${error.message}`, { error });
-  }
-}
+    next();
+  };
+};
 
 module.exports = { trackView };

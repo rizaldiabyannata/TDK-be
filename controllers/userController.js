@@ -1,12 +1,13 @@
 const User = require("../models/userModel");
 const logger = require("../utils/logger");
-const bcrypt = require("bcrypt");
+const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const otpService = require("../utils/otpService");
+const { findById } = require("../models/blogModel");
 
 const generateToken = (user) => {
   const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
-    expiresIn: "1h",
+    expiresIn: "2h",
   });
   return token;
 };
@@ -33,12 +34,14 @@ const loginUser = async (req, res) => {
     logger.info(`Admin logged in: ${name}`);
 
     res
-      .cookie("token", token, { httpOnly: true, secure: process.env.NODE_ENV === 'production', })
+      .cookie("token", token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+      })
       .status(200)
       .json({
         message: "Login successful",
         user: {
-          _id: admin._id,
           name: admin.name,
           email: admin.email || null,
         },
@@ -56,7 +59,7 @@ const getUserProfile = async (req, res) => {
     logger.info(`Admin profile fetched: ${user._id}`);
     res.json({
       user: {
-        _id: user._id,
+        username: user.name,
         email: user.email,
       },
     });
@@ -79,6 +82,8 @@ const updateUser = async (req, res) => {
 
     if (email) updateData.email = email;
 
+    const user = findById(userId);
+
     const updatedUser = await User.findByIdAndUpdate(userId, updateData, {
       new: true,
       runValidators: true,
@@ -92,7 +97,10 @@ const updateUser = async (req, res) => {
     logger.info(`Admin user updated successfully: ${userId}`);
     res.status(200).json({
       message: "Admin user updated successfully",
-      user: updatedUser,
+      user: {
+        email: updatedUser.email,
+        name: updatedUser.name,
+      },
     });
   } catch (error) {
     logger.error(`Error updating admin user: ${error.message}`);

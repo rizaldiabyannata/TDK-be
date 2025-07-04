@@ -5,93 +5,89 @@ const cookieParser = require("cookie-parser");
 const morgan = require("morgan");
 const fs = require("fs");
 const path = require("path");
-const helmet = require('helmet');
+const helmet = require("helmet");
+const mongoose = require("mongoose");
+
+const envPath =
+  process.env.BUN_ENV === "production"
+    ? path.resolve(__dirname, ".env.production")
+    : path.resolve(__dirname, ".env.development");
+
+dotenv.config({ path: envPath });
+
+const logger = require("./utils/logger");
 
 const logsDir = path.join(__dirname, "logs");
+if (!fs.existsSync(logsDir)) fs.mkdirSync(logsDir, { recursive: true });
 const uploadsDir = path.join(__dirname, "uploads");
-const imagesDir = path.join(uploadsDir, "images");
-
-if (!fs.existsSync(logsDir)) {
-  fs.mkdirSync(logsDir, { recursive: true });
-}
-if (!fs.existsSync(imagesDir)) {
-  fs.mkdirSync(imagesDir, { recursive: true });
-}
+if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 
 const { scheduleViewSync } = require("./utils/syncViewsScheduler");
 const seedAdmin = require("./seeder/seedAdmin");
-
 const connectDB = require("./config/db");
 const routes = require("./routers/index");
-
-dotenv.config();
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
 app.use(cookieParser());
-app.use(cors("*"));
 app.use(helmet());
-
-const accessLogStream = fs.createWriteStream(
-  path.join(__dirname, "logs/access.log"),
-  { flags: "a" }
-);
-
 app.use(morgan("dev"));
-app.use(morgan("combined", { stream: accessLogStream }));
-
+app.use(
+  morgan("combined", {
+    stream: {
+      write: (message) => logger.info(message.trim()),
+    },
+  })
+);
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
-// Connect to MongoDB
-connectDB();
-
-scheduleViewSync();
-
-app.get("/seed-admin", async (req, res) => {
-  const result = await seedAdmin();
-
-  // Cek apakah admin sudah ada atau berhasil dibuat
-  if (result.includes("already exists")) {
-    res.status(200).json({ message: result });
-  } else {
-    res.status(201).json({ message: result });
-  }
-});
-
 app.use("/api", routes);
+
 app.get("/api/runtime", (req, res) => {
-  const uptime = process.uptime(); // Get uptime in seconds
+  const uptime = process.uptime();
   const hours = Math.floor(uptime / 3600);
   const minutes = Math.floor((uptime % 3600) / 60);
   const seconds = Math.floor(uptime % 60);
-
   res.json({
     message: "Backend runtime",
     uptime: `${hours}h ${minutes}m ${seconds}s`,
   });
 });
 
-// Start the server
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`Server is running on port ${PORT}`);
-});
+const startServer = async () => {
+  try {
+    await connectDB();
 
-const gracefulShutdown = () => {
-  console.log('Received kill signal, shutting down gracefully.');
-  server.close(() => {
-    console.log('HTTP server closed.');
-    mongoose.connection.close(false, () => {
-      console.log('MongoDb connection closed.');
-      process.exit(0);
+    await seedAdmin();
+
+    scheduleViewSync();
+
+    const PORT = process.env.PORT || 5000;
+    const server = app.listen(PORT, "0.0.0.0", () => {
+      logger.info(`Server is running on port ${PORT}`);
     });
-  });
+
+    const gracefulShutdown = () => {
+      logger.warn("Received kill signal, shutting down gracefully.");
+      server.close(() => {
+        logger.info("HTTP server closed.");
+        mongoose.connection.close(false, () => {
+          logger.info("MongoDb connection closed.");
+          process.exit(0);
+        });
+      });
+    };
+
+    process.on("SIGTERM", gracefulShutdown);
+    process.on("SIGINT", gracefulShutdown);
+  } catch (error) {
+    logger.error("Failed to start the server:", error);
+    process.exit(1);
+  }
 };
 
-process.on('SIGTERM', gracefulShutdown);
-process.on('SIGINT', gracefulShutdown);
+startServer();
 
-// Export the app for testing
 module.exports = app;

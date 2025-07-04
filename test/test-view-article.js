@@ -1,68 +1,62 @@
-import http from 'k6/http';
-import { check, sleep, group } from 'k6';
-import { SharedArray } from 'k6/data';
+import http from "k6/http";
+import { check, sleep } from "k6";
+import { Trend } from "k6/metrics";
 
 // --- Konfigurasi ---
-// Daftar slug artikel yang akan diuji. Sebaiknya diisi dengan data nyata dari database Anda.
-const articleSlugs = new SharedArray('articleSlugs', function () {
-    // Anda bisa memuat ini dari file JSON atau langsung definisikan di sini.
-    // Contoh: return JSON.parse(open('./slugs.json'));
-    return ['test-upload-image-v3', 'test-upload-gambar-v2', 'test-upload-gambar-v3'];
-});
+const BASE_URL = "http://localhost:5000/api"; // Ganti dengan URL API Anda
 
+// Daftar slug yang diketahui dari file seeder/seedBlogs.js
+// Ini harus diperbarui jika Anda mengubah judul di seeder.
+const seededSlugs = [
+  "mengenal-nodejs-untuk-pemula",
+  "panduan-lengkap-belajar-react-hooks",
+  "manajemen-state-dengan-redux-vs-zustand",
+  "tips-optimasi-performa-website",
+  "pengenalan-docker-untuk-developer",
+  "membangun-rest-api-dengan-expressjs",
+  "styling-komponen-dengan-tailwind-css",
+  "testing-aplikasi-dengan-jest-dan-k6",
+  "keamanan-database-mencegah-sql-injection",
+  "masa-depan-pengembangan-web-webassembly",
+];
+
+// Metrik kustom untuk melacak waktu respons
+const singleBlogTime = new Trend("single_blog_response_time");
+
+// Opsi pengujian: 10 virtual user selama 30 detik
 export const options = {
-    stages: [
-        { duration: '30s', target: 20 }, // Naik ke 20 virtual users selama 30 detik
-        { duration: '1m', target: 20 },  // Bertahan di 20 VUs selama 1 menit
-        { duration: '10s', target: 0 },   // Turun ke 0
-    ],
-    thresholds: {
-        'http_req_duration': ['p(95)<500'], // 95% permintaan harus selesai di bawah 500ms
-        'http_req_failed': ['rate<0.01'],   // Tingkat error harus di bawah 1%
-    },
+  vus: 10,
+  duration: "30s",
+  thresholds: {
+    // 95% request harus selesai di bawah 500ms
+    http_req_duration: ["p(95)<500"],
+    // Semua check harus berhasil
+    checks: ["rate>0.99"],
+  },
 };
 
-// --- Skenario Pengujian ---
 export default function () {
-    // Pilih slug artikel secara acak dari daftar
-    const slug = articleSlugs[Math.floor(Math.random() * articleSlugs.length)];
-    const articleUrl = `http://localhost:5000/api/blogs/slug/${slug}`;
+  // 1. Memilih satu slug secara acak dari daftar yang sudah ada
+  const randomSlug =
+    seededSlugs[Math.floor(Math.random() * seededSlugs.length)];
 
-    // Skenario 1: Pengguna Baru (Unique Visitor)
-    // Pengguna ini tidak mengirimkan cookie 'visitor_id'.
-    // Server akan membuatkan ID baru untuknya.
-    group('Unique Visitor View', function () {
-        const res = http.get(articleUrl);
+  // 2. Mengakses halaman blog spesifik tersebut
+  const res = http.get(`${BASE_URL}/blogs/${randomSlug}`);
 
-        check(res, {
-            'status is 200': (r) => r.status === 200,
-            'response contains visitor_id cookie': (r) => r.cookies.visitor_id !== undefined,
-        });
-    });
+  // Verifikasi respons dan tambahkan ke metrik
+  check(res, {
+    "GET /blogs/:slug - status is 200": (r) => r.status === 200,
+    "GET /blogs/:slug - response contains correct slug": (r) => {
+      try {
+        return r.json("slug") === randomSlug;
+      } catch (e) {
+        return false;
+      }
+    },
+  });
 
-    sleep(1); // Tunggu 1 detik
+  singleBlogTime.add(res.timings.duration);
 
-    // Skenario 2: Pengguna Berulang (Returning Visitor)
-    // Pengguna ini mengirimkan kembali cookie 'visitor_id' yang didapatnya.
-    // Dalam simulasi ini, kita buat ID acak, tapi dalam skenario nyata, VU akan menyimpan cookie-nya.
-    // k6 secara default tidak menyimpan cookie antar iterasi, jadi kita harus mengaturnya manual.
-    group('Returning Visitor View', function () {
-        // 'jar' akan menyimpan cookie untuk sesi VU ini
-        const jar = http.cookieJar();
-        const fakeVisitorId = `k6-visitor-${__VU}-${__ITER}`; // Membuat ID unik untuk setiap iterasi
-        jar.set(articleUrl, 'visitor_id', fakeVisitorId);
-
-        const res = http.get(articleUrl);
-
-        check(res, {
-            'status is 200': (r) => r.status === 200,
-            'visitor_id remains the same': (r) => {
-                const responseCookie = r.cookies.visitor_id;
-                // Server seharusnya tidak mengatur cookie baru jika sudah ada
-                return responseCookie === undefined || responseCookie[0].value === fakeVisitorId;
-            },
-        });
-    });
-
-    sleep(2); // Beri jeda antar iterasi
+  // Jeda singkat sebelum iterasi berikutnya untuk mensimulasikan perilaku pengguna
+  sleep(1);
 }

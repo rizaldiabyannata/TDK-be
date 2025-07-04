@@ -1,36 +1,110 @@
 const nodemailer = require("nodemailer");
 const OtpModel = require("../models/otpModel");
 const logger = require("./logger");
-const bcrypt = require("bcrypt");
+const bcrypt = require("bcryptjs");
 
-// Configure email transporter
 const transporter = nodemailer.createTransport({
-  service: "gmail", // or another email service
+  service: "gmail",
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASSWORD,
   },
 });
 
-// Generate a random 6-digit OTP
 const generateOTP = () => {
   return Math.floor(100000 + Math.random() * 900000).toString();
 };
 
-// Send OTP via email for password reset
 const sendPasswordResetOTP = async (email, otp) => {
-  const subject = "Admin Password Reset OTP";
+  const subject = "Permintaan Reset Password Admin";
 
+  // --- TEMPLATE HTML BARU ---
   const htmlContent = `
-    <h1>Password Reset - One-Time Password</h1>
-    <p>Your OTP for password reset is: <strong>${otp}</strong></p>
-    <p>This code will expire in 10 minutes.</p>
-    <p>If you didn't request this, please secure your account immediately.</p>
+    <!DOCTYPE html>
+    <html lang="id">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <style>
+        body {
+          font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+          background-color: #f4f4f7;
+          margin: 0;
+          padding: 0;
+          color: #333;
+        }
+        .container {
+          max-width: 600px;
+          margin: 40px auto;
+          background-color: #ffffff;
+          border-radius: 8px;
+          overflow: hidden;
+          box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .header {
+          background-color: #4A90E2; /* Warna biru yang bagus */
+          color: #ffffff;
+          padding: 30px;
+          text-align: center;
+        }
+        .header h1 {
+          margin: 0;
+          font-size: 24px;
+        }
+        .content {
+          padding: 40px 30px;
+          line-height: 1.6;
+        }
+        .otp-code {
+          background-color: #eef4ff;
+          border: 1px dashed #4A90E2;
+          color: #4A90E2;
+          font-size: 36px;
+          font-weight: bold;
+          text-align: center;
+          padding: 20px;
+          margin: 30px 0;
+          border-radius: 8px;
+          letter-spacing: 5px;
+        }
+        .footer {
+          background-color: #f4f4f7;
+          padding: 20px 30px;
+          font-size: 12px;
+          color: #777;
+          text-align: center;
+        }
+        .footer p {
+          margin: 5px 0;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>Reset Password Anda</h1>
+        </div>
+        <div class="content">
+          <p>Halo,</p>
+          <p>Kami menerima permintaan untuk mereset password akun admin Anda. Gunakan kode One-Time Password (OTP) di bawah ini untuk melanjutkan.</p>
+          <div class="otp-code">${otp}</div>
+          <p>Kode ini hanya berlaku selama <strong>10 menit</strong>.</p>
+          <p>Jika Anda tidak merasa meminta ini, mohon abaikan email ini dan segera amankan akun Anda.</p>
+          <p>Terima kasih,<br>Tim Admin</p>
+        </div>
+        <div class="footer">
+          <p>Ini adalah email otomatis. Mohon untuk tidak membalas email ini (no-reply).</p>
+          <p>&copy; ${new Date().getFullYear()} Nama Perusahaan Anda. All rights reserved.</p>
+        </div>
+      </div>
+    </body>
+    </html>
   `;
 
   try {
+    // Pengirim email sekarang menyertakan nama untuk tampilan yang lebih baik
     await transporter.sendMail({
-      from: process.env.EMAIL_USER,
+      from: `"Admin Panel" <${process.env.EMAIL_USER}>`,
       to: email,
       subject,
       html: htmlContent,
@@ -43,18 +117,15 @@ const sendPasswordResetOTP = async (email, otp) => {
   }
 };
 
-// Create and store OTP for admin password reset
 const createPasswordResetOTP = async (email) => {
   try {
     const plainOTP = generateOTP();
 
-    // Hash the OTP using bcrypt
     const salt = await bcrypt.genSalt(10);
     const hashedOTP = await bcrypt.hash(plainOTP, salt);
 
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes expiry
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
-    // Save OTP to database
     await OtpModel.findOneAndUpdate(
       { email, purpose: "password" },
       {
@@ -66,17 +137,15 @@ const createPasswordResetOTP = async (email) => {
       { upsert: true, new: true }
     );
 
-    return plainOTP; // Return the plain OTP to be sent via email
+    return plainOTP;
   } catch (error) {
     logger.error(`Error creating password reset OTP: ${error.message}`);
     throw new Error(`Error creating OTP: ${error.message}`);
   }
 };
 
-// Verify OTP for password reset
 const verifyPasswordResetOTP = async (email, plainOTP) => {
   try {
-    // Find OTP records that match email and purpose and haven't expired
     const otpRecords = await OtpModel.find({
       email,
       purpose: "password",
@@ -88,9 +157,7 @@ const verifyPasswordResetOTP = async (email, plainOTP) => {
       return null;
     }
 
-    // Check each record to find a matching OTP
     for (const record of otpRecords) {
-      // Compare the plain OTP with the hashed OTP
       const isMatch = await bcrypt.compare(plainOTP, record.otp);
       if (isMatch) {
         return record;
@@ -105,7 +172,6 @@ const verifyPasswordResetOTP = async (email, plainOTP) => {
   }
 };
 
-// Delete OTP
 const deleteOTP = async (otpId) => {
   try {
     await OtpModel.deleteOne({ _id: otpId });

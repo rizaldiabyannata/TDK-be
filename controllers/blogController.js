@@ -1,6 +1,8 @@
 const Blog = require("../models/blogModel");
 const redisClient = require("../config/redisConfig");
 const logger = require("../utils/logger");
+const imageService = require("../services/imageService");
+const { default: slugify } = require("slugify");
 
 const CACHE_KEY_PREFIX_BLOG = "blog:";
 const CACHE_KEY_ARCHIVE = "blogArchive";
@@ -187,43 +189,71 @@ const createBlog = async (req, res) => {
     });
   } catch (error) {
     logger.error(`Error di createBlog: ${error.message}`);
-
     if (req.fileUrl) {
-      const filePath = path.join(process.cwd(), "public", req.fileUrl);
-
-      try {
-        await fs.unlink(filePath);
-        logger.info(
-          `File cleanup: ${filePath} telah dihapus karena terjadi error saat menyimpan blog.`
-        );
-      } catch (unlinkError) {
-        logger.error(
-          `Gagal melakukan cleanup file ${filePath}: ${unlinkError.message}`
-        );
-      }
+      await imageService.deleteFile(req.fileUrl);
     }
-
     res.status(400).json({ message: error.message });
   }
 };
 
 const updateBlog = async (req, res) => {
   const { slug } = req.params;
+
   try {
-    const updatedBlog = await Blog.findOneAndUpdate({ slug }, req.body, {
+    const existingBlog = await Blog.findOne({ slug });
+    if (!existingBlog) {
+      if (req.fileUrl) {
+        await imageService.deleteFile(req.fileUrl);
+      }
+      return res.status(404).json({ message: "Blog not found" });
+    }
+
+    const oldImagePath = existingBlog.coverImage;
+    const updateData = { ...req.body };
+
+    if (req.body.title) {
+      updateData.slug = slugify(req.body.title, {
+        lower: true,
+        strict: true,
+        locale: "id",
+      });
+    }
+
+    if (req.fileUrl) {
+      updateData.coverImage = req.fileUrl;
+    }
+
+    const updatedBlog = await Blog.findOneAndUpdate({ slug }, updateData, {
       new: true,
       runValidators: true,
     });
-    if (!updatedBlog) {
-      return res.status(404).json({ message: "Blog not found" });
+
+    if (req.fileUrl && oldImagePath) {
+      await imageService.deleteFile(oldImagePath);
     }
+
     await invalidateBlogCache(slug);
     if (req.body.slug && req.body.slug !== slug) {
       await invalidateBlogCache(req.body.slug);
     }
-    res.json(updatedBlog);
+
+    res.json({
+      message: "Blog updated successfully",
+      data: {
+        slug: updatedBlog.slug,
+        title: updatedBlog.title,
+        content: updatedBlog.content,
+        coverImage: updatedBlog.coverImage,
+        createdAt: updatedBlog.createdAt,
+      },
+    });
   } catch (error) {
     logger.error(`Error di updateBlog: ${error.message}`);
+
+    if (req.fileUrl) {
+      await imageService.deleteFile(req.fileUrl);
+    }
+
     res.status(400).json({ message: error.message });
   }
 };
@@ -231,10 +261,15 @@ const updateBlog = async (req, res) => {
 const deleteBlog = async (req, res) => {
   const { slug } = req.params;
   try {
-    const deletedBlog = await Blog.findOneAndDelete({ slug });
-    if (!deletedBlog) {
+    const blog = await Blog.findOne({ slug });
+    if (!blog) {
       return res.status(404).json({ message: "Blog not found" });
     }
+
+    if (blog.coverImage) {
+      await imageService.deleteFile(blog.coverImage);
+    }
+    await Blog.deleteOne({ slug });
     await invalidateBlogCache(slug);
     res.json({ message: "Blog deleted successfully" });
   } catch (error) {
@@ -243,9 +278,6 @@ const deleteBlog = async (req, res) => {
   }
 };
 
-/**
- * Mengarsipkan sebuah artikel blog.
- */
 const archiveBlog = async (req, res) => {
   const { slug } = req.params;
   try {
@@ -260,16 +292,23 @@ const archiveBlog = async (req, res) => {
     }
 
     await invalidateBlogCache(slug);
-    res.json({ message: "Blog archived successfully", data: updatedBlog });
+    res.json({
+      message: "Blog archived successfully",
+      data: {
+        slug: updatedBlog.slug,
+        title: updatedBlog.title,
+        content: updatedBlog.content,
+        coverImage: updatedBlog.coverImage,
+        createdAt: updatedBlog.createdAt,
+        isArchived: updatedBlog.isArchived,
+      },
+    });
   } catch (error) {
     logger.error(`Error archiving blog: ${error.message}`);
     res.status(500).json({ message: "Server Error" });
   }
 };
 
-/**
- * Mengembalikan artikel blog dari arsip.
- */
 const unarchiveBlog = async (req, res) => {
   const { slug } = req.params;
   try {
@@ -284,7 +323,17 @@ const unarchiveBlog = async (req, res) => {
     }
 
     await invalidateBlogCache(slug);
-    res.json({ message: "Blog unarchived successfully", data: updatedBlog });
+    res.json({
+      message: "Blog unarchived successfully",
+      data: {
+        slug: updatedBlog.slug,
+        title: updatedBlog.title,
+        content: updatedBlog.content,
+        coverImage: updatedBlog.coverImage,
+        createdAt: updatedBlog.createdAt,
+        isArchived: updatedBlog.isArchived,
+      },
+    });
   } catch (error) {
     logger.error(`Error unarchiving blog: ${error.message}`);
     res.status(500).json({ message: "Server Error" });

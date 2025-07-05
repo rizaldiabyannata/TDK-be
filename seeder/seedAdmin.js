@@ -11,7 +11,7 @@ const adminConfig = {
 const seedAdmin = async () => {
   try {
     // Validasi apakah konfigurasi admin ada
-    if (!adminConfig.email || !adminConfig.password || !adminConfig.name) {
+    if (!adminConfig.password || !adminConfig.name) {
       logger.warn(
         "Admin credentials are not set in .env file. Skipping admin seed."
       );

@@ -6,9 +6,9 @@ const {
   getAllContactForms,
 } = require("../controllers/contactFormController");
 
-const { authenticate } = require("../middleware/authMiddleware");
+const { protect } = require("../middleware/authMiddleware");
 
 router.post("/", submitContactForm);
-router.get("/", authenticate, getAllContactForms);
+router.get("/", protect, getAllContactForms);
 
 module.exports = router;

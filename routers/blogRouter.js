@@ -12,9 +12,13 @@ const {
   archiveBlog,
   unarchiveBlog,
 } = require("../controllers/blogController"); // Pastikan path ini benar
-const { authenticate } = require("../middleware/authMiddleware");
+const { protect } = require("../middleware/authMiddleware");
 const { trackView } = require("../middleware/viewTracker");
-const { uploadSingleFile } = require("../middleware/multerMiddleware");
+const {
+  uploadSingleFile,
+  convertToWebp,
+  uploadSingleFileOptional,
+} = require("../middleware/multerMiddleware");
 
 /**
  * @route   GET /api/blogs
@@ -35,21 +39,27 @@ router.get("/archives", getBlogArchive);
  * @desc    Buat artikel blog baru
  * @access  Private (Admin)
  */
-router.post("/", authenticate, uploadSingleFile("coverImage"), createBlog);
+router.post(
+  "/",
+  protect,
+  uploadSingleFile("coverImage"),
+  convertToWebp,
+  createBlog
+);
 
 /**
  * @route   PATCH /api/blogs/:slug/archive
  * @desc    Mengarsipkan artikel blog
  * @access  Private (Admin)
  */
-router.patch("/:slug/archive", authenticate, archiveBlog);
+router.patch("/:slug/archive", protect, archiveBlog);
 
 /**
  * @route   PATCH /api/blogs/:slug/unarchive
  * @desc    Mengembalikan artikel blog dari arsip
  * @access  Private (Admin)
  */
-router.patch("/:slug/unarchive", authenticate, unarchiveBlog);
+router.patch("/:slug/unarchive", protect, unarchiveBlog);
 
 /**
  * @route   GET /api/blogs/:slug
@@ -63,13 +73,19 @@ router.get("/:slug", trackView("Blog"), getBlogBySlug);
  * @desc    Perbarui artikel blog
  * @access  Private (Admin)
  */
-router.put("/:slug", authenticate, updateBlog);
+router.put(
+  "/:slug",
+  protect,
+  uploadSingleFileOptional("coverImage"),
+  convertToWebp,
+  updateBlog
+);
 
 /**
  * @route   DELETE /api/blogs/:slug
  * @desc    Hapus artikel blog
  * @access  Private (Admin)
  */
-router.delete("/:slug", authenticate, deleteBlog);
+router.delete("/:slug", protect, deleteBlog);
 
 module.exports = router;

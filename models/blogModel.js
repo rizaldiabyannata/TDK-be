@@ -68,7 +68,11 @@ const blogSchema = new mongoose.Schema({
 
 blogSchema.pre("validate", function (next) {
   if (this.title && !this.slug) {
-    this.slug = slugify(this.title, { lower: true, strict: true });
+    this.slug = slugify(this.title, {
+      lower: true,
+      strict: true,
+      locale: "id",
+    });
   }
   next();
 });

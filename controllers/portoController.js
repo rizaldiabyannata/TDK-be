@@ -1,12 +1,11 @@
 const Porto = require("../models/portoModel");
 const redisClient = require("../config/redisConfig");
 const logger = require("../utils/logger");
+const imageService = require("../services/imageService");
 
-// Konstanta untuk kunci cache
 const CACHE_KEY_PREFIX_PORTO = "porto:";
 const CACHE_KEY_ARCHIVE = "portoArchive";
 
-// --- Helper Functions ---
 const getFromDbOrCache = async (cacheKey, dbQuery) => {
   if (redisClient.isReady) {
     const cachedData = await redisClient.get(cacheKey);
@@ -14,19 +13,27 @@ const getFromDbOrCache = async (cacheKey, dbQuery) => {
       logger.info(`Cache HIT untuk kunci: ${cacheKey}`);
       return JSON.parse(cachedData);
     }
+  } else {
+    logger.warn("Redis client tidak siap, cache dilewati.");
   }
+
+  logger.info(`Cache MISS untuk kunci: ${cacheKey}. Mengambil dari DB.`);
   const dbData = await dbQuery();
+
   if (redisClient.isReady && dbData) {
     const expiry = cacheKey.includes("Archive") ? 21600 : 3600;
     await redisClient.set(cacheKey, JSON.stringify(dbData), { EX: expiry });
   }
+
   return dbData;
 };
 
 const invalidatePortoCache = async (slug = null) => {
-  if (!redisClient.isReady) return;
+  if (!redisClient.isReady) {
+    logger.warn("Redis client tidak siap, tidak dapat menghapus cache.");
+    return;
+  }
   try {
-    // Selalu hapus cache arsip dan daftar semua portofolio setiap ada perubahan
     await redisClient.del(CACHE_KEY_ARCHIVE);
     if (slug) {
       await redisClient.del(`${CACHE_KEY_PREFIX_PORTO}${slug}`);
@@ -36,27 +43,21 @@ const invalidatePortoCache = async (slug = null) => {
   }
 };
 
-// --- Controller Functions ---
-
 const getAllPortos = async (req, res) => {
   try {
     const page = parseInt(req.query.page, 10) || 1;
     const limit = parseInt(req.query.limit, 10) || 10;
     const searchTerm = req.query.search || "";
-    const status = req.query.status || "active"; // Opsi: 'active', 'archived', 'all'
+    const status = req.query.status || "active";
     const skip = (page - 1) * limit;
 
     const filter = {};
-
-    // Filter berdasarkan status arsip
     if (status === "active") {
       filter.isArchived = false;
     } else if (status === "archived") {
       filter.isArchived = true;
     }
-    // Jika status 'all', tidak ada filter isArchived yang ditambahkan
 
-    // Sesuaikan filter pencarian dengan model baru
     if (searchTerm) {
       filter.$or = [
         { title: { $regex: searchTerm, $options: "i" } },
@@ -105,34 +106,80 @@ const getPortoBySlug = async (req, res) => {
 };
 
 const createPorto = async (req, res) => {
+  const { title, description, shortDescription, link } = req.body;
+
+  if (!title || !description || !shortDescription) {
+    return res.status(400).json({
+      message: "Title, description, and shortDescription are required",
+    });
+  }
+  if (!req.fileUrl) {
+    return res.status(400).json({ message: "Cover image is required" });
+  }
+
   try {
-    const newPorto = new Porto(req.body);
+    const newPorto = new Porto({
+      title,
+      description,
+      shortDescription,
+      link,
+      coverImage: req.fileUrl,
+    });
     const savedPorto = await newPorto.save();
     await invalidatePortoCache();
-    res.status(201).json(savedPorto);
+    res.status(201).json({
+      message: "Portfolio created successfully",
+      data: savedPorto,
+    });
   } catch (error) {
     logger.error(`Error di createPorto: ${error.message}`);
+
+    if (req.fileUrl) {
+      await imageService.deleteFile(req.fileUrl);
+    }
     res.status(400).json({ message: error.message });
   }
 };
 
 const updatePorto = async (req, res) => {
   const { slug } = req.params;
+
   try {
-    const updatedPorto = await Porto.findOneAndUpdate({ slug }, req.body, {
+    const existingPorto = await Porto.findOne({ slug });
+    if (!existingPorto) {
+      if (req.fileUrl) {
+        await imageService.deleteFile(req.fileUrl);
+      }
+      return res.status(404).json({ message: "Portfolio not found" });
+    }
+
+    const oldImagePath = existingPorto.coverImage;
+    const updateData = { ...req.body };
+
+    if (req.fileUrl) {
+      updateData.coverImage = req.fileUrl;
+    }
+
+    const updatedPorto = await Porto.findOneAndUpdate({ slug }, updateData, {
       new: true,
       runValidators: true,
     });
-    if (!updatedPorto) {
-      return res.status(404).json({ message: "Portofolio not found" });
+
+    if (req.fileUrl && oldImagePath) {
+      await imageService.deleteFile(oldImagePath);
     }
+
     await invalidatePortoCache(slug);
     if (req.body.slug && req.body.slug !== slug) {
       await invalidatePortoCache(req.body.slug);
     }
+
     res.json(updatedPorto);
   } catch (error) {
     logger.error(`Error di updatePorto: ${error.message}`);
+    if (req.fileUrl) {
+      await imageService.deleteFile(req.fileUrl);
+    }
     res.status(400).json({ message: error.message });
   }
 };
@@ -140,14 +187,64 @@ const updatePorto = async (req, res) => {
 const deletePorto = async (req, res) => {
   const { slug } = req.params;
   try {
-    const deletedPorto = await Porto.findOneAndDelete({ slug });
-    if (!deletedPorto) {
-      return res.status(404).json({ message: "Portofolio not found" });
+    const porto = await Porto.findOne({ slug });
+    if (!porto) {
+      return res.status(404).json({ message: "Portfolio not found" });
     }
+
+    if (porto.coverImage) {
+      await imageService.deleteFile(porto.coverImage);
+    }
+
+    await Porto.deleteOne({ slug });
     await invalidatePortoCache(slug);
-    res.json({ message: "Portofolio deleted successfully" });
+    res.json({ message: "Portfolio deleted successfully" });
   } catch (error) {
     logger.error(`Error di deletePorto: ${error.message}`);
+    res.status(500).json({ message: "Server Error" });
+  }
+};
+
+const archivePorto = async (req, res) => {
+  const { slug } = req.params;
+  try {
+    const updatedPorto = await Porto.findOneAndUpdate(
+      { slug },
+      { isArchived: true },
+      { new: true }
+    );
+    if (!updatedPorto) {
+      return res.status(404).json({ message: "Portfolio not found" });
+    }
+    await invalidatePortoCache(slug);
+    res.json({
+      message: "Portfolio archived successfully",
+      data: updatedPorto,
+    });
+  } catch (error) {
+    logger.error(`Error archiving portfolio: ${error.message}`);
+    res.status(500).json({ message: "Server Error" });
+  }
+};
+
+const unarchivePorto = async (req, res) => {
+  const { slug } = req.params;
+  try {
+    const updatedPorto = await Porto.findOneAndUpdate(
+      { slug },
+      { isArchived: false },
+      { new: true }
+    );
+    if (!updatedPorto) {
+      return res.status(404).json({ message: "Portfolio not found" });
+    }
+    await invalidatePortoCache(slug);
+    res.json({
+      message: "Portfolio unarchived successfully",
+      data: updatedPorto,
+    });
+  } catch (error) {
+    logger.error(`Error unarchiving portfolio: ${error.message}`);
     res.status(500).json({ message: "Server Error" });
   }
 };
@@ -183,67 +280,13 @@ const getPortoArchive = async (req, res) => {
   }
 };
 
-/**
- * Mengarsipkan sebuah item portofolio.
- */
-const archivePorto = async (req, res) => {
-  const { slug } = req.params;
-  try {
-    const updatedPorto = await Porto.findOneAndUpdate(
-      { slug },
-      { isArchived: true },
-      { new: true }
-    );
-
-    if (!updatedPorto) {
-      return res.status(404).json({ message: "Portofolio not found" });
-    }
-
-    await invalidatePortoCache(slug);
-    res.json({
-      message: "Portofolio archived successfully",
-      data: updatedPorto,
-    });
-  } catch (error) {
-    logger.error(`Error archiving portfolio: ${error.message}`);
-    res.status(500).json({ message: "Server Error" });
-  }
-};
-
-/**
- * Mengembalikan item portofolio dari arsip.
- */
-const unarchivePorto = async (req, res) => {
-  const { slug } = req.params;
-  try {
-    const updatedPorto = await Porto.findOneAndUpdate(
-      { slug },
-      { isArchived: false },
-      { new: true }
-    );
-
-    if (!updatedPorto) {
-      return res.status(404).json({ message: "Portofolio not found" });
-    }
-
-    await invalidatePortoCache(slug);
-    res.json({
-      message: "Portofolio unarchived successfully",
-      data: updatedPorto,
-    });
-  } catch (error) {
-    logger.error(`Error unarchiving portfolio: ${error.message}`);
-    res.status(500).json({ message: "Server Error" });
-  }
-};
-
 module.exports = {
   getAllPortos,
   getPortoBySlug,
   createPorto,
   updatePorto,
   deletePorto,
-  getPortoArchive,
   archivePorto,
   unarchivePorto,
+  getPortoArchive,
 };

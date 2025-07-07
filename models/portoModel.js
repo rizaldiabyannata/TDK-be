@@ -8,11 +8,11 @@ const portfolioSchema = new mongoose.Schema({
     trim: true,
   },
   description: {
-    type: String,
+    type: mongoose.Schema.Types.Mixed,
     required: true,
   },
   shortDescription: {
-    type: String,
+    type: mongoose.Schema.Types.Mixed,
     required: true,
   },
   coverImage: {

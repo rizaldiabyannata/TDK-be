@@ -24,7 +24,11 @@ const getHomePageContent = async (req, res) => {
       logger.info(`Cache hit for: ${HOME_PAGE_CONTENT_CACHE_KEY}`);
       return res.status(200).json({
         success: true,
-        data: JSON.parse(cachedData),
+        data: {
+          highlightedPortfolios: cachedData.highlightedPortfolios,
+          featuredBlogs: cachedData.featuredBlogs,
+          lastUpdated: cachedData.lastUpdated,
+        },
       });
     }
 
@@ -34,12 +38,12 @@ const getHomePageContent = async (req, res) => {
     let homePageContent = await HomePageContent.findOne()
       .populate({
         path: "featuredBlogs",
-        select: "title slug summary coverImage tags createdAt",
+        select: "title slug summary coverImage createdAt",
         match: { isArchived: { $ne: true } },
       })
       .populate({
         path: "highlightedPortfolios",
-        select: "title slug category coverImage shortDescription link",
+        select: "title slug coverImage shortDescription link",
         match: { isArchived: { $ne: true } },
       })
       .lean();
@@ -71,15 +75,17 @@ const getHomePageContent = async (req, res) => {
 
     logger.info(`Retrieved home page content (${homePageContent._id})`);
     return res.status(200).json({
-      success: true,
-      data: homePageContent,
+      data: {
+        highlightedPortfolios: homePageContent.highlightedPortfolios || [],
+        featuredBlogs: homePageContent.featuredBlogs || [],
+        lastUpdated: homePageContent.lastUpdated || null,
+      },
     });
   } catch (error) {
     logger.error(`Error fetching home page content: ${error.message}`, {
       error,
     });
     return res.status(500).json({
-      success: false,
       message: "Failed to fetch home page content",
       error: error.message,
     });
@@ -91,70 +97,62 @@ const updateFeaturedBlogs = async (req, res) => {
     const { blogIds } = req.body;
 
     if (!blogIds || !Array.isArray(blogIds)) {
-      logger.info("Invalid request: blogIds missing or not an array");
       return res.status(400).json({
-        success: false,
         message: "Blog IDs must be provided as an array",
       });
     }
 
-    const validIds = blogIds.filter((id) =>
-      mongoose.Types.ObjectId.isValid(id)
-    );
-
-    if (validIds.length !== blogIds.length) {
-      logger.info("Some provided blog IDs are invalid");
-      return res.status(400).json({
-        success: false,
-        message: "Some provided blog IDs are invalid",
-      });
-    }
-
-    const objectIdBlogIds = validIds.map(
+    const objectIdBlogIds = blogIds.map(
       (id) => new mongoose.Types.ObjectId(id)
     );
 
     const existingBlogs = await Blog.find({
       _id: { $in: objectIdBlogIds },
       isArchived: { $ne: true },
-    });
-    const existingBlogIds = existingBlogs.map((blog) => blog._id);
+    }).select("_id");
 
-    if (existingBlogs.length !== validIds.length) {
-      logger.info("Some blogs were not found or are archived");
+    if (existingBlogs.length !== objectIdBlogIds.length) {
+      logger.info(
+        "Some blogs were not found, are archived, or duplicates exist"
+      );
       return res.status(404).json({
-        success: false,
-        message: "Some blogs were not found or are archived",
+        message:
+          "Some blogs were not found, are archived, or contain duplicates",
       });
     }
 
     let homePageContent = await HomePageContent.findOne();
 
     if (!homePageContent) {
-      homePageContent = await HomePageContent.create({
-        featuredBlogs: existingBlogIds,
-      });
-      logger.info(`Created new home page content with featured blogs`);
-    } else {
-      homePageContent.featuredBlogs = existingBlogIds;
-      homePageContent.lastUpdated = Date.now();
-      await homePageContent.save();
-      logger.info(
-        `Updated featured blogs for home page content (${homePageContent._id})`
-      );
+      homePageContent = new HomePageContent();
     }
 
+    homePageContent.featuredBlogs = objectIdBlogIds;
+    homePageContent.lastUpdated = Date.now();
+    await homePageContent.save();
+
     await clearHomePageContentCache();
+    logger.info(
+      `Updated featured blogs for home page content (${homePageContent._id})`
+    );
 
     return res.status(200).json({
-      success: true,
       message: "Featured blogs updated successfully",
-      data: homePageContent,
+      data: {
+        featuredBlogs: homePageContent.featuredBlogs || [],
+        highlightedPortfolios: homePageContent.highlightedPortfolios || [],
+        lastUpdated: homePageContent.lastUpdated || null,
+      },
     });
   } catch (error) {
     logger.error(`Error updating featured blogs: ${error.message}`, { error });
+
+    if (error instanceof mongoose.Error.CastError) {
+      return res.status(400).json({
+        message: "Some provided blog IDs are invalid",
+      });
+    }
     return res.status(500).json({
-      success: false,
       message: "Failed to update featured blogs",
       error: error.message,
     });
@@ -166,74 +164,67 @@ const updateHighlightedPortfolios = async (req, res) => {
     const { portfolioIds } = req.body;
 
     if (!portfolioIds || !Array.isArray(portfolioIds)) {
-      logger.info("Invalid request: portfolioIds missing or not an array");
       return res.status(400).json({
-        success: false,
         message: "Portfolio IDs must be provided as an array",
       });
     }
 
-    const validIds = portfolioIds.filter((id) =>
-      mongoose.Types.ObjectId.isValid(id)
-    );
-
-    if (validIds.length !== portfolioIds.length) {
-      logger.info("Some provided portfolio IDs are invalid");
-      return res.status(400).json({
-        success: false,
-        message: "Some provided portfolio IDs are invalid",
-      });
-    }
-
-    const objectIdPortfolioIds = validIds.map(
+    // 1. Konversi semua ID dari body ke ObjectId (urutan masih terjaga)
+    const objectIdPortfolioIds = portfolioIds.map(
       (id) => new mongoose.Types.ObjectId(id)
     );
 
+    // 2. Cari semua portfolio yang valid dari ID yang diberikan
     const existingPortfolios = await Portfolio.find({
       _id: { $in: objectIdPortfolioIds },
       isArchived: { $ne: true },
-    });
-    const existingPortfolioIds = existingPortfolios.map(
-      (portfolio) => portfolio._id
-    );
+    }).select("_id");
 
-    if (existingPortfolios.length !== validIds.length) {
-      logger.info("Some portfolios were not found or are archived");
+    // 3. Validasi apakah semua ID yang diminta ada di database
+    if (existingPortfolios.length !== objectIdPortfolioIds.length) {
+      logger.info(
+        "Some portfolios were not found, are archived, or duplicates exist"
+      );
       return res.status(404).json({
-        success: false,
-        message: "Some portfolios were not found or are archived",
+        message:
+          "Some portfolios were not found, are archived, or contain duplicates",
       });
     }
 
     let homePageContent = await HomePageContent.findOne();
 
     if (!homePageContent) {
-      homePageContent = await HomePageContent.create({
-        highlightedPortfolios: existingPortfolioIds,
-      });
-      logger.info(`Created new home page content with highlighted portfolios`);
-    } else {
-      homePageContent.highlightedPortfolios = existingPortfolioIds;
-      homePageContent.lastUpdated = Date.now();
-      await homePageContent.save();
-      logger.info(
-        `Updated highlighted portfolios for home page content (${homePageContent._id})`
-      );
+      homePageContent = new HomePageContent();
     }
 
+    // 4. Simpan array ID ASLI yang urutannya sudah benar
+    homePageContent.highlightedPortfolios = objectIdPortfolioIds;
+    homePageContent.lastUpdated = Date.now();
+    await homePageContent.save();
+
     await clearHomePageContentCache();
+    logger.info(
+      `Updated highlighted portfolios for home page content (${homePageContent._id})`
+    );
 
     return res.status(200).json({
-      success: true,
       message: "Highlighted portfolios updated successfully",
-      data: homePageContent,
+      data: {
+        featuredBlogs: homePageContent.featuredBlogs || [],
+        highlightedPortfolios: homePageContent.highlightedPortfolios || [],
+        lastUpdated: homePageContent.lastUpdated || null,
+      },
     });
   } catch (error) {
     logger.error(`Error updating highlighted portfolios: ${error.message}`, {
       error,
     });
+    if (error instanceof mongoose.Error.CastError) {
+      return res.status(400).json({
+        message: "Some provided portfolio IDs are invalid",
+      });
+    }
     return res.status(500).json({
-      success: false,
       message: "Failed to update highlighted portfolios",
       error: error.message,
     });
@@ -258,16 +249,18 @@ const resetHomePageContent = async (req, res) => {
     await clearHomePageContentCache();
 
     return res.status(200).json({
-      success: true,
       message: "Home page content reset successfully",
-      data: homePageContent,
+      data: {
+        featuredBlogs: homePageContent.featuredBlogs || [],
+        highlightedPortfolios: homePageContent.highlightedPortfolios || [],
+        lastUpdated: homePageContent.lastUpdated || null,
+      },
     });
   } catch (error) {
     logger.error(`Error resetting home page content: ${error.message}`, {
       error,
     });
     return res.status(500).json({
-      success: false,
       message: "Failed to reset home page content",
       error: error.message,
     });
@@ -281,7 +274,6 @@ const addFeaturedBlog = async (req, res) => {
     if (!blogId || !mongoose.Types.ObjectId.isValid(blogId)) {
       logger.info(`Invalid blogId provided: ${blogId}`);
       return res.status(400).json({
-        success: false,
         message: "Valid blog ID is required",
       });
     }
@@ -295,7 +287,6 @@ const addFeaturedBlog = async (req, res) => {
     if (!blog) {
       logger.info(`Blog with ID ${blogId} not found or is archived`);
       return res.status(404).json({
-        success: false,
         message: "Blog not found or is archived",
       });
     }
@@ -313,7 +304,6 @@ const addFeaturedBlog = async (req, res) => {
       ) {
         logger.info(`Blog ${blogId} is already featured`);
         return res.status(400).json({
-          success: false,
           message: "Blog is already featured",
         });
       }
@@ -329,12 +319,15 @@ const addFeaturedBlog = async (req, res) => {
     return res.status(200).json({
       success: true,
       message: "Blog added to featured blogs successfully",
-      data: homePageContent,
+      data: {
+        featuredBlogs: homePageContent.featuredBlogs || [],
+        highlightedPortfolios: homePageContent.highlightedPortfolios || [],
+        lastUpdated: homePageContent.lastUpdated || null,
+      },
     });
   } catch (error) {
     logger.error(`Error adding featured blog: ${error.message}`, { error });
     return res.status(500).json({
-      success: false,
       message: "Failed to add featured blog",
       error: error.message,
     });
@@ -348,7 +341,6 @@ const removeFeaturedBlog = async (req, res) => {
     if (!blogId || !mongoose.Types.ObjectId.isValid(blogId)) {
       logger.info(`Invalid blogId provided: ${blogId}`);
       return res.status(400).json({
-        success: false,
         message: "Valid blog ID is required",
       });
     }
@@ -359,7 +351,6 @@ const removeFeaturedBlog = async (req, res) => {
     if (!homePageContent) {
       logger.info("No home page content found to remove blog from");
       return res.status(404).json({
-        success: false,
         message: "Home page content not found",
       });
     }
@@ -369,7 +360,6 @@ const removeFeaturedBlog = async (req, res) => {
     ) {
       logger.info(`Blog ${blogId} is not featured`);
       return res.status(400).json({
-        success: false,
         message: "Blog is not featured",
       });
     }
@@ -384,14 +374,16 @@ const removeFeaturedBlog = async (req, res) => {
     logger.info(`Removed blog ${blogId} from featured blogs`);
 
     return res.status(200).json({
-      success: true,
       message: "Blog removed from featured blogs successfully",
-      data: homePageContent,
+      data: {
+        featuredBlogs: homePageContent.featuredBlogs || [],
+        highlightedPortfolios: homePageContent.highlightedPortfolios || [],
+        lastUpdated: homePageContent.lastUpdated || null,
+      },
     });
   } catch (error) {
     logger.error(`Error removing featured blog: ${error.message}`, { error });
     return res.status(500).json({
-      success: false,
       message: "Failed to remove featured blog",
       error: error.message,
     });
@@ -405,7 +397,6 @@ const addHighlightedPortfolio = async (req, res) => {
     if (!portfolioId || !mongoose.Types.ObjectId.isValid(portfolioId)) {
       logger.info(`Invalid portfolioId provided: ${portfolioId}`);
       return res.status(400).json({
-        success: false,
         message: "Valid portfolio ID is required",
       });
     }
@@ -419,7 +410,6 @@ const addHighlightedPortfolio = async (req, res) => {
     if (!portfolio) {
       logger.info(`Portfolio with ID ${portfolioId} not found or is archived`);
       return res.status(404).json({
-        success: false,
         message: "Portfolio not found or is archived",
       });
     }
@@ -441,7 +431,6 @@ const addHighlightedPortfolio = async (req, res) => {
       ) {
         logger.info(`Portfolio ${portfolioId} is already highlighted`);
         return res.status(400).json({
-          success: false,
           message: "Portfolio is already highlighted",
         });
       }
@@ -455,16 +444,18 @@ const addHighlightedPortfolio = async (req, res) => {
     await clearHomePageContentCache();
 
     return res.status(200).json({
-      success: true,
       message: "Portfolio added to highlighted portfolios successfully",
-      data: homePageContent,
+      data: {
+        featuredBlogs: homePageContent.featuredBlogs || [],
+        highlightedPortfolios: homePageContent.highlightedPortfolios || [],
+        lastUpdated: homePageContent.lastUpdated || null,
+      },
     });
   } catch (error) {
     logger.error(`Error adding highlighted portfolio: ${error.message}`, {
       error,
     });
     return res.status(500).json({
-      success: false,
       message: "Failed to add highlighted portfolio",
       error: error.message,
     });
@@ -478,7 +469,6 @@ const removeHighlightedPortfolio = async (req, res) => {
     if (!portfolioId || !mongoose.Types.ObjectId.isValid(portfolioId)) {
       logger.info(`Invalid portfolioId provided: ${portfolioId}`);
       return res.status(400).json({
-        success: false,
         message: "Valid portfolio ID is required",
       });
     }
@@ -488,7 +478,6 @@ const removeHighlightedPortfolio = async (req, res) => {
     if (!homePageContent) {
       logger.info("No home page content found to remove portfolio from");
       return res.status(404).json({
-        success: false,
         message: "Home page content not found",
       });
     }
@@ -500,7 +489,6 @@ const removeHighlightedPortfolio = async (req, res) => {
     ) {
       logger.info(`Portfolio ${portfolioId} is not highlighted`);
       return res.status(400).json({
-        success: false,
         message: "Portfolio is not highlighted",
       });
     }
@@ -518,14 +506,17 @@ const removeHighlightedPortfolio = async (req, res) => {
     return res.status(200).json({
       success: true,
       message: "Portfolio removed from highlighted portfolios successfully",
-      data: homePageContent,
+      data: {
+        featuredBlogs: homePageContent.featuredBlogs || [],
+        highlightedPortfolios: homePageContent.highlightedPortfolios || [],
+        lastUpdated: homePageContent.lastUpdated || null,
+      },
     });
   } catch (error) {
     logger.error(`Error removing highlighted portfolio: ${error.message}`, {
       error,
     });
     return res.status(500).json({
-      success: false,
       message: "Failed to remove highlighted portfolio",
       error: error.message,
     });

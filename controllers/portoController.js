@@ -106,7 +106,9 @@ const getPortoBySlug = async (req, res) => {
 };
 
 const createPorto = async (req, res) => {
-  const { title, description, shortDescription, link } = req.body;
+  // 1. Sanitasi seluruh body terlebih dahulu
+  const sanitizedData = sanitizeRichText(req.body);
+  const { title, description, shortDescription } = sanitizedData;
 
   if (!title || !description || !shortDescription) {
     return res.status(400).json({
@@ -119,21 +121,27 @@ const createPorto = async (req, res) => {
 
   try {
     const newPorto = new Porto({
-      title,
-      description,
-      shortDescription,
-      link,
+      ...sanitizedData,
       coverImage: req.fileUrl,
     });
     const savedPorto = await newPorto.save();
-    await invalidatePortoCache();
+
+    await invalidateCache("portoArchive", "porto:");
+
     res.status(201).json({
       message: "Portfolio created successfully",
-      data: savedPorto,
+      data: {
+        slug: savedPorto.slug,
+        title: savedPorto.title,
+        description: savedPorto.description,
+        shortDescription: savedPorto.shortDescription,
+        link: savedPorto.link,
+        coverImage: savedPorto.coverImage,
+        createdAt: savedPorto.createdAt,
+      },
     });
   } catch (error) {
     logger.error(`Error di createPorto: ${error.message}`);
-
     if (req.fileUrl) {
       await imageService.deleteFile(req.fileUrl);
     }
@@ -147,39 +155,46 @@ const updatePorto = async (req, res) => {
   try {
     const existingPorto = await Porto.findOne({ slug });
     if (!existingPorto) {
-      if (req.fileUrl) {
-        await imageService.deleteFile(req.fileUrl);
-      }
+      if (req.fileUrl) await imageService.deleteFile(req.fileUrl);
       return res.status(404).json({ message: "Portfolio not found" });
     }
 
-    const oldImagePath = existingPorto.coverImage;
-    const updateData = { ...req.body };
+    // 1. Sanitasi data yang masuk sebelum di-update
+    const sanitizedData = sanitizeRichText(req.body);
 
     if (req.fileUrl) {
-      updateData.coverImage = req.fileUrl;
+      sanitizedData.coverImage = req.fileUrl;
     }
 
-    const updatedPorto = await Porto.findOneAndUpdate({ slug }, updateData, {
+    const updatedPorto = await Porto.findOneAndUpdate({ slug }, sanitizedData, {
       new: true,
       runValidators: true,
     });
 
-    if (req.fileUrl && oldImagePath) {
-      await imageService.deleteFile(oldImagePath);
+    if (req.fileUrl && existingPorto.coverImage) {
+      await imageService.deleteFile(existingPorto.coverImage);
     }
 
-    await invalidatePortoCache(slug);
-    if (req.body.slug && req.body.slug !== slug) {
-      await invalidatePortoCache(req.body.slug);
+    await invalidateCache("portoArchive", "porto:", slug);
+    if (updatedPorto.slug !== slug) {
+      await invalidateCache("portoArchive", "porto:", updatedPorto.slug);
     }
 
-    res.json(updatedPorto);
+    res.json({
+      message: "Portfolio updated successfully",
+      data: {
+        slug: updatedPorto.slug,
+        title: updatedPorto.title,
+        description: updatedPorto.description,
+        shortDescription: updatedPorto.shortDescription,
+        link: updatedPorto.link,
+        coverImage: updatedPorto.coverImage,
+        createdAt: updatedPorto.createdAt,
+      },
+    });
   } catch (error) {
     logger.error(`Error di updatePorto: ${error.message}`);
-    if (req.fileUrl) {
-      await imageService.deleteFile(req.fileUrl);
-    }
+    if (req.fileUrl) await imageService.deleteFile(req.fileUrl);
     res.status(400).json({ message: error.message });
   }
 };
@@ -219,7 +234,15 @@ const archivePorto = async (req, res) => {
     await invalidatePortoCache(slug);
     res.json({
       message: "Portfolio archived successfully",
-      data: updatedPorto,
+      data: {
+        slug: updatedPorto.slug,
+        title: updatedPorto.title,
+        description: updatedPorto.description,
+        shortDescription: updatedPorto.shortDescription,
+        link: updatedPorto.link,
+        coverImage: updatedPorto.coverImage,
+        createdAt: updatedPorto.createdAt,
+      },
     });
   } catch (error) {
     logger.error(`Error archiving portfolio: ${error.message}`);
@@ -241,7 +264,15 @@ const unarchivePorto = async (req, res) => {
     await invalidatePortoCache(slug);
     res.json({
       message: "Portfolio unarchived successfully",
-      data: updatedPorto,
+      data: {
+        slug: updatedPorto.slug,
+        title: updatedPorto.title,
+        description: updatedPorto.description,
+        shortDescription: updatedPorto.shortDescription,
+        link: updatedPorto.link,
+        coverImage: updatedPorto.coverImage,
+        createdAt: updatedPorto.createdAt,
+      },
     });
   } catch (error) {
     logger.error(`Error unarchiving portfolio: ${error.message}`);

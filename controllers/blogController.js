@@ -2,6 +2,7 @@ const Blog = require("../models/blogModel");
 const redisClient = require("../config/redisConfig");
 const logger = require("../utils/logger");
 const imageService = require("../services/imageService");
+const { sanitizeRichText } = require("../services/sanitizerService");
 const { default: slugify } = require("slugify");
 
 const CACHE_KEY_PREFIX_BLOG = "blog:";
@@ -158,7 +159,8 @@ const getBlogBySlug = async (req, res) => {
 };
 
 const createBlog = async (req, res) => {
-  const { title, content } = req.body;
+  const sanitizedData = sanitizeRichText(req.body);
+  const { title, content } = sanitizedData;
 
   if (!title || !content) {
     return res.status(400).json({ message: "Title and content are required" });
@@ -169,8 +171,7 @@ const createBlog = async (req, res) => {
 
   try {
     const newBlog = new Blog({
-      title: title,
-      content: content,
+      ...sanitizedData,
       coverImage: req.fileUrl,
     });
     const savedBlog = await newBlog.save();
@@ -202,39 +203,35 @@ const updateBlog = async (req, res) => {
   try {
     const existingBlog = await Blog.findOne({ slug });
     if (!existingBlog) {
-      if (req.fileUrl) {
-        await imageService.deleteFile(req.fileUrl);
-      }
+      if (req.fileUrl) await imageService.deleteFile(req.fileUrl);
       return res.status(404).json({ message: "Blog not found" });
     }
 
-    const oldImagePath = existingBlog.coverImage;
-    const updateData = { ...req.body };
+    const sanitizedData = sanitizeRichText(req.body);
 
-    if (req.body.title) {
-      updateData.slug = slugify(req.body.title, {
+    if (sanitizedData.title) {
+      sanitizedData.slug = slugify(sanitizedData.title, {
         lower: true,
         strict: true,
         locale: "id",
       });
     }
-
     if (req.fileUrl) {
-      updateData.coverImage = req.fileUrl;
+      sanitizedData.coverImage = req.fileUrl;
     }
 
-    const updatedBlog = await Blog.findOneAndUpdate({ slug }, updateData, {
+    const updatedBlog = await Blog.findOneAndUpdate({ slug }, sanitizedData, {
       new: true,
       runValidators: true,
     });
 
-    if (req.fileUrl && oldImagePath) {
-      await imageService.deleteFile(oldImagePath);
+    if (req.fileUrl && existingBlog.coverImage) {
+      await imageService.deleteFile(existingBlog.coverImage);
     }
 
-    await invalidateBlogCache(slug);
-    if (req.body.slug && req.body.slug !== slug) {
-      await invalidateBlogCache(req.body.slug);
+    await invalidateCache("blogArchive", "blog:", slug);
+    if (updatedBlog.slug !== slug) {
+      await invalidateCache("blogArchive", "blog:", updatedBlog.slug);
     }
 
     res.json({
@@ -245,15 +242,12 @@ const updateBlog = async (req, res) => {
         content: updatedBlog.content,
         coverImage: updatedBlog.coverImage,
         createdAt: updatedBlog.createdAt,
+        isArchived: updatedBlog.isArchived,
       },
     });
   } catch (error) {
     logger.error(`Error di updateBlog: ${error.message}`);
-
-    if (req.fileUrl) {
-      await imageService.deleteFile(req.fileUrl);
-    }
-
+    if (req.fileUrl) await imageService.deleteFile(req.fileUrl);
     res.status(400).json({ message: error.message });
   }
 };

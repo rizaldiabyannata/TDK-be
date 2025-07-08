@@ -66,4 +66,29 @@ const authorize = () => {
   };
 };
 
-module.exports = { protect, authorize };
+const optionalAuth = async (req, res, next) => {
+  let token;
+  if (req.cookies && req.cookies.token) {
+    token = req.cookies.token;
+  }
+
+  if (!token) {
+    return next();
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findById(decoded.id).select("-password");
+    if (user) {
+      req.user = user;
+    }
+  } catch (error) {
+    logger.debug(
+      `Optional auth: Token tidak valid, melanjutkan sebagai guest.`
+    );
+  }
+
+  next();
+};
+
+module.exports = { protect, authorize, optionalAuth };

@@ -9,11 +9,12 @@ const CACHE_KEY_PREFIX_BLOG = "blog:";
 const CACHE_KEY_ARCHIVE = "blogArchive";
 
 const getFromDbOrCache = async (cacheKey, dbQuery) => {
-  if (redisClient.isReady) {
+  if (await redisClient.isConnected()) {
     const cachedData = await redisClient.get(cacheKey);
     if (cachedData) {
       logger.info(`Cache HIT untuk kunci: ${cacheKey}`);
-      return JSON.parse(cachedData);
+
+      return cachedData;
     }
   } else {
     logger.warn("Redis client tidak siap, cache dilewati.");
@@ -22,16 +23,17 @@ const getFromDbOrCache = async (cacheKey, dbQuery) => {
   logger.info(`Cache MISS untuk kunci: ${cacheKey}. Mengambil dari DB.`);
   const dbData = await dbQuery();
 
-  if (redisClient.isReady && dbData) {
+  if ((await redisClient.isConnected()) && dbData) {
     const expiry = cacheKey.includes("Archive") ? 21600 : 3600;
-    await redisClient.set(cacheKey, JSON.stringify(dbData), { EX: expiry });
+
+    await redisClient.set(cacheKey, dbData, { EX: expiry });
   }
 
   return dbData;
 };
 
 const invalidateBlogCache = async (slug = null) => {
-  if (!redisClient.isReady) {
+  if (!redisClient.isConnected()) {
     logger.warn("Redis client tidak siap, tidak dapat menghapus cache.");
     return;
   }
@@ -145,15 +147,27 @@ const getBlogArchive = async (req, res) => {
 
 const getBlogBySlug = async (req, res) => {
   const { slug } = req.params;
-  const cacheKey = `${CACHE_KEY_PREFIX_BLOG}${slug}`;
   try {
-    const blog = await getFromDbOrCache(cacheKey, () => Blog.findOne({ slug }));
+    let blog;
+
+    if (req.user) {
+      logger.info(`[Admin Access] Bypass cache untuk slug: ${slug}`);
+      blog = await Blog.findOne({ slug });
+    } else {
+      const cacheKey = `${CACHE_KEY_PREFIX_BLOG}${slug}`;
+      blog = await getFromDbOrCache(cacheKey, () => Blog.findOne({ slug }));
+    }
+
     if (!blog) {
       return res.status(404).json({ message: "Blog not found" });
     }
-    res.json(blog);
+
+    res.json({
+      message: "Blog retrieved successfully",
+      data: blog,
+    });
   } catch (error) {
-    logger.error(`Error di getBlogBySlug: ${error.message}`);
+    logger.error(`Error di getBlogBySlug: ${error.message}`, { error });
     res.status(500).json({ message: "Server Error" });
   }
 };

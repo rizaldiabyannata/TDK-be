@@ -6,6 +6,8 @@ npm-debug.log
 
 # Abaikan file environment lokal, jangan masukkan ke image
 .env
+# .env.developement.local
+# .env.production.local
 
 # Folder data yang tidak perlu dimasukkan ke dalam image
 uploads

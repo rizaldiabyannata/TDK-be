@@ -12,7 +12,7 @@ const {
   archiveBlog,
   unarchiveBlog,
 } = require("../controllers/blogController"); // Pastikan path ini benar
-const { protect } = require("../middleware/authMiddleware");
+const { protect, optionalAuth } = require("../middleware/authMiddleware");
 const { trackView } = require("../middleware/viewTracker");
 const {
   uploadSingleFile,
@@ -66,7 +66,7 @@ router.patch("/:slug/unarchive", protect, unarchiveBlog);
  * @desc    Dapatkan satu artikel blog berdasarkan slug
  * @access  Publik
  */
-router.get("/:slug", trackView("Blog"), getBlogBySlug);
+router.get("/:slug", optionalAuth, trackView("Blog"), getBlogBySlug);
 
 /**
  * @route   PUT /api/blogs/:slug

@@ -7,7 +7,7 @@ const CACHE_KEY_PREFIX_PORTO = "porto:";
 const CACHE_KEY_ARCHIVE = "portoArchive";
 
 const getFromDbOrCache = async (cacheKey, dbQuery) => {
-  if (redisClient.isReady) {
+  if (redisClient.isConnected()) {
     const cachedData = await redisClient.get(cacheKey);
     if (cachedData) {
       logger.info(`Cache HIT untuk kunci: ${cacheKey}`);
@@ -20,8 +20,11 @@ const getFromDbOrCache = async (cacheKey, dbQuery) => {
   logger.info(`Cache MISS untuk kunci: ${cacheKey}. Mengambil dari DB.`);
   const dbData = await dbQuery();
 
-  if (redisClient.isReady && dbData) {
+  if (redisClient.isConnected() && dbData) {
     const expiry = cacheKey.includes("Archive") ? 21600 : 3600;
+    logger.info(
+      `Menyimpan data ke cache dengan kunci: ${cacheKey}, masa berlaku: ${expiry} detik`
+    );
     await redisClient.set(cacheKey, JSON.stringify(dbData), { EX: expiry });
   }
 

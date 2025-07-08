@@ -3,7 +3,6 @@ const logger = require("../utils/logger");
 const Blog = require("../models/blogModel");
 const Porto = require("../models/portoModel");
 
-// Map untuk memilih model berdasarkan tipe
 const models = {
   Blog: Blog,
   Portfolio: Porto,
@@ -15,6 +14,13 @@ const models = {
  */
 const trackView = (type) => {
   return async (req, res, next) => {
+    if (req.user) {
+      logger.debug(
+        `[Tracker] Akses oleh admin terdeteksi. Pelacakan view dilewati.`
+      );
+      return next();
+    }
+
     const Model = models[type];
     if (!Model) {
       logger.warn(`Tipe model tidak valid di viewTracker: ${type}`);
@@ -24,13 +30,18 @@ const trackView = (type) => {
     const { slug } = req.params;
     const ip = req.headers["x-forwarded-for"] || req.ip;
 
-    // --- LOGIKA YANG DIPERBAIKI UNTUK RIWAYAT HARIAN & TOTAL VIEW ---
+    logger.debug(
+      `[Tracker] Memulai pelacakan untuk tipe: ${type}, slug: ${slug}, IP: ${ip}`
+    );
+
     const today = new Date();
-    today.setHours(0, 0, 0, 0); // Set waktu ke tengah malam untuk mewakili satu hari
+    today.setHours(0, 0, 0, 0);
 
     try {
-      // Langkah 1: Coba perbarui riwayat untuk hari ini jika sudah ada.
-      // Operasi ini juga akan menambah 'views.total'.
+      logger.debug(
+        `[Tracker] Menggunakan tanggal untuk query: ${today.toISOString()}`
+      );
+
       const updateResult = await Model.updateOne(
         { slug: slug, "viewHistory.date": today },
         {
@@ -41,48 +52,74 @@ const trackView = (type) => {
         }
       );
 
-      // Langkah 2: Jika tidak ada riwayat untuk hari ini yang diperbarui (modifiedCount === 0),
-      // maka tambahkan entri baru untuk hari ini. Ini akan dijalankan jika slug ada
-      // tapi entri tanggal untuk hari ini tidak ada.
-      // Kondisi 'viewHistory.date': { $ne: today } mencegah race condition.
+      logger.debug(
+        `[Tracker] Hasil update riwayat yang ada: modifiedCount = ${updateResult.modifiedCount}, matchedCount = ${updateResult.matchedCount}`
+      );
+
       if (updateResult.modifiedCount === 0) {
-        await Model.updateOne(
+        logger.debug(
+          `[Tracker] Riwayat untuk hari ini tidak ditemukan, mencoba membuat entri baru.`
+        );
+        const pushResult = await Model.updateOne(
           { slug: slug, "viewHistory.date": { $ne: today } },
           {
-            $inc: { "views.total": 1 }, // Tambah total view di sini
+            $inc: { "views.total": 1 },
             $push: {
               viewHistory: { date: today, count: 1 },
             },
           }
         );
+        logger.debug(
+          `[Tracker] Hasil pembuatan entri baru: modifiedCount = ${pushResult.modifiedCount}, matchedCount = ${pushResult.matchedCount}`
+        );
+      } else {
+        logger.debug(
+          `[Tracker] Berhasil memperbarui riwayat yang ada untuk slug: ${slug}`
+        );
       }
     } catch (error) {
       logger.error(
-        `Gagal memperbarui riwayat penayangan untuk ${slug}: ${error.message}`
+        `[Tracker] Gagal memperbarui riwayat penayangan untuk ${slug}: ${error.message}`
       );
     }
 
-    // --- Logika untuk Unique View (dijalankan secara terpisah dan tidak berubah) ---
-    if (!redisClient.isReady) {
+    if (!(await redisClient.isConnected())) {
       logger.warn(
-        `Redis client tidak siap, pelacakan unique view untuk ${slug} dilewati.`
+        `[Tracker] Redis client tidak siap, pelacakan unique view untuk ${slug} dilewati.`
       );
       return next();
     }
 
     const redisKey = `view:${type}:${slug}:${ip}`;
+    logger.debug(
+      `[Tracker] Menggunakan kunci Redis untuk unique view: ${redisKey}`
+    );
 
     try {
       const keyExists = await redisClient.get(redisKey);
+      logger.debug(
+        `[Tracker] Apakah kunci '${redisKey}' ada di Redis? -> ${
+          keyExists ? "Ya" : "Tidak"
+        }`
+      );
+
       if (!keyExists) {
-        // Jika ini unique view, tambah 'views.unique' dan set Redis.
+        logger.info(
+          `[Tracker] Unique view terdeteksi untuk ${type} ${slug}. Memperbarui database.`
+        );
         await Model.updateOne({ slug }, { $inc: { "views.unique": 1 } });
-        await redisClient.set(redisKey, "1", { EX: 86400 }); // 24 jam
-        logger.info(`Unique view dicatat untuk ${type} ${slug} dari IP ${ip}`);
+        await redisClient.set(redisKey, "1", { EX: 86400 });
+        logger.info(
+          `[Tracker] Unique view berhasil dicatat untuk ${type} ${slug} dari IP ${ip}`
+        );
+      } else {
+        logger.debug(
+          `[Tracker] Bukan unique view untuk ${type} ${slug} dari IP ${ip}. Melanjutkan.`
+        );
       }
     } catch (error) {
       logger.error(
-        `Error saat melacak unique view di Redis untuk ${slug}: ${error.message}`
+        `[Tracker] Error saat melacak unique view di Redis untuk ${slug}: ${error.message}`
       );
     }
 

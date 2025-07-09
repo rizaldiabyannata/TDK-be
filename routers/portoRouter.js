@@ -12,7 +12,7 @@ const {
   unarchivePorto,
 } = require("../controllers/portoController");
 
-const { protect } = require("../middleware/authMiddleware");
+const { protect, optionalAuth } = require("../middleware/authMiddleware");
 const { trackView } = require("../middleware/viewTracker");
 const {
   uploadSingleFile,
@@ -66,7 +66,7 @@ router.patch("/:slug/unarchive", protect, unarchivePorto);
  * @desc    Dapatkan satu item portofolio berdasarkan slug
  * @access  Publik
  */
-router.get("/:slug", trackView("Portfolio"), getPortoBySlug);
+router.get("/:slug", optionalAuth, trackView("Portfolio"), getPortoBySlug);
 
 /**
  * @route   PUT /api/portos/:slug

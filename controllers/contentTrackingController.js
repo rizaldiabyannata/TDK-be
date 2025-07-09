@@ -169,18 +169,15 @@ const updateHighlightedPortfolios = async (req, res) => {
       });
     }
 
-    // 1. Konversi semua ID dari body ke ObjectId (urutan masih terjaga)
     const objectIdPortfolioIds = portfolioIds.map(
       (id) => new mongoose.Types.ObjectId(id)
     );
 
-    // 2. Cari semua portfolio yang valid dari ID yang diberikan
     const existingPortfolios = await Portfolio.find({
       _id: { $in: objectIdPortfolioIds },
       isArchived: { $ne: true },
     }).select("_id");
 
-    // 3. Validasi apakah semua ID yang diminta ada di database
     if (existingPortfolios.length !== objectIdPortfolioIds.length) {
       logger.info(
         "Some portfolios were not found, are archived, or duplicates exist"
@@ -197,7 +194,6 @@ const updateHighlightedPortfolios = async (req, res) => {
       homePageContent = new HomePageContent();
     }
 
-    // 4. Simpan array ID ASLI yang urutannya sudah benar
     homePageContent.highlightedPortfolios = objectIdPortfolioIds;
     homePageContent.lastUpdated = Date.now();
     await homePageContent.save();

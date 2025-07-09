@@ -162,10 +162,23 @@ const getBlogBySlug = async (req, res) => {
       return res.status(404).json({ message: "Blog not found" });
     }
 
-    res.json({
-      message: "Blog retrieved successfully",
-      data: blog,
-    });
+    if (req.user) {
+      res.json({
+        message: "Blog retrieved successfully",
+        data: blog,
+      });
+    } else {
+      res.json({
+        message: "Blog retrieved successfully",
+        data: {
+          slug: blog.slug,
+          title: blog.title,
+          content: blog.content,
+          coverImage: blog.coverImage,
+          createdAt: blog.createdAt,
+        },
+      });
+    }
   } catch (error) {
     logger.error(`Error di getBlogBySlug: ${error.message}`, { error });
     res.status(500).json({ message: "Server Error" });

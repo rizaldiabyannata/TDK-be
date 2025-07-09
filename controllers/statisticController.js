@@ -1,4 +1,3 @@
-const { DailyView } = require("../models/viewTrackingModel");
 const Portfolio = require("../models/portoModel");
 const Blog = require("../models/blogModel");
 const logger = require("../utils/logger");
@@ -6,12 +5,14 @@ const logger = require("../utils/logger");
 const getDashboardStats = async (req, res) => {
   try {
     const days = parseInt(req.query.days || "7");
+
     const endDate = new Date();
+    endDate.setHours(23, 59, 59, 999);
+
     const startDate = new Date();
-    startDate.setDate(startDate.getDate() - days);
+    startDate.setDate(startDate.getDate() - (days - 1));
     startDate.setHours(0, 0, 0, 0);
 
-    // FIX 1: Mengambil statistik total langsung dari koleksi Blog dan Portfolio
     const portfolioStatsPromise = Portfolio.aggregate([
       { $match: { isArchived: { $ne: true } } },
       {
@@ -44,44 +45,48 @@ const getDashboardStats = async (req, res) => {
       .limit(5)
       .select("title slug views");
 
-    const dailyViewsPromise = DailyView.aggregate([
+    const blogDailyViewsPromise = Blog.aggregate([
+      { $unwind: "$viewHistory" },
       {
         $match: {
-          date: { $gte: startDate, $lt: endDate },
+          "viewHistory.date": { $gte: startDate, $lte: endDate },
         },
       },
       {
         $group: {
           _id: {
-            // FIX 2: Menambahkan timezone agar konsisten dengan server
-            date: {
-              $dateToString: {
-                format: "%Y-%m-%d",
-                date: "$date",
-                timezone: "Asia/Makassar", // Sesuaikan dengan timezone server Anda
-              },
+            $dateToString: {
+              format: "%Y-%m-%d",
+              date: "$viewHistory.date",
+              timezone: "Asia/Makassar",
             },
-            contentType: "$contentType",
           },
-          views: { $sum: "$count" },
+          views: { $sum: "$viewHistory.count" },
+        },
+      },
+      { $project: { _id: 0, date: "$_id", views: 1 } },
+    ]);
+
+    const portfolioDailyViewsPromise = Portfolio.aggregate([
+      { $unwind: "$viewHistory" },
+      {
+        $match: {
+          "viewHistory.date": { $gte: startDate, $lte: endDate },
         },
       },
       {
         $group: {
-          _id: "$_id.date",
-          portfolioViews: {
-            $sum: {
-              $cond: [{ $eq: ["$_id.contentType", "portfolio"] }, "$views", 0],
+          _id: {
+            $dateToString: {
+              format: "%Y-%m-%d",
+              date: "$viewHistory.date",
+              timezone: "Asia/Makassar",
             },
           },
-          blogViews: {
-            $sum: {
-              $cond: [{ $eq: ["$_id.contentType", "blog"] }, "$views", 0],
-            },
-          },
+          views: { $sum: "$viewHistory.count" },
         },
       },
-      { $sort: { _id: 1 } },
+      { $project: { _id: 0, date: "$_id", views: 1 } },
     ]);
 
     const [
@@ -89,13 +94,15 @@ const getDashboardStats = async (req, res) => {
       blogStatsResult,
       topPortfolios,
       topBlogs,
-      dailyViews,
+      blogDailyViews,
+      portfolioDailyViews,
     ] = await Promise.all([
       portfolioStatsPromise,
       blogStatsPromise,
       topPortfoliosPromise,
       topBlogsPromise,
-      dailyViewsPromise,
+      blogDailyViewsPromise,
+      portfolioDailyViewsPromise,
     ]);
 
     const portfolioStats = portfolioStatsResult[0] || {};
@@ -118,11 +125,15 @@ const getDashboardStats = async (req, res) => {
       });
     }
 
-    dailyViews.forEach((item) => {
-      if (dailyDataMap.has(item._id)) {
-        const entry = dailyDataMap.get(item._id);
-        entry.portfolioViews = item.portfolioViews;
-        entry.blogViews = item.blogViews;
+    blogDailyViews.forEach((item) => {
+      if (dailyDataMap.has(item.date)) {
+        dailyDataMap.get(item.date).blogViews = item.views;
+      }
+    });
+
+    portfolioDailyViews.forEach((item) => {
+      if (dailyDataMap.has(item.date)) {
+        dailyDataMap.get(item.date).portfolioViews = item.views;
       }
     });
 

@@ -2,16 +2,18 @@ const Porto = require("../models/portoModel");
 const redisClient = require("../config/redisConfig");
 const logger = require("../utils/logger");
 const imageService = require("../services/imageService");
+const { sanitizeRichText } = require("../services/sanitizerService");
+const { default: slugify } = require("slugify");
 
 const CACHE_KEY_PREFIX_PORTO = "porto:";
 const CACHE_KEY_ARCHIVE = "portoArchive";
 
 const getFromDbOrCache = async (cacheKey, dbQuery) => {
-  if (redisClient.isConnected()) {
+  if (await redisClient.isConnected()) {
     const cachedData = await redisClient.get(cacheKey);
     if (cachedData) {
       logger.info(`Cache HIT untuk kunci: ${cacheKey}`);
-      return JSON.parse(cachedData);
+      return cachedData;
     }
   } else {
     logger.warn("Redis client tidak siap, cache dilewati.");
@@ -20,26 +22,28 @@ const getFromDbOrCache = async (cacheKey, dbQuery) => {
   logger.info(`Cache MISS untuk kunci: ${cacheKey}. Mengambil dari DB.`);
   const dbData = await dbQuery();
 
-  if (redisClient.isConnected() && dbData) {
+  if ((await redisClient.isConnected()) && dbData) {
     const expiry = cacheKey.includes("Archive") ? 21600 : 3600;
-    logger.info(
-      `Menyimpan data ke cache dengan kunci: ${cacheKey}, masa berlaku: ${expiry} detik`
-    );
-    await redisClient.set(cacheKey, JSON.stringify(dbData), { EX: expiry });
+    await redisClient.set(cacheKey, dbData, { EX: expiry });
   }
 
   return dbData;
 };
 
 const invalidatePortoCache = async (slug = null) => {
-  if (!redisClient.isReady) {
+  if (!(await redisClient.isConnected())) {
     logger.warn("Redis client tidak siap, tidak dapat menghapus cache.");
     return;
   }
   try {
-    await redisClient.del(CACHE_KEY_ARCHIVE);
+    await redisClient.delete(CACHE_KEY_ARCHIVE);
+    logger.info(`Cache dihapus untuk kunci: ${CACHE_KEY_ARCHIVE}`);
+
     if (slug) {
-      await redisClient.del(`${CACHE_KEY_PREFIX_PORTO}${slug}`);
+      await redisClient.delete(`${CACHE_KEY_PREFIX_PORTO}${slug}`);
+      logger.info(
+        `Cache dihapus untuk kunci: ${CACHE_KEY_PREFIX_PORTO}${slug}`
+      );
     }
   } catch (error) {
     logger.error(`Gagal menghapus cache portofolio: ${error.message}`);
@@ -93,15 +97,39 @@ const getAllPortos = async (req, res) => {
 
 const getPortoBySlug = async (req, res) => {
   const { slug } = req.params;
-  const cacheKey = `${CACHE_KEY_PREFIX_PORTO}${slug}`;
   try {
-    const porto = await getFromDbOrCache(cacheKey, () =>
-      Porto.findOne({ slug })
-    );
+    let porto;
+
+    if (req.user) {
+      logger.info(`[Admin Access] Bypass cache untuk slug: ${slug}`);
+      porto = await Porto.findOne({ slug });
+    } else {
+      const cacheKey = `${CACHE_KEY_PREFIX_PORTO}${slug}`;
+      porto = await getFromDbOrCache(cacheKey, () => Porto.findOne({ slug }));
+    }
+
     if (!porto) {
       return res.status(404).json({ message: "Portofolio not found" });
     }
-    res.json(porto);
+    if (req.user) {
+      res.json({
+        message: "Portfolio retrieved successfully",
+        data: porto,
+      });
+    } else {
+      res.json({
+        message: "Portfolio retrieved successfully",
+        data: {
+          slug: porto.slug,
+          title: porto.title,
+          description: porto.description,
+          shortDescription: porto.shortDescription,
+          link: porto.link,
+          coverImage: porto.coverImage,
+          createdAt: porto.createdAt,
+        },
+      });
+    }
   } catch (error) {
     logger.error(`Error di getPortoBySlug: ${error.message}`);
     res.status(500).json({ message: "Server Error" });
@@ -109,7 +137,6 @@ const getPortoBySlug = async (req, res) => {
 };
 
 const createPorto = async (req, res) => {
-  // 1. Sanitasi seluruh body terlebih dahulu
   const sanitizedData = sanitizeRichText(req.body);
   const { title, description, shortDescription } = sanitizedData;
 
@@ -129,7 +156,7 @@ const createPorto = async (req, res) => {
     });
     const savedPorto = await newPorto.save();
 
-    await invalidateCache("portoArchive", "porto:");
+    await invalidatePortoCache();
 
     res.status(201).json({
       message: "Portfolio created successfully",
@@ -162,8 +189,15 @@ const updatePorto = async (req, res) => {
       return res.status(404).json({ message: "Portfolio not found" });
     }
 
-    // 1. Sanitasi data yang masuk sebelum di-update
     const sanitizedData = sanitizeRichText(req.body);
+
+    if (sanitizedData.title) {
+      sanitizedData.slug = slugify(sanitizedData.title, {
+        lower: true,
+        strict: true,
+        locale: "id",
+      });
+    }
 
     if (req.fileUrl) {
       sanitizedData.coverImage = req.fileUrl;
@@ -178,9 +212,9 @@ const updatePorto = async (req, res) => {
       await imageService.deleteFile(existingPorto.coverImage);
     }
 
-    await invalidateCache("portoArchive", "porto:", slug);
+    await invalidatePortoCache(slug);
     if (updatedPorto.slug !== slug) {
-      await invalidateCache("portoArchive", "porto:", updatedPorto.slug);
+      await invalidatePortoCache(updatedPorto.slug);
     }
 
     res.json({
@@ -193,6 +227,7 @@ const updatePorto = async (req, res) => {
         link: updatedPorto.link,
         coverImage: updatedPorto.coverImage,
         createdAt: updatedPorto.createdAt,
+        isArchived: updatedPorto.isArchived,
       },
     });
   } catch (error) {
@@ -245,6 +280,7 @@ const archivePorto = async (req, res) => {
         link: updatedPorto.link,
         coverImage: updatedPorto.coverImage,
         createdAt: updatedPorto.createdAt,
+        isArchived: updatedPorto.isArchived,
       },
     });
   } catch (error) {
@@ -275,6 +311,7 @@ const unarchivePorto = async (req, res) => {
         link: updatedPorto.link,
         coverImage: updatedPorto.coverImage,
         createdAt: updatedPorto.createdAt,
+        isArchived: updatedPorto.isArchived,
       },
     });
   } catch (error) {

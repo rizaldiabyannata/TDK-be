@@ -1,4 +1,4 @@
-# Proyek Backend TDK (Template Express.js)
+# Proyek Backend TDK
 
 Ini adalah backend untuk aplikasi web portofolio dan blog, yang dibangun dengan Node.js, Express, dan MongoDB. Proyek ini mencakup fungsionalitas untuk mengelola konten, autentikasi pengguna, dan melacak statistik.
 

@@ -5,11 +5,22 @@ const jwt = require("jsonwebtoken");
 const otpService = require("../utils/otpService");
 const { findById } = require("../models/blogModel");
 
-const generateToken = (user) => {
-  const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
-    expiresIn: "2h",
+const generateTokens = (user) => {
+  // Access token berumur pendek (misal: 15 menit)
+  const accessToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+    expiresIn: "15m",
   });
-  return token;
+
+  // Refresh token berumur panjang (misal: 7 hari)
+  const refreshToken = jwt.sign(
+    { id: user._id },
+    process.env.JWT_REFRESH_SECRET,
+    {
+      expiresIn: "7d",
+    }
+  );
+
+  return { accessToken, refreshToken };
 };
 
 const loginUser = async (req, res) => {
@@ -29,26 +40,77 @@ const loginUser = async (req, res) => {
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
-    const token = generateToken(admin);
+    const { accessToken, refreshToken } = generateTokens(admin);
 
     logger.info(`Admin logged in: ${name}`);
 
-    res
-      .cookie("token", token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-      })
-      .status(200)
-      .json({
-        message: "Login successful",
-        user: {
-          name: admin.name,
-          email: admin.email || null,
-        },
-      });
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 hari
+    });
+
+    res.status(200).json({
+      message: "Login successful",
+      accessToken,
+      user: {
+        name: admin.name,
+        email: admin.email || null,
+      },
+    });
   } catch (error) {
     logger.error(`Error logging in admin: ${error.message}`);
     res.status(500).json({ message: "Error logging in", error: error.message });
+  }
+};
+
+const refreshToken = async (req, res) => {
+  const refreshToken = req.cookies.refreshToken;
+
+  if (!refreshToken) {
+    return res.status(401).json({ message: "Refresh token not found." });
+  }
+
+  try {
+    const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
+
+    const user = await User.findById(decoded.id);
+
+    if (!user) {
+      return res.status(403).json({ message: "Invalid refresh token." });
+    }
+
+    // Buat access token baru
+    const accessToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+      expiresIn: "15m",
+    });
+
+    res.status(200).json({ accessToken });
+  } catch (error) {
+    logger.error(`Error refreshing token: ${error.message}`);
+    return res.status(403).json({ message: "Invalid refresh token." });
+  }
+};
+
+const logoutUser = async (req, res) => {
+  try {
+    const userId = req.user?._id;
+    const userName = req.user?.name;
+
+    res.clearCookie("refreshToken");
+
+    logger.info(`Admin logged out: ${userName} (ID: ${userId})`);
+
+    res.status(200).json({
+      message: "Logout successful",
+    });
+  } catch (error) {
+    logger.error(`Error during logout: ${error.message}`);
+    res.status(500).json({
+      message: "Error during logout",
+      error: error.message,
+    });
   }
 };
 
@@ -182,30 +244,10 @@ const verifyOTPAndResetPassword = async (req, res) => {
   }
 };
 
-const logoutUser = async (req, res) => {
-  try {
-    const userId = req.user?._id;
-    const userName = req.user?.name;
-
-    res.clearCookie("token");
-
-    logger.info(`Admin logged out: ${userName} (ID: ${userId})`);
-
-    res.status(200).json({
-      message: "Logout successful",
-    });
-  } catch (error) {
-    logger.error(`Error during logout: ${error.message}`);
-    res.status(500).json({
-      message: "Error during logout",
-      error: error.message,
-    });
-  }
-};
-
 module.exports = {
   loginUser,
   getUserProfile,
+  refreshToken,
   updateUser,
   requestPasswordResetOTP,
   verifyOTPAndResetPassword,

@@ -3,52 +3,46 @@ const User = require("../models/userModel");
 const logger = require("../utils/logger");
 
 const protect = async (req, res, next) => {
-  try {
-    let token;
+  let token;
 
-    if (req.cookies && req.cookies.token) {
-      token = req.cookies.token;
-    }
-
-    if (!token) {
-      return res.status(401).json({
-        success: false,
-        message: "Access denied. No token provided.",
-      });
-    }
-
+  if (
+    req.headers.authorization &&
+    req.headers.authorization.startsWith("Bearer")
+  ) {
     try {
+      token = req.headers.authorization.split(" ")[1];
+
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-      const user = await User.findById(decoded.id).select("-password");
+      req.user = await User.findById(decoded.id).select("-password");
 
-      if (!user) {
+      if (!req.user) {
         return res.status(401).json({
           success: false,
-          message: "Invalid token. User not found.",
+          message: "Not authorized, user not found.",
         });
       }
 
-      req.user = user;
       next();
     } catch (error) {
+      logger.error(`Authentication error: ${error.message}`);
       if (error.name === "TokenExpiredError") {
         return res.status(401).json({
           success: false,
-          message: "Token expired. Please log in again.",
+          message: "Not authorized, token expired.",
         });
       }
-
       return res.status(401).json({
         success: false,
-        message: "Invalid token.",
+        message: "Not authorized, token failed.",
       });
     }
-  } catch (error) {
-    logger.error(`Authentication error: ${error.message}`, { error });
-    return res.status(500).json({
+  }
+
+  if (!token) {
+    return res.status(401).json({
       success: false,
-      message: "Authentication failed due to server error.",
+      message: "Not authorized, no token.",
     });
   }
 };
@@ -68,8 +62,8 @@ const authorize = () => {
 
 const optionalAuth = async (req, res, next) => {
   let token;
-  if (req.cookies && req.cookies.token) {
-    token = req.cookies.token;
+  if (req.cookies && req.cookies.refreshToken) {
+    token = req.cookies.refreshToken;
   }
 
   if (!token) {
@@ -77,7 +71,7 @@ const optionalAuth = async (req, res, next) => {
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.JWT_REFRESH_SECRET);
     const user = await User.findById(decoded.id).select("-password");
     if (user) {
       req.user = user;

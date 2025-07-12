@@ -4,6 +4,7 @@ const rateLimit = require("express-rate-limit");
 
 const {
   loginUser,
+  refreshToken,
   getUserProfile,
   updateUser,
   requestPasswordResetOTP,
@@ -36,6 +37,8 @@ const lenientLimiter = rateLimit({
 });
 
 router.post("/login", strictLimiter, loginRules(), validate, loginUser);
+
+router.post("/refresh-token", lenientLimiter, refreshToken);
 
 router.post(
   "/request-password-reset",

@@ -16,14 +16,14 @@ const getFromDbOrCache = async (cacheKey, dbQuery) => {
   if (await redisClient.isConnected()) {
     const cachedData = await redisClient.get(cacheKey);
     if (cachedData) {
-      logger.info(`Cache HIT untuk kunci: ${cacheKey}`);
+      logger.info(`Cache HIT for key: ${cacheKey}`);
       return cachedData;
     }
   } else {
-    logger.warn("Redis client tidak siap, cache dilewati.");
+    logger.warn("Redis client not connected, using DB query directly.");
   }
 
-  logger.info(`Cache MISS untuk kunci: ${cacheKey}. Mengambil dari DB.`);
+  logger.info(`Cache MISS: ${cacheKey}. Getting data from DB.`);
   const dbData = await dbQuery();
 
   if ((await redisClient.isConnected()) && dbData) {
@@ -36,21 +36,19 @@ const getFromDbOrCache = async (cacheKey, dbQuery) => {
 
 const invalidatePortoCache = async (slug = null) => {
   if (!(await redisClient.isConnected())) {
-    logger.warn("Redis client tidak siap, tidak dapat menghapus cache.");
+    logger.warn("Redis client not ready, cache invalidation skipped.");
     return;
   }
   try {
     await redisClient.delete(CACHE_KEY_ARCHIVE);
-    logger.info(`Cache dihapus untuk kunci: ${CACHE_KEY_ARCHIVE}`);
+    logger.info(`Cache deleted with key: ${CACHE_KEY_ARCHIVE}`);
 
     if (slug) {
       await redisClient.delete(`${CACHE_KEY_PREFIX_PORTO}${slug}`);
-      logger.info(
-        `Cache dihapus untuk kunci: ${CACHE_KEY_PREFIX_PORTO}${slug}`
-      );
+      logger.info(`Cache deleted with key: ${CACHE_KEY_PREFIX_PORTO}${slug}`);
     }
   } catch (error) {
-    logger.error(`Gagal menghapus cache portofolio: ${error.message}`);
+    logger.error(`Failed to delete: ${error.message}`);
   }
 };
 
@@ -58,7 +56,7 @@ const getAllPortos = async (req, res) => {
   try {
     const page = parseInt(req.query.page, 10) || 1;
     const limit = parseInt(req.query.limit, 10) || 10;
-    // Sanitasi input pencarian
+
     const searchTerm = req.query.search
       ? sanitizeMongoQuery(req.query.search)
       : "";
@@ -73,7 +71,6 @@ const getAllPortos = async (req, res) => {
     }
 
     if (searchTerm) {
-      // Buat regex yang aman setelah sanitasi
       const safeRegex = new RegExp(
         searchTerm.replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&"),
         "i"
@@ -102,7 +99,7 @@ const getAllPortos = async (req, res) => {
       },
     });
   } catch (error) {
-    logger.error(`Error di getAllPortos: ${error.message}`);
+    logger.error(`Error in getAllPortos: ${error.message}`);
     res.status(500).json({ message: "An internal server error occurred." });
   }
 };
@@ -113,7 +110,7 @@ const getPortoBySlug = async (req, res) => {
     let porto;
 
     if (req.user) {
-      logger.info(`[Admin Access] Bypass cache untuk slug: ${slug}`);
+      logger.info(`[Admin Access] Bypass cache: ${slug}`);
       porto = await Porto.findOne({ slug });
     } else {
       const cacheKey = `${CACHE_KEY_PREFIX_PORTO}${slug}`;
@@ -143,7 +140,7 @@ const getPortoBySlug = async (req, res) => {
       });
     }
   } catch (error) {
-    logger.error(`Error di getPortoBySlug: ${error.message}`);
+    logger.error(`Error in getPortoBySlug: ${error.message}`);
     res.status(500).json({ message: "An internal server error occurred." });
   }
 };
@@ -183,7 +180,7 @@ const createPorto = async (req, res) => {
       },
     });
   } catch (error) {
-    logger.error(`Error di createPorto: ${error.message}`);
+    logger.error(`Error in createPorto: ${error.message}`);
     if (req.fileUrl) {
       await imageService.deleteFile(req.fileUrl);
     }
@@ -243,7 +240,7 @@ const updatePorto = async (req, res) => {
       },
     });
   } catch (error) {
-    logger.error(`Error di updatePorto: ${error.message}`);
+    logger.error(`Error in updatePorto: ${error.message}`);
     if (req.fileUrl) await imageService.deleteFile(req.fileUrl);
     res.status(400).json({ message: error.message });
   }
@@ -265,7 +262,7 @@ const deletePorto = async (req, res) => {
     await invalidatePortoCache(slug);
     res.json({ message: "Portfolio deleted successfully" });
   } catch (error) {
-    logger.error(`Error di deletePorto: ${error.message}`);
+    logger.error(`Error on deletePorto: ${error.message}`);
     res.status(500).json({ message: "An internal server error occurred." });
   }
 };
@@ -358,7 +355,7 @@ const getPortoArchive = async (req, res) => {
     );
     res.json(archives);
   } catch (error) {
-    logger.error(`Error di getPortoArchive: ${error.message}`);
+    logger.error(`Error on getPortoArchive: ${error.message}`);
     res.status(500).json({ message: "An internal server error occurred." });
   }
 };

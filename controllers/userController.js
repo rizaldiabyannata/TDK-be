@@ -59,7 +59,7 @@ const loginUser = async (req, res) => {
     });
   } catch (error) {
     logger.error(`Error logging in admin: ${error.message}`);
-    res.status(500).json({ message: "Error logging in", error: error.message });
+    res.status(500).json({ message: "Error logging in" });
   }
 };
 
@@ -138,11 +138,7 @@ const getUserProfile = async (req, res) => {
     });
   } catch (error) {
     logger.error(`Error in getAdminProfile: ${error.message}`);
-    res.status(500).json({
-      success: false,
-      message: "Error fetching admin profile",
-      error: error.message,
-    });
+    res.status(500).json({ message: "An internal server error occurred." });
   }
 };
 
@@ -179,7 +175,7 @@ const updateUser = async (req, res) => {
   } catch (error) {
     logger.error(`Error updating admin user: ${error.message}`);
 
-    res.status(500).json({ message: "Error updating admin user" });
+    res.status(500).json({ message: "An internal server error occurred." });
   }
 };
 
@@ -208,10 +204,9 @@ const requestPasswordResetOTP = async (req, res) => {
     });
   } catch (error) {
     logger.error(`Error in requestPasswordResetOTP: ${error.message}`);
-    return res.status(500).json({
-      message: "Error sending OTP",
-      error: error.message,
-    });
+    return res
+      .status(500)
+      .json({ message: "An internal server error occurred." });
   }
 };
 
@@ -248,10 +243,9 @@ const verifyOTPAndResetPassword = async (req, res) => {
     return res.status(200).json({ message: "Password reset successful" });
   } catch (error) {
     logger.error(`Error in verifyOTPAndResetPassword: ${error.message}`);
-    return res.status(500).json({
-      message: "Error resetting password",
-      error: error.message,
-    });
+    return res
+      .status(500)
+      .json({ message: "An internal server error occurred." });
   }
 };
 

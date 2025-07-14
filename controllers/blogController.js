@@ -16,15 +16,15 @@ const getFromDbOrCache = async (cacheKey, dbQuery) => {
   if (await redisClient.isConnected()) {
     const cachedData = await redisClient.get(cacheKey);
     if (cachedData) {
-      logger.info(`Cache HIT untuk kunci: ${cacheKey}`);
+      logger.info(`Cache HIT for key: ${cacheKey}`);
 
       return cachedData;
     }
   } else {
-    logger.warn("Redis client tidak siap, cache dilewati.");
+    logger.warn("Redis client is not connected, skipping cache check.");
   }
 
-  logger.info(`Cache MISS untuk kunci: ${cacheKey}. Mengambil dari DB.`);
+  logger.info(`Cache MISS for key: ${cacheKey}. Getting data from DB.`);
   const dbData = await dbQuery();
 
   if ((await redisClient.isConnected()) && dbData) {
@@ -38,19 +38,19 @@ const getFromDbOrCache = async (cacheKey, dbQuery) => {
 
 const invalidateBlogCache = async (slug = null) => {
   if (!redisClient.isConnected()) {
-    logger.warn("Redis client tidak siap, tidak dapat menghapus cache.");
+    logger.warn("Redis client is not connected, cache invalidation skipped.");
     return;
   }
   try {
     await redisClient.del(CACHE_KEY_ARCHIVE);
-    logger.info(`Cache dihapus untuk kunci: ${CACHE_KEY_ARCHIVE}`);
+    logger.info(`Cache deleted for key: ${CACHE_KEY_ARCHIVE}`);
 
     if (slug) {
       await redisClient.del(`${CACHE_KEY_PREFIX_BLOG}${slug}`);
-      logger.info(`Cache dihapus untuk kunci: ${CACHE_KEY_PREFIX_BLOG}${slug}`);
+      logger.info(`Cache deleted for key: ${CACHE_KEY_PREFIX_BLOG}${slug}`);
     }
   } catch (error) {
-    logger.error(`Gagal menghapus cache: ${error.message}`);
+    logger.error(`Failed to delete: ${error.message}`);
   }
 };
 
@@ -162,7 +162,7 @@ const getBlogBySlug = async (req, res) => {
     let blog;
 
     if (req.user) {
-      logger.info(`[Admin Access] Bypass cache untuk slug: ${slug}`);
+      logger.info(`[Admin Access] Bypass cache for slug: ${slug}`);
       blog = await Blog.findOne({ slug });
     } else {
       const cacheKey = `${CACHE_KEY_PREFIX_BLOG}${slug}`;
@@ -191,7 +191,7 @@ const getBlogBySlug = async (req, res) => {
       });
     }
   } catch (error) {
-    logger.error(`Error di getBlogBySlug: ${error.message}`, { error });
+    logger.error(`Error in getBlogBySlug: ${error.message}`, { error });
     res.status(500).json({ message: "An internal server error occurred." });
   }
 };
@@ -227,11 +227,11 @@ const createBlog = async (req, res) => {
       },
     });
   } catch (error) {
-    logger.error(`Error di createBlog: ${error.message}`);
+    logger.error(`Error in createBlog: ${error.message}`);
     if (req.fileUrl) {
       await imageService.deleteFile(req.fileUrl);
     }
-    res.status(400).json({ message: error.message });
+    res.status(400).json({ message: "Failed Create Article" });
   }
 };
 
@@ -284,7 +284,7 @@ const updateBlog = async (req, res) => {
       },
     });
   } catch (error) {
-    logger.error(`Error di updateBlog: ${error.message}`);
+    logger.error(`Error in updateBlog: ${error.message}`);
     if (req.fileUrl) await imageService.deleteFile(req.fileUrl);
     res.status(400).json({ message: error.message });
   }
@@ -305,7 +305,7 @@ const deleteBlog = async (req, res) => {
     await invalidateBlogCache(slug);
     res.json({ message: "Blog deleted successfully" });
   } catch (error) {
-    logger.error(`Error di deleteBlog: ${error.message}`);
+    logger.error(`Error in deleteBlog: ${error.message}`);
     res.status(500).json({ message: "An internal server error occurred." });
   }
 };

@@ -85,10 +85,9 @@ const getHomePageContent = async (req, res) => {
     logger.error(`Error fetching home page content: ${error.message}`, {
       error,
     });
-    return res.status(500).json({
-      message: "Failed to fetch home page content",
-      error: error.message,
-    });
+    return res
+      .status(500)
+      .json({ message: "An internal server error occurred." });
   }
 };
 
@@ -152,10 +151,9 @@ const updateFeaturedBlogs = async (req, res) => {
         message: "Some provided blog IDs are invalid",
       });
     }
-    return res.status(500).json({
-      message: "Failed to update featured blogs",
-      error: error.message,
-    });
+    return res
+      .status(500)
+      .json({ message: "An internal server error occurred." });
   }
 };
 
@@ -220,10 +218,9 @@ const updateHighlightedPortfolios = async (req, res) => {
         message: "Some provided portfolio IDs are invalid",
       });
     }
-    return res.status(500).json({
-      message: "Failed to update highlighted portfolios",
-      error: error.message,
-    });
+    return res
+      .status(500)
+      .json({ message: "An internal server error occurred." });
   }
 };
 
@@ -256,10 +253,9 @@ const resetHomePageContent = async (req, res) => {
     logger.error(`Error resetting home page content: ${error.message}`, {
       error,
     });
-    return res.status(500).json({
-      message: "Failed to reset home page content",
-      error: error.message,
-    });
+    return res
+      .status(500)
+      .json({ message: "An internal server error occurred." });
   }
 };
 
@@ -323,10 +319,9 @@ const addFeaturedBlog = async (req, res) => {
     });
   } catch (error) {
     logger.error(`Error adding featured blog: ${error.message}`, { error });
-    return res.status(500).json({
-      message: "Failed to add featured blog",
-      error: error.message,
-    });
+    return res
+      .status(500)
+      .json({ message: "An internal server error occurred." });
   }
 };
 
@@ -379,10 +374,9 @@ const removeFeaturedBlog = async (req, res) => {
     });
   } catch (error) {
     logger.error(`Error removing featured blog: ${error.message}`, { error });
-    return res.status(500).json({
-      message: "Failed to remove featured blog",
-      error: error.message,
-    });
+    return res
+      .status(500)
+      .json({ message: "An internal server error occurred." });
   }
 };
 
@@ -451,10 +445,9 @@ const addHighlightedPortfolio = async (req, res) => {
     logger.error(`Error adding highlighted portfolio: ${error.message}`, {
       error,
     });
-    return res.status(500).json({
-      message: "Failed to add highlighted portfolio",
-      error: error.message,
-    });
+    return res
+      .status(500)
+      .json({ message: "An internal server error occurred." });
   }
 };
 
@@ -512,10 +505,9 @@ const removeHighlightedPortfolio = async (req, res) => {
     logger.error(`Error removing highlighted portfolio: ${error.message}`, {
       error,
     });
-    return res.status(500).json({
-      message: "Failed to remove highlighted portfolio",
-      error: error.message,
-    });
+    return res
+      .status(500)
+      .json({ message: "An internal server error occurred." });
   }
 };
 

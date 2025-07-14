@@ -3,15 +3,13 @@ const logger = require("../utils/logger");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const otpService = require("../utils/otpService");
-const { findById } = require("../models/blogModel");
+const redisClient = require("../config/redisConfig");
 
 const generateTokens = (user) => {
-  // Access token berumur pendek (misal: 15 menit)
   const accessToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
     expiresIn: "15m",
   });
 
-  // Refresh token berumur panjang (misal: 7 hari)
   const refreshToken = jwt.sign(
     { id: user._id },
     process.env.JWT_REFRESH_SECRET,
@@ -48,7 +46,7 @@ const loginUser = async (req, res) => {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "strict",
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 hari
+      maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
     res.status(200).json({
@@ -81,7 +79,6 @@ const refreshToken = async (req, res) => {
       return res.status(403).json({ message: "Invalid refresh token." });
     }
 
-    // Buat access token baru
     const accessToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
       expiresIn: "15m",
     });
@@ -95,12 +92,27 @@ const refreshToken = async (req, res) => {
 
 const logoutUser = async (req, res) => {
   try {
-    const userId = req.user?._id;
-    const userName = req.user?.name;
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      const token = authHeader.split(" ")[1];
+      const decoded = jwt.decode(token);
+
+      if (decoded && decoded.exp) {
+        const expiresIn = decoded.exp - Math.floor(Date.now() / 1000);
+        if (expiresIn > 0) {
+          await redisClient.set(`denylist:${token}`, "revoked", {
+            EX: expiresIn,
+          });
+          logger.info(
+            `Token untuk user ${req.user?.name} ditambahkan ke denylist.`
+          );
+        }
+      }
+    }
 
     res.clearCookie("refreshToken");
 
-    logger.info(`Admin logged out: ${userName} (ID: ${userId})`);
+    logger.info(`Admin logged out: ${req.user?.name} (ID: ${req.user?._id})`);
 
     res.status(200).json({
       message: "Logout successful",
@@ -109,7 +121,6 @@ const logoutUser = async (req, res) => {
     logger.error(`Error during logout: ${error.message}`);
     res.status(500).json({
       message: "Error during logout",
-      error: error.message,
     });
   }
 };
@@ -141,10 +152,11 @@ const updateUser = async (req, res) => {
     const { email } = req.body;
 
     const updateData = {};
-
-    if (email) updateData.email = email;
-
-    const user = findById(userId);
+    if (email) {
+      updateData.email = email;
+    } else {
+      return res.status(400).json({ message: "No updatable fields provided." });
+    }
 
     const updatedUser = await User.findByIdAndUpdate(userId, updateData, {
       new: true,
@@ -166,9 +178,8 @@ const updateUser = async (req, res) => {
     });
   } catch (error) {
     logger.error(`Error updating admin user: ${error.message}`);
-    res
-      .status(500)
-      .json({ message: "Error updating admin user", error: error.message });
+
+    res.status(500).json({ message: "Error updating admin user" });
   }
 };
 

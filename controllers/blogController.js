@@ -8,6 +8,10 @@ const { default: slugify } = require("slugify");
 const CACHE_KEY_PREFIX_BLOG = "blog:";
 const CACHE_KEY_ARCHIVE = "blogArchive";
 
+const sanitizeMongoQuery = (str) => {
+  return str.replace(/[$}{]/g, "");
+};
+
 const getFromDbOrCache = async (cacheKey, dbQuery) => {
   if (await redisClient.isConnected()) {
     const cachedData = await redisClient.get(cacheKey);
@@ -54,7 +58,10 @@ const getAllBlogs = async (req, res) => {
   try {
     const page = parseInt(req.query.page, 10) || 1;
     const limit = parseInt(req.query.limit, 10) || 5;
-    const searchTerm = req.query.search || "";
+
+    const searchTerm = req.query.search
+      ? sanitizeMongoQuery(req.query.search)
+      : "";
     const status = req.query.status || "active";
     const skip = (page - 1) * limit;
 
@@ -66,9 +73,13 @@ const getAllBlogs = async (req, res) => {
     }
 
     if (searchTerm) {
+      const safeRegex = new RegExp(
+        searchTerm.replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&"),
+        "i"
+      );
       filter.$or = [
-        { title: { $regex: searchTerm, $options: "i" } },
-        { content: { $regex: searchTerm, $options: "i" } },
+        { title: { $regex: safeRegex } },
+        { content: { $regex: safeRegex } },
       ];
     }
 
@@ -90,7 +101,7 @@ const getAllBlogs = async (req, res) => {
     });
   } catch (error) {
     logger.error(`Error di getAllBlogs: ${error.message}`);
-    res.status(500).json({ message: "Server Error" });
+    res.status(500).json({ message: "An internal server error occurred." });
   }
 };
 
@@ -141,7 +152,7 @@ const getBlogArchive = async (req, res) => {
     res.json(archives);
   } catch (error) {
     logger.error(`Error di getBlogArchive: ${error.message}`);
-    res.status(500).json({ message: "Server Error" });
+    res.status(500).json({ message: "An internal server error occurred." });
   }
 };
 
@@ -181,7 +192,7 @@ const getBlogBySlug = async (req, res) => {
     }
   } catch (error) {
     logger.error(`Error di getBlogBySlug: ${error.message}`, { error });
-    res.status(500).json({ message: "Server Error" });
+    res.status(500).json({ message: "An internal server error occurred." });
   }
 };
 
@@ -295,7 +306,7 @@ const deleteBlog = async (req, res) => {
     res.json({ message: "Blog deleted successfully" });
   } catch (error) {
     logger.error(`Error di deleteBlog: ${error.message}`);
-    res.status(500).json({ message: "Server Error" });
+    res.status(500).json({ message: "An internal server error occurred." });
   }
 };
 
@@ -326,7 +337,7 @@ const archiveBlog = async (req, res) => {
     });
   } catch (error) {
     logger.error(`Error archiving blog: ${error.message}`);
-    res.status(500).json({ message: "Server Error" });
+    res.status(500).json({ message: "An internal server error occurred." });
   }
 };
 
@@ -357,7 +368,7 @@ const unarchiveBlog = async (req, res) => {
     });
   } catch (error) {
     logger.error(`Error unarchiving blog: ${error.message}`);
-    res.status(500).json({ message: "Server Error" });
+    res.status(500).json({ message: "An internal server error occurred." });
   }
 };
 

@@ -27,7 +27,7 @@ const submitContactForm = async (req, res) => {
     logger.error(`❌ Error submitting contact form: ${error.message}`);
     return res
       .status(500)
-      .json({ message: "Something went wrong, please try again." });
+      .json({ message: "An internal server error occurred." });
   }
 };
 
@@ -40,7 +40,9 @@ const getAllContactForms = async (req, res) => {
     return res.status(200).json(contactForms);
   } catch (error) {
     logger.error(`❌ Error fetching contact forms: ${error.message}`);
-    return res.status(500).json({ message: "Unable to fetch contact forms." });
+    return res
+      .status(500)
+      .json({ message: "An internal server error occurred." });
   }
 };
 

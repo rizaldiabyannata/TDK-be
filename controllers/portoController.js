@@ -8,6 +8,10 @@ const { default: slugify } = require("slugify");
 const CACHE_KEY_PREFIX_PORTO = "porto:";
 const CACHE_KEY_ARCHIVE = "portoArchive";
 
+const sanitizeMongoQuery = (str) => {
+  return str.replace(/[$}{]/g, "");
+};
+
 const getFromDbOrCache = async (cacheKey, dbQuery) => {
   if (await redisClient.isConnected()) {
     const cachedData = await redisClient.get(cacheKey);
@@ -54,7 +58,10 @@ const getAllPortos = async (req, res) => {
   try {
     const page = parseInt(req.query.page, 10) || 1;
     const limit = parseInt(req.query.limit, 10) || 10;
-    const searchTerm = req.query.search || "";
+    // Sanitasi input pencarian
+    const searchTerm = req.query.search
+      ? sanitizeMongoQuery(req.query.search)
+      : "";
     const status = req.query.status || "active";
     const skip = (page - 1) * limit;
 
@@ -66,10 +73,15 @@ const getAllPortos = async (req, res) => {
     }
 
     if (searchTerm) {
+      // Buat regex yang aman setelah sanitasi
+      const safeRegex = new RegExp(
+        searchTerm.replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&"),
+        "i"
+      );
       filter.$or = [
-        { title: { $regex: searchTerm, $options: "i" } },
-        { description: { $regex: searchTerm, $options: "i" } },
-        { shortDescription: { $regex: searchTerm, $options: "i" } },
+        { title: { $regex: safeRegex } },
+        { description: { $regex: safeRegex } },
+        { shortDescription: { $regex: safeRegex } },
       ];
     }
 
@@ -91,7 +103,7 @@ const getAllPortos = async (req, res) => {
     });
   } catch (error) {
     logger.error(`Error di getAllPortos: ${error.message}`);
-    res.status(500).json({ message: "Server Error" });
+    res.status(500).json({ message: "An internal server error occurred." });
   }
 };
 
@@ -132,7 +144,7 @@ const getPortoBySlug = async (req, res) => {
     }
   } catch (error) {
     logger.error(`Error di getPortoBySlug: ${error.message}`);
-    res.status(500).json({ message: "Server Error" });
+    res.status(500).json({ message: "An internal server error occurred." });
   }
 };
 
@@ -254,7 +266,7 @@ const deletePorto = async (req, res) => {
     res.json({ message: "Portfolio deleted successfully" });
   } catch (error) {
     logger.error(`Error di deletePorto: ${error.message}`);
-    res.status(500).json({ message: "Server Error" });
+    res.status(500).json({ message: "An internal server error occurred." });
   }
 };
 
@@ -285,7 +297,7 @@ const archivePorto = async (req, res) => {
     });
   } catch (error) {
     logger.error(`Error archiving portfolio: ${error.message}`);
-    res.status(500).json({ message: "Server Error" });
+    res.status(500).json({ message: "An internal server error occurred." });
   }
 };
 
@@ -316,7 +328,7 @@ const unarchivePorto = async (req, res) => {
     });
   } catch (error) {
     logger.error(`Error unarchiving portfolio: ${error.message}`);
-    res.status(500).json({ message: "Server Error" });
+    res.status(500).json({ message: "An internal server error occurred." });
   }
 };
 
@@ -347,7 +359,7 @@ const getPortoArchive = async (req, res) => {
     res.json(archives);
   } catch (error) {
     logger.error(`Error di getPortoArchive: ${error.message}`);
-    res.status(500).json({ message: "Server Error" });
+    res.status(500).json({ message: "An internal server error occurred." });
   }
 };
 

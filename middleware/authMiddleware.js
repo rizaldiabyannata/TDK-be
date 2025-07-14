@@ -1,6 +1,7 @@
 const jwt = require("jsonwebtoken");
 const User = require("../models/userModel");
 const logger = require("../utils/logger");
+const redisClient = require("../config/redisConfig");
 
 const protect = async (req, res, next) => {
   let token;
@@ -11,6 +12,15 @@ const protect = async (req, res, next) => {
   ) {
     try {
       token = req.headers.authorization.split(" ")[1];
+
+      const isRevoked = await redisClient.get(`denylist:${token}`);
+      if (isRevoked) {
+        logger.warn(`Authentication failed: Token revoked for user.`);
+        return res.status(401).json({
+          success: false,
+          message: "Not authorized, token has been revoked.",
+        });
+      }
 
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
 

@@ -162,11 +162,9 @@ const getDashboardStats = async (req, res) => {
     });
   } catch (error) {
     logger.error(`Error fetching dashboard stats: ${error.message}`, { error });
-    return res.status(500).json({
-      success: false,
-      message: "Failed to fetch dashboard statistics",
-      error: error.message,
-    });
+    return res
+      .status(500)
+      .json({ message: "An internal server error occurred." });
   }
 };
 

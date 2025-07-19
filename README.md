@@ -1,182 +1,164 @@
-# Proyek Backend TDK
+# Express.js API Boilerplate
 
-Ini adalah backend untuk aplikasi web portofolio dan blog, yang dibangun dengan Node.js, Express, dan MongoDB. Proyek ini mencakup fungsionalitas untuk mengelola konten, autentikasi pengguna, dan melacak statistik.
+<p align="center">
+  <img src="https://img.shields.io/badge/Bun-%23000000.svg?style=for-the-badge&logo=bun" alt="Bun" />
+  <img src="https://img.shields.io/badge/express.js-%23404d59.svg?style=for-the-badge&logo=express" alt="Express.js" />
+  <img src="https://img.shields.io/badge/MongoDB-%234ea94b.svg?style=for-the-badge&logo=mongodb" alt="MongoDB" />
+  <img src="https://img.shields.io/badge/redis-%23DD0031.svg?style=for-the-badge&logo=redis" alt="Redis" />
+  <img src="https://img.shields.io/badge/docker-%230db7ed.svg?style=for-the-badge&logo=docker" alt="Docker" />
+</p>
 
-## ✨ Fitur
+## ✨ About This Project
 
-- **Manajemen Blog**: Operasi CRUD (Buat, Baca, Perbarui, Hapus) untuk artikel blog, dengan dukungan untuk pengarsipan dan pemulihan.
-- **Manajemen Portofolio**: Operasi CRUD penuh untuk proyek portofolio.
-- **Autentikasi & Otorisasi**: Sistem login yang aman untuk admin, menggunakan JWT (JSON Web Tokens) yang disimpan dalam _cookies_.
-- **Reset Kata Sandi**: Fungsionalitas reset kata sandi berbasis OTP yang aman melalui email.
-- **Pelacakan Penayangan**: Melacak total dan penayangan unik untuk artikel blog dan portofolio.
-- **Agregasi Arsip**: Menghasilkan daftar arsip yang dikelompokkan berdasarkan tahun dan bulan untuk blog dan portofolio.
-- **Pencarian**: Fungsionalitas pencarian di seluruh artikel blog dan portofolio.
-- **Manajemen Konten Beranda**: API untuk mengelola konten unggulan di beranda.
-- **Formulir Kontak**: Sebuah _endpoint_ untuk mengirimkan pertanyaan melalui formulir kontak.
-- **Dasbor Statistik**: _Endpoint_ untuk mengambil statistik agregat untuk dasbor admin.
-- **Penanganan Unggahan Gambar**: Mengunggah gambar, mengonversinya ke format WebP, dan mengoptimalkannya untuk web.
-- **Caching**: Menggunakan Redis untuk _caching_ data yang sering diakses untuk mengurangi beban basis data dan meningkatkan waktu respons.
-- **Keamanan**: Menggunakan Helmet untuk _header_ keamanan, _rate limiting_ untuk mencegah serangan _brute-force_, dan sanitasi input untuk mencegah serangan XSS.
+This is a backend boilerplate built with Express.js, MongoDB, and Redis. It provides a solid foundation for building modern web applications with features like user authentication, content management, and more.
 
----
+## 🚀 Features
 
-## 🛠️ Tumpukan Teknologi
+- **User Authentication**: Secure user registration, login, and session management using JWT.
+- **Content Management**: CRUD functionality for blogs and portfolios.
+- **Content Tracking**: Track views on blog posts and portfolio items.
+- **Contact Form**: Save contact form submissions to the database.
+- **Statistics Management**: Provides basic statistics about created content.
+- **Security**: Comes with `helmet` to secure HTTP headers, `express-rate-limit` to prevent brute-force attacks, and `DOMPurify` for input sanitization.
+- **Logging**: Uses `winston` and `morgan` for request and application activity logging.
+- **Task Scheduling**: Utilizes `node-cron` for scheduled tasks like view synchronization.
 
-- **Backend**: Node.js, Express.js
-- **Basis Data**: MongoDB dengan Mongoose ODM
+## 🛠️ Tech Stack
+
+- **Backend**: Express.js
+- **Database**: MongoDB (with Mongoose)
 - **Caching**: Redis
-- **Autentikasi**: JSON Web Token (JWT), bcrypt
-- **Penanganan Unggahan**: Multer
-- **Pemrosesan Gambar**: Sharp
-- **Validasi**: express-validator
-- **Logging**: Winston, Morgan
-- **Penjadwalan Tugas**: node-cron
+- **Authentication**: JSON Web Tokens (JWT)
+- **Package Manager**: Bun
+- **Other Key Libraries**:
+  - `bcrypt`: For password hashing.
+  - `cookie-parser`: For cookie management.
+  - `cors`: To enable Cross-Origin Resource Sharing.
+  - `dotenv`: For environment variable management.
+  - `express-validator`: For input validation.
+  - `helmet`: To secure the app by setting various HTTP headers.
+  - `morgan`: For HTTP request logging.
+  - `multer`: For handling file uploads.
+  - `nodemailer`: For sending emails.
+  - `sharp`: For image processing.
+  - `slugify`: For creating SEO-friendly slugs.
+  - `winston`: For logging.
 
----
+## 📋 Prerequisites
 
-## 🚀 Memulai
+- [Node.js](https://nodejs.org/) (v18 or higher)
+- [Bun](https://bun.sh/)
+- [Docker](https://www.docker.com/) (optional, for running with Docker)
 
-### Prasyarat
+## ⚙️ Installation & Setup
 
-- Node.js (v18 atau lebih baru)
-- Bun (opsional, untuk pengembangan)
-- Docker dan Docker Compose (untuk menjalankan Redis & Mongo)
+1. **Clone the repository:**
 
-### Instalasi
+   ```bash
+   git clone https://github.com/TDK-GROUP/backend-express-tdk.git
+   cd backend-express-tdk
+   ```
 
-1.  **Kloning repositori:**
+2. **Install dependencies:**
 
-    ```bash
-    git clone [https://github.com/rizaldiabyannata/tdk-be.git](https://github.com/rizaldiabyannata/tdk-be.git)
-    cd tdk-be
-    ```
+   ```bash
+   bun install
+   ```
 
-2.  **Instal dependensi:**
+3. **Create a `.env` file:**
+   Copy the contents of `.env.example` (if it exists) or create a new `.env` file and add the necessary environment variables.
+   ```env
+   PORT=5000
+   MONGO_URI=mongodb://mongo:27017/tdk-db
+   REDIS_HOST=redis
+   REDIS_PORT=6379
+   REDIS_PASSWORD=
+   REDIS_DB=0
+   JWT_SECRET=your_jwt_secret
+   EMAIL_USER=your_email_user
+   EMAIL_PASSWORD=your_email_password
+   ADMIN_USERNAME=admin
+   ADMIN_PASSWORD=admin_password
+   ```
 
-    ```bash
-    npm install
-    ```
+## ▶️ How to Run
 
-3.  **Jalankan layanan dependen (Redis & MongoDB):**
-
-    ```bash
-    docker-compose up -d
-    ```
-
-    Perintah ini akan memulai kontainer Redis dan MongoDB di latar belakang.
-
-4.  **Siapkan Variabel Lingkungan:**
-    Buat file `.env.development` di direktori _root_. Anda dapat menyalin dari contoh di bawah ini.
-
-### Variabel Lingkungan
-
-Buat file `.env.development` dan isi dengan konfigurasi Anda.
-
-```env
-# Konfigurasi Server
-PORT=5000
-NODE_ENV=development
-
-# Konfigurasi MongoDB
-MONGO_URI=mongodb://localhost:27018/tdk-db
-
-# Konfigurasi Redis
-REDIS_HOST=127.0.0.1
-REDIS_PORT=6379
-REDIS_PASSWORD=
-REDIS_DB=0
-
-# Kunci Rahasia JWT
-JWT_SECRET=kunci-rahasia-yang-sangat-kuat
-
-# Kredensial Admin Awal
-ADMIN_USERNAME=admin
-ADMIN_PASSWORD=password_admin_yang_aman
-
-# Kredensial Email (untuk reset kata sandi)
-EMAIL_USER=emailanda@gmail.com
-EMAIL_PASSWORD=kata_sandi_aplikasi_anda
-```
-
----
-
-## 🏃 Menjalankan Aplikasi
-
-- **Mode Pengembangan (dengan Bun & --hot):**
+- **Development Mode:**
 
   ```bash
-  npm run dev
+  bun run dev
   ```
 
-  Server akan berjalan di `http://localhost:5000` dan akan secara otomatis me-restart saat ada perubahan file.
+  The application will run at `http://localhost:5000` and will automatically restart on file changes.
 
-- **Mode Produksi:**
+- **Production Mode:**
 
   ```bash
-  npm run start
+  bun start
   ```
 
-  Menjalankan server dalam mode produksi.
-
-- **Membuat Indeks Teks MongoDB:**
-  Untuk mengaktifkan fungsionalitas pencarian, Anda perlu membuat indeks teks di MongoDB.
-
+- **With Docker:**
+  Ensure Docker is running, then execute the following command:
   ```bash
-  npm run create-index
+  docker-compose up --build
   ```
+  The application will be accessible at `http://localhost:5000`.
 
-  Jalankan skrip ini sekali setelah menyiapkan basis data Anda.
-
-- **Menjalankan Seeder (Opsional):**
-  Proyek ini berisi _seeder_ untuk mengisi basis data dengan data blog dan portofolio awal.
-  ```bash
-  node seeder/seedBlogs.js
-  node seeder/seedPortfolio.js
-  ```
-
----
-
-## 📂 Struktur Proyek
+## 📂 Project Structure
 
 ```
-/
-├── config/             # File konfigurasi (DB, Redis)
-├── controllers/        # Logika bisnis untuk setiap rute
-├── middleware/         # Middleware Express (auth, error handling, dll.)
-├── models/             # Skema Mongoose untuk MongoDB
-├── routers/            # Definisi rute Express
-├── seeder/             # Skrip untuk mengisi basis data
-├── services/           # Layanan yang dapat digunakan kembali (mis. pemrosesan gambar)
-├── test/               # Skrip pengujian (mis. k6)
-├── utils/              # Fungsi utilitas (logger, scheduler)
-├── .gitignore          # File dan folder yang diabaikan Git
-├── docker-compose.yml  # Konfigurasi Docker untuk Redis & Mongo
-├── index.js            # Titik masuk utama aplikasi
-└── package.json        # Dependensi dan skrip proyek
+.
+├── config/             # Configuration (database, Redis)
+├── controllers/        # Business logic for each route
+├── middleware/         # Express middleware (auth, validation, etc.)
+├── models/             # Mongoose schemas for MongoDB
+├── routers/            # Express route definitions
+├── services/           # Services (e.g., image processing)
+├── utils/              # Utilities (logger, scheduler, etc.)
+├── seeder/             # Seeders for initial data
+├── test/               # Test files
+├── index.js            # Main application entry point
+└── package.json        # Project dependencies and scripts
 ```
 
----
+## 🔌 API Endpoints
 
-## 🧪 Pengujian
+A detailed list of API endpoints can be found below:
 
-Proyek ini menggunakan **k6** untuk pengujian beban. Skrip pengujian terletak di direktori `/test`.
+### Authentication
 
-- **Menjalankan tes tampilan artikel:**
+- `POST /api/users/register`: Register a new user.
+- `POST /api/users/login`: Log in a user.
+- `POST /api/users/logout`: Log out a user.
+- `POST /api/users/request-otp`: Request an OTP for password reset.
+- `POST /api/users/verify-otp`: Verify the OTP.
+- `POST /api/users/reset-password`: Reset the password.
 
-  ```bash
-  k6 run test/test-view-article.js
-  ```
+### Blog
 
-  Tes ini mensimulasikan beberapa pengguna yang mengakses _endpoint_ blog secara acak.
+- `GET /api/blogs`: Get all blog posts.
+- `GET /api/blogs/:slug`: Get a blog post by slug.
+- `POST /api/blogs`: Create a new blog post (auth required).
+- `PUT /api/blogs/:id`: Update a blog post (auth required).
+- `DELETE /api/blogs/:id`: Delete a blog post (auth required).
 
-- **Menjalankan tes tampilan portofolio:**
-  ```bash
-  k6 run test/test-view-portfolio.js
-  ```
-  Tes ini mensimulasikan skenario pengguna yang lebih kompleks: melihat daftar, memilih satu item, dan kemudian mengunjungi halaman arsip.
+### Portfolio
 
----
+- `GET /api/portos`: Get all portfolio items.
+- `GET /api/portos/:slug`: Get a portfolio item by slug.
+- `POST /api/portos`: Create a new portfolio item (auth required).
+- `PUT /api/portos/:id`: Update a portfolio item (auth required).
+- `DELETE /api/portos/:id`: Delete a portfolio item (auth required).
 
-## 📜 Lisensi
+### Contact Form
 
-Proyek ini dilisensikan di bawah Lisensi ISC.
+- `POST /api/contact`: Submit a contact form.
+- `GET /api/contact`: Get all contact form submissions (auth required).
+
+### Statistics
+
+- `GET /api/statistics`: Get content statistics (auth required).
+
+## 📄 License
+
+This project is licensed under the [MIT License](LICENSE).

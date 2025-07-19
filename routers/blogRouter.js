@@ -19,6 +19,7 @@ const {
   convertToWebp,
   uploadSingleFileOptional,
 } = require("../middleware/multerMiddleware");
+const { sanitizeParams } = require("../middleware/validationMiddleware");
 
 /**
  * @route   GET /api/blogs
@@ -52,21 +53,27 @@ router.post(
  * @desc    Mengarsipkan artikel blog
  * @access  Private (Admin)
  */
-router.patch("/:slug/archive", protect, archiveBlog);
+router.patch("/:slug/archive", protect, sanitizeParams, archiveBlog);
 
 /**
  * @route   PATCH /api/blogs/:slug/unarchive
  * @desc    Mengembalikan artikel blog dari arsip
  * @access  Private (Admin)
  */
-router.patch("/:slug/unarchive", protect, unarchiveBlog);
+router.patch("/:slug/unarchive", protect, sanitizeParams, unarchiveBlog);
 
 /**
  * @route   GET /api/blogs/:slug
  * @desc    Dapatkan satu artikel blog berdasarkan slug
  * @access  Publik
  */
-router.get("/:slug", optionalAuth, trackView("Blog"), getBlogBySlug);
+router.get(
+  "/:slug",
+  optionalAuth,
+  trackView("Blog"),
+  sanitizeParams,
+  getBlogBySlug
+);
 
 /**
  * @route   PUT /api/blogs/:slug
@@ -78,6 +85,7 @@ router.put(
   protect,
   uploadSingleFileOptional("coverImage"),
   convertToWebp,
+  sanitizeParams,
   updateBlog
 );
 
@@ -86,6 +94,6 @@ router.put(
  * @desc    Hapus artikel blog
  * @access  Private (Admin)
  */
-router.delete("/:slug", protect, deleteBlog);
+router.delete("/:slug", protect, sanitizeParams, deleteBlog);
 
 module.exports = router;

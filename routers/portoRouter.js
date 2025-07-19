@@ -19,6 +19,7 @@ const {
   uploadSingleFileOptional,
   convertToWebp,
 } = require("../middleware/multerMiddleware");
+const { sanitizeParams } = require("../middleware/validationMiddleware");
 
 /**
  * @route   GET /api/portos
@@ -52,21 +53,27 @@ router.post(
  * @desc    Mengarsipkan item portofolio
  * @access  Private (Admin)
  */
-router.patch("/:slug/archive", protect, archivePorto);
+router.patch("/:slug/archive", protect, sanitizeParams, archivePorto);
 
 /**
  * @route   PATCH /api/portos/:slug/unarchive
  * @desc    Mengembalikan item portofolio dari arsip
  * @access  Private (Admin)
  */
-router.patch("/:slug/unarchive", protect, unarchivePorto);
+router.patch("/:slug/unarchive", protect, sanitizeParams, unarchivePorto);
 
 /**
  * @route   GET /api/portos/:slug
  * @desc    Dapatkan satu item portofolio berdasarkan slug
  * @access  Publik
  */
-router.get("/:slug", optionalAuth, trackView("Portfolio"), getPortoBySlug);
+router.get(
+  "/:slug",
+  optionalAuth,
+  trackView("Portfolio"),
+  sanitizeParams,
+  getPortoBySlug
+);
 
 /**
  * @route   PUT /api/portos/:slug
@@ -78,6 +85,7 @@ router.put(
   protect,
   uploadSingleFileOptional("coverImage"),
   convertToWebp,
+  sanitizeParams,
   updatePorto
 );
 
@@ -86,6 +94,6 @@ router.put(
  * @desc    Hapus item portofolio
  * @access  Private (Admin)
  */
-router.delete("/:slug", protect, deletePorto);
+router.delete("/:slug", protect, sanitizeParams, deletePorto);
 
 module.exports = router;

@@ -32,7 +32,23 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(cookieParser());
-app.use(helmet());
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", "data:", "http://localhost:5000"],
+        connectSrc: ["'self'"],
+        fontSrc: ["'self'", "https:"],
+        objectSrc: ["'none'"],
+        scriptSrcAttr: ["'none'"],
+        upgradeInsecureRequests: [],
+      },
+    },
+  })
+);
 app.use(morgan("dev"));
 app.use(
   morgan("combined", {

@@ -59,34 +59,68 @@ const loginUser = async (req, res) => {
     });
   } catch (error) {
     logger.error(`Error logging in admin: ${error.message}`);
-    res.status(500).json({ message: "Error logging in" });
+    res.status(500).json({
+      message:
+        process.env.NODE_ENV === "production"
+          ? "An internal server error occurred."
+          : "Error logging in",
+    });
   }
 };
 
 const refreshToken = async (req, res) => {
-  const refreshToken = req.cookies.refreshToken;
+  const oldRefreshToken = req.cookies.refreshToken;
 
-  if (!refreshToken) {
+  if (!oldRefreshToken) {
     return res.status(401).json({ message: "Refresh token not found." });
   }
 
   try {
-    const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
+    // Periksa apakah refresh token lama ada di denylist
+    const isRevoked = await redisClient.get(`denylist:${oldRefreshToken}`);
+    if (isRevoked) {
+      logger.warn(`Attempt to use a revoked refresh token.`);
+      return res.status(403).json({ message: "Invalid refresh token." });
+    }
 
+    const decoded = jwt.verify(oldRefreshToken, process.env.JWT_REFRESH_SECRET);
     const user = await User.findById(decoded.id);
 
     if (!user) {
       return res.status(403).json({ message: "Invalid refresh token." });
     }
 
-    const accessToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
-      expiresIn: "15m",
+    // Hasilkan token baru
+    const { accessToken, refreshToken: newRefreshToken } = generateTokens(user);
+
+    // Tambahkan refresh token lama ke denylist untuk mencegah penggunaan kembali
+    const oldTokenDecoded = jwt.decode(oldRefreshToken);
+    if (oldTokenDecoded && oldTokenDecoded.exp) {
+      const expiresIn = oldTokenDecoded.exp - Math.floor(Date.now() / 1000);
+      if (expiresIn > 0) {
+        await redisClient.set(`denylist:${oldRefreshToken}`, "revoked", {
+          EX: expiresIn,
+        });
+      }
+    }
+
+    // Atur refresh token baru di cookie
+    res.cookie("refreshToken", newRefreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
     res.status(200).json({ accessToken });
   } catch (error) {
     logger.error(`Error refreshing token: ${error.message}`);
-    return res.status(403).json({ message: "Invalid refresh token." });
+    return res.status(403).json({
+      message:
+        process.env.NODE_ENV === "production"
+          ? "An internal server error occurred."
+          : "Invalid refresh token.",
+    });
   }
 };
 
@@ -120,7 +154,10 @@ const logoutUser = async (req, res) => {
   } catch (error) {
     logger.error(`Error during logout: ${error.message}`);
     res.status(500).json({
-      message: "Error during logout",
+      message:
+        process.env.NODE_ENV === "production"
+          ? "An internal server error occurred."
+          : "Error during logout",
     });
   }
 };
@@ -138,7 +175,12 @@ const getUserProfile = async (req, res) => {
     });
   } catch (error) {
     logger.error(`Error in getAdminProfile: ${error.message}`);
-    res.status(500).json({ message: "An internal server error occurred." });
+    res.status(500).json({
+      message:
+        process.env.NODE_ENV === "production"
+          ? "An internal server error occurred."
+          : "An internal server error occurred.",
+    });
   }
 };
 
@@ -175,7 +217,12 @@ const updateUser = async (req, res) => {
   } catch (error) {
     logger.error(`Error updating admin user: ${error.message}`);
 
-    res.status(500).json({ message: "An internal server error occurred." });
+    res.status(500).json({
+      message:
+        process.env.NODE_ENV === "production"
+          ? "An internal server error occurred."
+          : "An internal server error occurred.",
+    });
   }
 };
 
@@ -204,9 +251,12 @@ const requestPasswordResetOTP = async (req, res) => {
     });
   } catch (error) {
     logger.error(`Error in requestPasswordResetOTP: ${error.message}`);
-    return res
-      .status(500)
-      .json({ message: "An internal server error occurred." });
+    return res.status(500).json({
+      message:
+        process.env.NODE_ENV === "production"
+          ? "An internal server error occurred."
+          : "An internal server error occurred.",
+    });
   }
 };
 
@@ -243,9 +293,12 @@ const verifyOTPAndResetPassword = async (req, res) => {
     return res.status(200).json({ message: "Password reset successful" });
   } catch (error) {
     logger.error(`Error in verifyOTPAndResetPassword: ${error.message}`);
-    return res
-      .status(500)
-      .json({ message: "An internal server error occurred." });
+    return res.status(500).json({
+      message:
+        process.env.NODE_ENV === "production"
+          ? "An internal server error occurred."
+          : "An internal server error occurred.",
+    });
   }
 };
 

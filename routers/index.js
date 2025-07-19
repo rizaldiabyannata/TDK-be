@@ -32,14 +32,20 @@ router.get("/health/redis", async (req, res) => {
     } else {
       return res.status(500).json({
         status: "error",
-        message: "Redis connection test failed",
+        message:
+          process.env.NODE_ENV === "production"
+            ? "An unexpected error occurred."
+            : "Redis connection test failed",
       });
     }
   } catch (error) {
+    logger.error(`Redis health check failed: ${error.message}`);
     return res.status(500).json({
       status: "error",
-      message: "Redis connection test error",
-      error: error.message,
+      message:
+        process.env.NODE_ENV === "production"
+          ? "An unexpected error occurred."
+          : "Redis connection test error",
     });
   }
 });

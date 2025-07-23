@@ -23,6 +23,9 @@ const generateTokens = (user) => {
 
 const loginUser = async (req, res) => {
   const { name, password } = req.body;
+  const ip = req.ip;
+  const key = `login_attempts:${ip}`;
+  const blockKey = `blocked:${ip}`;
 
   try {
     const admin = await User.findOne();
@@ -33,10 +36,19 @@ const loginUser = async (req, res) => {
       !(await bcrypt.compare(password, admin.password))
     ) {
       logger.warn(
-        `Failed admin login attempt: Invalid credentials for ${name}`
+        `Failed admin login attempt: Invalid credentials for ${name} from IP ${ip}`
       );
+      const attempts = await redisClient.incr(key);
+      await redisClient.expire(key, 15 * 60); // Expire in 15 minutes
+
+      if (attempts >= 3) {
+        await redisClient.set(blockKey, "true", { EX: 60 * 60 });
+        logger.warn(`IP ${ip} has been blocked for 1 hour.`);
+      }
       return res.status(401).json({ message: "Invalid credentials" });
     }
+
+    await redisClient.del(key);
 
     const { accessToken, refreshToken } = generateTokens(admin);
 

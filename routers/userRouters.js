@@ -12,6 +12,7 @@ const {
   logoutUser,
 } = require("../controllers/userController");
 const { protect } = require("../middleware/authMiddleware");
+const ipBlockMiddleware = require("../middleware/ipBlockMiddleware");
 
 const { validate } = require("../middleware/validationMiddleware");
 const {
@@ -36,7 +37,14 @@ const lenientLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-router.post("/login", strictLimiter, loginRules(), validate, loginUser);
+router.post(
+  "/login",
+  ipBlockMiddleware,
+  strictLimiter,
+  loginRules(),
+  validate,
+  loginUser
+);
 
 router.post("/refresh-token", lenientLimiter, refreshToken);
 

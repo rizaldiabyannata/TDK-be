@@ -1,4 +1,4 @@
-const Blog = require("../models/BlogModel");
+const Blog = require("../models/blogModel");
 const redisClient = require("../config/redisConfig");
 const logger = require("../utils/logger");
 const imageService = require("../services/imageService");

@@ -1,5 +1,5 @@
-const { validationResult } = require('express-validator');
-const logger = require('../utils/logger');
+const { validationResult } = require("express-validator");
+const logger = require("../utils/logger");
 
 // Middleware untuk menangani hasil dari aturan validasi express-validator
 const validate = (req, res, next) => {
@@ -10,7 +10,7 @@ const validate = (req, res, next) => {
 
   // Jika ada error, format dan kirim respons
   const extractedErrors = [];
-  errors.array().map(err => extractedErrors.push({ [err.path]: err.msg }));
+  errors.array().map((err) => extractedErrors.push({ [err.path]: err.msg }));
 
   logger.warn(`Validation failed for ${req.method} ${req.originalUrl}:`, {
     errors: extractedErrors,
@@ -33,5 +33,3 @@ const sanitizeParams = (req, res, next) => {
 };
 
 module.exports = { validate, sanitizeParams };
-  validate,
-};

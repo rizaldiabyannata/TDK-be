@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
 const dotenv = require("dotenv");
 const connectDB = require("../config/db"); // Pastikan path ini benar
-const Porto = require("../models/portoModel"); // Pastikan path ini benar
+const Porto = require("../models/PortoModel"); // Pastikan path ini benar
 
 // Konfigurasi environment variables
 dotenv.config();

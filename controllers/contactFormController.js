@@ -1,4 +1,4 @@
-const ContactForm = require("../models/contactFormModel");
+const ContactForm = require("../models/ContactFormModel");
 const logger = require("../utils/logger");
 
 const submitContactForm = async (req, res) => {

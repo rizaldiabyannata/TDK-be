@@ -1,5 +1,5 @@
 const nodemailer = require("nodemailer");
-const OtpModel = require("../models/otpModel");
+const OtpModel = require("../models/OtpModel");
 const logger = require("./logger");
 const bcrypt = require("bcryptjs");
 

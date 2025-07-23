@@ -1,5 +1,5 @@
-const Portfolio = require("../models/portoModel");
-const Blog = require("../models/blogModel");
+const Portfolio = require("../models/PortoModel");
+const Blog = require("../models/BlogModel");
 const logger = require("../utils/logger");
 
 const getDashboardStats = async (req, res) => {

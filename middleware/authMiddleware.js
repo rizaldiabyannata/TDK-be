@@ -1,5 +1,5 @@
 const jwt = require("jsonwebtoken");
-const User = require("../models/userModel");
+const User = require("../models/UserModel");
 const logger = require("../utils/logger");
 const redisClient = require("../config/redisConfig");
 

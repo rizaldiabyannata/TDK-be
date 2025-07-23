@@ -1,5 +1,5 @@
 const bcrypt = require("bcryptjs");
-const User = require("../models/userModel"); // Pastikan path ini benar
+const User = require("../models/UserModel"); // Pastikan path ini benar
 const logger = require("../utils/logger"); // Gunakan logger standar untuk konsistensi
 
 // Konfigurasi Admin dari environment variables

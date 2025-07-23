@@ -1,7 +1,7 @@
 const redisClient = require("../config/redisConfig");
 const logger = require("../utils/logger");
-const Blog = require("../models/blogModel");
-const Porto = require("../models/portoModel");
+const Blog = require("../models/BlogModel");
+const Porto = require("../models/PortoModel");
 
 const models = {
   Blog: Blog,

@@ -1,4 +1,4 @@
-const Porto = require("../models/portoModel");
+const Porto = require("../models/PortoModel");
 const redisClient = require("../config/redisConfig");
 const logger = require("../utils/logger");
 const imageService = require("../services/imageService");

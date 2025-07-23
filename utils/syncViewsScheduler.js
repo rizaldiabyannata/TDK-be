@@ -1,7 +1,7 @@
 const cron = require("node-cron");
-const { ViewCount, DailyView } = require("../models/contentTrackingModel");
-const Blog = require("../models/blogModel");
-const Portfolio = require("../models/portoModel");
+const { ViewCount, DailyView } = require("../models/ContentTrackingModel");
+const Blog = require("../models/BlogModel");
+const Portfolio = require("../models/PortoModel");
 const logger = require("./logger");
 
 const getModelByType = (contentType) => {

@@ -1,7 +1,7 @@
 // maintain/fix-data.js
 const mongoose = require("mongoose");
 const dotenv = require("dotenv");
-const Blog = require("../models/blogModel"); // Sesuaikan path ke model Anda
+const Blog = require("../models/BlogModel"); // Sesuaikan path ke model Anda
 const logger = require("../utils/logger"); // Gunakan logger untuk melacak progres
 
 // Muat environment variables dari file .env
@@ -52,8 +52,9 @@ const fixBlogTitles = async () => {
       }
     }
 
-    logger.info(`Selesai! Berhasil memperbaiki ${fixedCount} dari ${blogsToFix.length} judul blog.`);
-
+    logger.info(
+      `Selesai! Berhasil memperbaiki ${fixedCount} dari ${blogsToFix.length} judul blog.`
+    );
   } catch (error) {
     logger.error("Terjadi kesalahan saat menjalankan skrip perbaikan:", error);
   } finally {

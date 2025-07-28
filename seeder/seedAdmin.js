@@ -4,14 +4,14 @@ const logger = require("../utils/logger"); // Gunakan logger standar untuk konsi
 
 // Konfigurasi Admin dari environment variables
 const adminConfig = {
-  name: process.env.ADMIN_USERNAME,
+  username: process.env.ADMIN_USERNAME,
   password: process.env.ADMIN_PASSWORD,
 };
 
 const seedAdmin = async () => {
   try {
     // Validasi apakah konfigurasi admin ada
-    if (!adminConfig.password || !adminConfig.name) {
+    if (!adminConfig.password || !adminConfig.username) {
       logger.warn(
         "Admin credentials are not set in .env file. Skipping admin seed."
       );
@@ -32,7 +32,7 @@ const seedAdmin = async () => {
 
     // Buat pengguna admin baru
     await User.create({
-      name: adminConfig.name,
+      name: adminConfig.username,
       password: hashedPassword,
     });
 

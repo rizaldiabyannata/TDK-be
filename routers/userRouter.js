@@ -12,14 +12,14 @@ const {
   logoutUser,
 } = require("../controllers/userController");
 const { protect } = require("../middleware/authMiddleware");
-const ipBlockMiddleware = require("../middleware/ipBlockMiddleware");
-
 const { validate } = require("../middleware/validationMiddleware");
 const {
   loginRules,
   resetPasswordRules,
   updateUserRules,
 } = require("../validators/userValidators");
+
+const ipBlockMiddleware = require("../middleware/ipBlockMiddleware");
 
 const strictLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,

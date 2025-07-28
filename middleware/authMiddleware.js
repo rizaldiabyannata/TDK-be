@@ -1,17 +1,14 @@
 const jwt = require("jsonwebtoken");
-const User = require("../models/userModel");
+const User = require("../models/UserModel");
 const logger = require("../utils/logger");
 const redisClient = require("../config/redisConfig");
 
 const protect = async (req, res, next) => {
   let token;
 
-  if (
-    req.headers.authorization &&
-    req.headers.authorization.startsWith("Bearer")
-  ) {
+  if (req.cookies && req.cookies.accessToken) {
     try {
-      token = req.headers.authorization.split(" ")[1];
+      token = req.cookies.accessToken;
 
       const isRevoked = await redisClient.get(`denylist:${token}`);
       if (isRevoked) {
@@ -88,7 +85,7 @@ const optionalAuth = async (req, res, next) => {
     }
   } catch (error) {
     logger.debug(
-      `Optional auth: Token tidak valid, melanjutkan sebagai guest.`
+      `Optional auth: Token tidak valid, melanjutkan sebagai guest. Error: ${error.message}`
     );
   }
 

@@ -1,17 +1,15 @@
-# Abaikan folder dependensi
 node_modules
-
-# Abaikan file log debug npm
-npm-debug.log
-
-# Abaikan file environment lokal, jangan masukkan ke image
+Dockerfile*
+docker-compose*
+.dockerignore
+.git
+.gitignore
+README.md
+LICENSE
+.vscode
+Makefile
+helm-charts
 .env
-# .env.developement.local
-# .env.production.local
-
-# Folder data yang tidak perlu dimasukkan ke dalam image
-uploads
-logs
-
-# File sistem operasi (opsional, tapi baik untuk ada)
-.DS_Store
+.editorconfig
+.idea
+coverage*

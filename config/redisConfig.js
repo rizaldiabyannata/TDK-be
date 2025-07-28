@@ -108,6 +108,7 @@ const redisClient = {
     try {
       return await clientPromise;
     } catch (error) {
+      logger.error(`Error getting Redis client: ${error.message}`);
       return null;
     }
   },
@@ -117,6 +118,7 @@ const redisClient = {
       const client = await clientPromise;
       return client && client.isReady;
     } catch (error) {
+      logger.error(`Error checking Redis connection: ${error.message}`);
       return false;
     }
   },
@@ -158,7 +160,10 @@ const redisClient = {
       if (reply === null) return null;
       try {
         return JSON.parse(reply);
-      } catch (e) {
+      } catch (error) {
+        logger.error(
+          `Failed to parse JSON from Redis for key ${key}: ${error.message}`
+        );
         return reply;
       }
     } catch (error) {
@@ -261,6 +266,26 @@ const redisClient = {
       logger.warn(`Redis QUIT error: ${error.message}`);
       localCache.clear();
       redisAvailable = false;
+    }
+  },
+
+  incr: async (key) => {
+    try {
+      const client = await clientPromise;
+      if (!client || !redisAvailable) {
+        logger.debug(`Redis unavailable, using local cache for INCR: ${key}`);
+        let value = getLocalCache(key) || 0;
+        value++;
+        setLocalCache(key, value);
+        return value;
+      }
+      return await client.incr(key);
+    } catch (error) {
+      logger.warn(`Redis INCR error, using local cache: ${error.message}`);
+      let value = getLocalCache(key) || 0;
+      value++;
+      setLocalCache(key, value);
+      return value;
     }
   },
 };

@@ -22,7 +22,7 @@ COPY . .
 #      Tahap 2: Produksi
 # ==================================
 # Memulai dari image Bun yang lebih ramping untuk produksi
-FROM oven/bun:1.0-slim
+FROM oven/bun AS production
 
 WORKDIR /usr/src/app
 

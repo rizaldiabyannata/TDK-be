@@ -17,30 +17,11 @@ services:
     container_name: mongo-tdk
     restart: always
     ports:
-      - "27018:27017"
+      - "27017:27017"
     volumes:
       - mongo-data:/data/db
-    environment:
-      MONGO_INITDB_DATABASE: tdk-db
     networks:
       - app-network
-
-  app:
-    build: .
-    container_name: app-tdk
-    restart: always
-    depends_on:
-      - redis
-      - mongo
-    env_file:
-      - .env
-    ports:
-      - "5000:5000"
-    networks:
-      - app-network
-    volumes:
-      - ./uploads:/usr/src/app/uploads
-      - ./logs:/usr/src/app/logs
 
 volumes:
   redis-data:

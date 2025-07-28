@@ -35,6 +35,9 @@ COPY --from=builder /usr/src/app .
 # Membuat direktori untuk uploads dan logs
 RUN mkdir -p uploads logs
 
+# Instal PM2 secara global
+RUN bun install -g pm2
+
 # Mengubah kepemilikan direktori aplikasi, uploads, dan logs ke appuser
 RUN chown -R appuser:appgroup /usr/src/app uploads logs
 
@@ -43,9 +46,6 @@ USER appuser
 
 # Memberi tahu Docker bahwa container akan listen di port 5000
 EXPOSE 5000
-
-# Instal PM2 secara global
-RUN bun install -g pm2
 
 # Perintah untuk menjalankan aplikasi menggunakan PM2
 CMD ["pm2-runtime", "index.js"]

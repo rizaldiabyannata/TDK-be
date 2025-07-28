@@ -1,5 +1,5 @@
 # ==================================
-#      Tahap 1: Builder
+#       Tahap 1: Builder
 # ==================================
 # Menggunakan base image resmi dari Bun
 FROM oven/bun:1.1-debian AS builder
@@ -19,7 +19,7 @@ RUN bun install --frozen-lockfile
 COPY . .
 
 # ==================================
-#      Tahap 2: Produksi
+#       Tahap 2: Produksi
 # ==================================
 # Memulai dari image Bun yang lebih ramping untuk produksi
 FROM oven/bun:latest
@@ -48,4 +48,5 @@ USER appuser
 EXPOSE 5000
 
 # Perintah untuk menjalankan aplikasi menggunakan PM2
-CMD ["pm2-runtime", "index.js"]
+# PERBAIKAN: Gunakan path absolut ke pm2-runtime
+CMD ["/root/.bun/bin/pm2-runtime", "index.js"]

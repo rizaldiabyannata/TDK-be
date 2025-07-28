@@ -30,7 +30,7 @@ WORKDIR /usr/src/app
 COPY --from=builder /usr/src/app .
 
 # Membuat user dan group baru untuk keamanan
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+RUN addgroup --system appgroup && adduser --system --ingroup appgroup --no-create-home appuser
 RUN chown -R appuser:appgroup /usr/src/app
 USER appuser
 

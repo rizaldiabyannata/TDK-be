@@ -1,8 +1,8 @@
-const User = require("../models/userModel");
+const User = require("../models/UserModel");
 const logger = require("../utils/logger");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const otpService = require("../utils/otpService");
+const OtpService = require("../utils/OtpService");
 const redisClient = require("../config/redisConfig");
 
 const generateTokens = (user) => {
@@ -253,9 +253,9 @@ const requestPasswordResetOTP = async (req, res) => {
       });
     }
 
-    const plainOTP = await otpService.createPasswordResetOTP(email);
+    const plainOTP = await OtpService.createPasswordResetOTP(email);
 
-    await otpService.sendPasswordResetOTP(email, plainOTP);
+    await OtpService.sendPasswordResetOTP(email, plainOTP);
 
     logger.info(`Admin password reset OTP sent to: ${email}`);
     return res.status(200).json({
@@ -283,7 +283,7 @@ const verifyOTPAndResetPassword = async (req, res) => {
       });
     }
 
-    const otpRecord = await otpService.verifyPasswordResetOTP(email, otp);
+    const otpRecord = await OtpService.verifyPasswordResetOTP(email, otp);
     if (!otpRecord) {
       return res.status(400).json({ message: "Invalid or expired OTP" });
     }
@@ -299,7 +299,7 @@ const verifyOTPAndResetPassword = async (req, res) => {
     admin.password = hashedPassword;
     await admin.save();
 
-    await otpService.deleteOTP(otpRecord._id);
+    await OtpService.deleteOTP(otpRecord._id);
 
     logger.info(`Admin password reset successful for: ${email}`);
     return res.status(200).json({ message: "Password reset successful" });

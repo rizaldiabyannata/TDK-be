@@ -1,4 +1,4 @@
-const Porto = require("../models/portoModel");
+const Porto = require("../models/PortoModel");
 const redisClient = require("../config/redisConfig");
 const logger = require("../utils/logger");
 const imageService = require("../services/imageService");
@@ -72,6 +72,7 @@ const getAllPortos = async (req, res) => {
 
     if (searchTerm) {
       const safeRegex = new RegExp(
+        // eslint-disable-next-line no-useless-escape
         searchTerm.replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&"),
         "i"
       );

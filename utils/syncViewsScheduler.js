@@ -1,5 +1,5 @@
 const cron = require("node-cron");
-const { ViewCount, DailyView } = require("../models/trackingModel");
+const { ViewCount, DailyView } = require("../models/TrackingModel");
 const Blog = require("../models/BlogModel");
 const Portfolio = require("../models/PortoModel");
 const logger = require("./logger");

@@ -1,4 +1,4 @@
-const Blog = require("../models/blogModel");
+const Blog = require("../models/BlogModel");
 const redisClient = require("../config/redisConfig");
 const logger = require("../utils/logger");
 const imageService = require("../services/imageService");
@@ -74,6 +74,7 @@ const getAllBlogs = async (req, res) => {
 
     if (searchTerm) {
       const safeRegex = new RegExp(
+        // eslint-disable-next-line no-useless-escape
         searchTerm.replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&"),
         "i"
       );
@@ -267,9 +268,9 @@ const updateBlog = async (req, res) => {
       await imageService.deleteFile(existingBlog.coverImage);
     }
 
-    await invalidateCache("blogArchive", "blog:", slug);
+    await invalidateBlogCache("blogArchive", "blog:", slug);
     if (updatedBlog.slug !== slug) {
-      await invalidateCache("blogArchive", "blog:", updatedBlog.slug);
+      await invalidateBlogCache("blogArchive", "blog:", updatedBlog.slug);
     }
 
     res.json({

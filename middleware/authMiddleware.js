@@ -1,5 +1,5 @@
 const jwt = require("jsonwebtoken");
-const User = require("../models/userModel");
+const User = require("../models/UserModel");
 const logger = require("../utils/logger");
 const redisClient = require("../config/redisConfig");
 
@@ -88,7 +88,7 @@ const optionalAuth = async (req, res, next) => {
     }
   } catch (error) {
     logger.debug(
-      `Optional auth: Token tidak valid, melanjutkan sebagai guest.`
+      `Optional auth: Token tidak valid, melanjutkan sebagai guest. Error: ${error.message}`
     );
   }
 

@@ -1,5 +1,4 @@
 const multer = require("multer");
-const path = require("path");
 const logger = require("../utils/logger");
 const imageService = require("../services/imageService");
 

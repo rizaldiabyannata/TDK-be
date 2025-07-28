@@ -108,6 +108,7 @@ const redisClient = {
     try {
       return await clientPromise;
     } catch (error) {
+      logger.error(`Error getting Redis client: ${error.message}`);
       return null;
     }
   },
@@ -117,6 +118,7 @@ const redisClient = {
       const client = await clientPromise;
       return client && client.isReady;
     } catch (error) {
+      logger.error(`Error checking Redis connection: ${error.message}`);
       return false;
     }
   },
@@ -158,7 +160,10 @@ const redisClient = {
       if (reply === null) return null;
       try {
         return JSON.parse(reply);
-      } catch (e) {
+      } catch (error) {
+        logger.error(
+          `Failed to parse JSON from Redis for key ${key}: ${error.message}`
+        );
         return reply;
       }
     } catch (error) {

@@ -58,14 +58,14 @@ const loginUser = async (req, res) => {
 
     res.cookie("accessToken", accessToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: process.env.BUN_ENV === "production",
       sameSite: "strict",
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: process.env.BUN_ENV === "production",
       sameSite: "strict",
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
@@ -73,7 +73,6 @@ const loginUser = async (req, res) => {
     res.status(200).json({
       message: "Login successful",
       accessToken,
-      refreshToken,
       user: {
         name: admin.name,
         email: admin.email || null,
@@ -83,7 +82,7 @@ const loginUser = async (req, res) => {
     logger.error(`Error logging in admin: ${error.message}`);
     res.status(500).json({
       message:
-        process.env.NODE_ENV === "production"
+        process.env.BUN_ENV === "production"
           ? "An internal server error occurred."
           : "Error logging in",
     });

@@ -42,11 +42,11 @@ const invalidateBlogCache = async (slug = null) => {
     return;
   }
   try {
-    await redisClient.del(CACHE_KEY_ARCHIVE);
+    await redisClient.delete(CACHE_KEY_ARCHIVE);
     logger.info(`Cache deleted for key: ${CACHE_KEY_ARCHIVE}`);
 
     if (slug) {
-      await redisClient.del(`${CACHE_KEY_PREFIX_BLOG}${slug}`);
+      await redisClient.delete(`${CACHE_KEY_PREFIX_BLOG}${slug}`);
       logger.info(`Cache deleted for key: ${CACHE_KEY_PREFIX_BLOG}${slug}`);
     }
   } catch (error) {

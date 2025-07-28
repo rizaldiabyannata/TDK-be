@@ -1,4 +1,4 @@
-const HomePageContent = require("../models/contentTrackingModel");
+const HomePageContent = require("../models/trackingModel");
 const Blog = require("../models/blogModel");
 const Portfolio = require("../models/portoModel");
 const logger = require("../utils/logger");

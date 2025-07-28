@@ -29,7 +29,9 @@ const routes = require("./routers/index");
 
 const app = express();
 
+// This is the corrected line. Calling cors() with no options allows all origins.
 app.use(cors());
+
 app.use(express.json());
 app.use(cookieParser());
 app.use(

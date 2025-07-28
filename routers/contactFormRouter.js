@@ -1,8 +1,10 @@
 const express = require("express");
 const router = express.Router();
 
-const { submitContactForm, getAllContactForms } =
-  require("../controllers/contactFormController").default;
+const {
+  submitContactForm,
+  getAllContactForms,
+} = require("../controllers/contactFormController");
 
 const { protect } = require("../middleware/authMiddleware");
 

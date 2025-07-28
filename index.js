@@ -17,7 +17,6 @@ if (!fs.existsSync(logsDir)) fs.mkdirSync(logsDir, { recursive: true });
 const uploadsDir = path.join(__dirname, "uploads");
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 
-const { scheduleViewSync } = require("./utils/syncViewsScheduler");
 const seedAdmin = require("./seeder/seedAdmin");
 const connectDB = require("./config/db");
 const routes = require("./routers/index");
@@ -74,8 +73,6 @@ const startServer = async () => {
     await connectDB();
 
     await seedAdmin();
-
-    scheduleViewSync();
 
     const PORT = process.env.PORT || 5000;
     const server = app.listen(PORT, "0.0.0.0", () => {

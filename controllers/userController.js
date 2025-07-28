@@ -56,7 +56,7 @@ const loginUser = async (req, res) => {
 
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: process.env.BUN_ENV === "production",
       sameSite: "strict",
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
@@ -73,7 +73,7 @@ const loginUser = async (req, res) => {
     logger.error(`Error logging in admin: ${error.message}`);
     res.status(500).json({
       message:
-        process.env.NODE_ENV === "production"
+        process.env.BUN_ENV === "production"
           ? "An internal server error occurred."
           : "Error logging in",
     });
@@ -119,7 +119,7 @@ const refreshToken = async (req, res) => {
     // Atur refresh token baru di cookie
     res.cookie("refreshToken", newRefreshToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: process.env.BUN_ENV === "production",
       sameSite: "strict",
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
@@ -129,7 +129,7 @@ const refreshToken = async (req, res) => {
     logger.error(`Error refreshing token: ${error.message}`);
     return res.status(403).json({
       message:
-        process.env.NODE_ENV === "production"
+        process.env.BUN_ENV === "production"
           ? "An internal server error occurred."
           : "Invalid refresh token.",
     });
@@ -167,7 +167,7 @@ const logoutUser = async (req, res) => {
     logger.error(`Error during logout: ${error.message}`);
     res.status(500).json({
       message:
-        process.env.NODE_ENV === "production"
+        process.env.BUN_ENV === "production"
           ? "An internal server error occurred."
           : "Error during logout",
     });
@@ -189,7 +189,7 @@ const getUserProfile = async (req, res) => {
     logger.error(`Error in getAdminProfile: ${error.message}`);
     res.status(500).json({
       message:
-        process.env.NODE_ENV === "production"
+        process.env.BUN_ENV === "production"
           ? "An internal server error occurred."
           : "An internal server error occurred.",
     });
@@ -231,7 +231,7 @@ const updateUser = async (req, res) => {
 
     res.status(500).json({
       message:
-        process.env.NODE_ENV === "production"
+        process.env.BUN_ENV === "production"
           ? "An internal server error occurred."
           : "An internal server error occurred.",
     });
@@ -265,7 +265,7 @@ const requestPasswordResetOTP = async (req, res) => {
     logger.error(`Error in requestPasswordResetOTP: ${error.message}`);
     return res.status(500).json({
       message:
-        process.env.NODE_ENV === "production"
+        process.env.BUN_ENV === "production"
           ? "An internal server error occurred."
           : "An internal server error occurred.",
     });
@@ -307,7 +307,7 @@ const verifyOTPAndResetPassword = async (req, res) => {
     logger.error(`Error in verifyOTPAndResetPassword: ${error.message}`);
     return res.status(500).json({
       message:
-        process.env.NODE_ENV === "production"
+        process.env.BUN_ENV === "production"
           ? "An internal server error occurred."
           : "An internal server error occurred.",
     });

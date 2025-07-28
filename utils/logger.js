@@ -2,7 +2,7 @@ const winston = require("winston");
 const path = require("path");
 
 // Mendapatkan environment
-const ENV = process.env.NODE_ENV || "development";
+const ENV = process.env.BUN_ENV || "development";
 
 // Setup transport untuk development dan production
 const logTransports = [];

@@ -4,7 +4,8 @@
   "main": "index.js",
   "scripts": {
     "dev": "BUN_ENV=development bun --hot index.js",
-    "start": "BUN_ENV=production bun index.js",
+    "start": "BUN_ENV=development bun index.js",
+    "start prod": "BUN_ENV=production bun index.js",
     "create-index": "bun ./maintain/create-indexes.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

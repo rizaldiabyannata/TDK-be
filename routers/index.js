@@ -32,7 +32,7 @@ router.get("/health/redis", async (req, res) => {
       return res.status(500).json({
         status: "error",
         message:
-          process.env.NODE_ENV === "production"
+          process.env.BUN_ENV === "production"
             ? "An unexpected error occurred."
             : "Redis connection test failed",
       });
@@ -42,7 +42,7 @@ router.get("/health/redis", async (req, res) => {
     return res.status(500).json({
       status: "error",
       message:
-        process.env.NODE_ENV === "production"
+        process.env.BUN_ENV === "production"
           ? "An unexpected error occurred."
           : "Redis connection test error",
     });

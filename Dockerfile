@@ -2,7 +2,7 @@
 #      Tahap 1: Builder
 # ==================================
 # Menggunakan base image resmi dari Bun
-FROM oven/bun:1.1-debian AS builder
+FROM oven/bun:1.0 AS builder
 
 # Menetapkan direktori kerja
 WORKDIR /usr/src/app
@@ -21,8 +21,8 @@ COPY . .
 # ==================================
 #      Tahap 2: Produksi
 # ==================================
-# Memulai dari image Node.js untuk produksi
-FROM node:lts
+# Memulai dari image Bun yang lebih ramping untuk produksi
+FROM oven/bun AS production
 
 WORKDIR /usr/src/app
 
@@ -30,10 +30,7 @@ WORKDIR /usr/src/app
 RUN addgroup --system appgroup && adduser --system --ingroup appgroup --no-create-home appuser
 
 # Menyalin dependensi dan kode aplikasi dari tahap 'builder'
-COPY --from=builder /usr/src/app ./
-
-# Menginstal PM2 secara global
-RUN npm install -g pm2
+COPY --from=builder /usr/src/app .
 
 # Membuat direktori untuk uploads dan logs
 RUN mkdir -p uploads logs
@@ -47,5 +44,5 @@ USER appuser
 # Memberi tahu Docker bahwa container akan listen di port 5000
 EXPOSE 5000
 
-# Perintah untuk menjalankan aplikasi menggunakan PM2
-CMD ["pm2-runtime", "index.js"]
+# Perintah untuk menjalankan aplikasi menggunakan Bun
+CMD ["bun", "index.js"]

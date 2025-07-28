@@ -21,22 +21,28 @@ COPY . .
 # ==================================
 #      Tahap 2: Produksi
 # ==================================
-# Memulai dari image Bun yang sama untuk produksi
-FROM oven/bun:1.0
+# Memulai dari image Bun yang lebih ramping untuk produksi
+FROM oven/bun:1.0-slim
 
 WORKDIR /usr/src/app
+
+# Membuat user dan group baru untuk keamanan
+RUN addgroup --system appgroup && adduser --system --ingroup appgroup --no-create-home appuser
 
 # Menyalin dependensi dan kode aplikasi dari tahap 'builder'
 COPY --from=builder /usr/src/app .
 
-# Membuat user dan group baru untuk keamanan
-RUN addgroup --system appgroup && adduser --system --ingroup appgroup --no-create-home appuser
-RUN chown -R appuser:appgroup /usr/src/app
+# Membuat direktori untuk uploads dan logs
+RUN mkdir -p uploads logs
+
+# Mengubah kepemilikan direktori aplikasi, uploads, dan logs ke appuser
+RUN chown -R appuser:appgroup /usr/src/app uploads logs
+
+# Mengganti user ke non-root
 USER appuser
 
 # Memberi tahu Docker bahwa container akan listen di port 5000
 EXPOSE 5000
 
 # Perintah untuk menjalankan aplikasi menggunakan Bun
-# 'bun run' akan menjalankan skrip dari package.json, atau langsung 'bun index.js'
 CMD ["bun", "index.js"]

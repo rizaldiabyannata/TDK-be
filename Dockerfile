@@ -36,7 +36,7 @@ COPY --from=builder /usr/src/app .
 RUN mkdir -p uploads logs
 
 # Instal PM2 secara global
-RUN bun install -g pm2
+RUN bun add --global pm2
 
 # Mengubah kepemilikan direktori aplikasi, uploads, dan logs ke appuser
 RUN chown -R appuser:appgroup /usr/src/app uploads logs

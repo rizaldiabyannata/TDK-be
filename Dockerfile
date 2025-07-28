@@ -1,5 +1,5 @@
 # ==================================
-#       Tahap 1: Builder
+#      Tahap 1: Builder
 # ==================================
 # Menggunakan base image resmi dari Bun
 FROM oven/bun:1.1-debian AS builder
@@ -19,10 +19,10 @@ RUN bun install --frozen-lockfile
 COPY . .
 
 # ==================================
-#       Tahap 2: Produksi
+#      Tahap 2: Produksi
 # ==================================
-# Memulai dari image Bun yang lebih ramping untuk produksi
-FROM oven/bun:latest
+# Memulai dari image Node.js untuk produksi
+FROM node:lts
 
 WORKDIR /usr/src/app
 
@@ -30,13 +30,13 @@ WORKDIR /usr/src/app
 RUN addgroup --system appgroup && adduser --system --ingroup appgroup --no-create-home appuser
 
 # Menyalin dependensi dan kode aplikasi dari tahap 'builder'
-COPY --from=builder /usr/src/app .
+COPY --from=builder /usr/src/app ./
+
+# Menginstal PM2 secara global
+RUN npm install -g pm2
 
 # Membuat direktori untuk uploads dan logs
 RUN mkdir -p uploads logs
-
-# Instal PM2 secara global
-RUN bun add --global pm2
 
 # Mengubah kepemilikan direktori aplikasi, uploads, dan logs ke appuser
 RUN chown -R appuser:appgroup /usr/src/app uploads logs
@@ -47,9 +47,5 @@ USER appuser
 # Memberi tahu Docker bahwa container akan listen di port 5000
 EXPOSE 5000
 
-# PERBAIKAN: Reset ENTRYPOINT agar CMD tidak dijalankan oleh bun
-ENTRYPOINT []
-
 # Perintah untuk menjalankan aplikasi menggunakan PM2
-# Gunakan path absolut ke pm2-runtime
-CMD ["/root/.bun/bin/pm2-runtime", "index.js"]
+CMD ["pm2-runtime", "index.js"]

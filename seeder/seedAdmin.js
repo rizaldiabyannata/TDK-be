@@ -32,7 +32,7 @@ const seedAdmin = async () => {
 
     // Buat pengguna admin baru
     await User.create({
-      name: adminConfig.name,
+      name: adminConfig.username,
       password: hashedPassword,
     });
 

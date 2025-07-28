@@ -1,6 +1,8 @@
 services:
   redis:
     image: redis:latest
+    container_name: redis-tdk
+    restart: always
     ports:
       - "6379:6379"
     command: redis-server /usr/local/etc/redis/redis.conf
@@ -13,6 +15,7 @@ services:
   mongo:
     image: mongo:latest
     container_name: mongo-tdk
+    restart: always
     ports:
       - "27018:27017"
     volumes:
@@ -24,21 +27,13 @@ services:
 
   app:
     build: .
+    container_name: app-tdk
+    restart: always
     depends_on:
       - redis
       - mongo
-    environment:
-      NODE_ENV: ${NODE_ENV}
-      MONGO_URI: ${MONGO_URI}
-      REDIS_HOST: ${REDIS_HOST}
-      REDIS_PORT: ${REDIS_PORT}
-      REDIS_PASSWORD: ${REDIS_PASSWORD}
-      REDIS_DB: ${REDIS_DB}
-      JWT_SECRET: ${JWT_SECRET}
-      EMAIL_USER: ${EMAIL_USER}
-      EMAIL_PASSWORD: ${EMAIL_PASSWORD}
-      ADMIN_USERNAME: ${ADMIN_USERNAME}
-      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+    env_file:
+      - .env
     ports:
       - "5000:5000"
     networks:

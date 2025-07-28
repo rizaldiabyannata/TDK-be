@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const userRouters = require("./userRouters");
+const userRouters = require("./userRouter");
 const { testRedisConnection } = require("../test/test-redis-connection");
 const blogRouters = require("./blogRouter");
 const portfolioRouters = require("./portoRouter");

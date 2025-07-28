@@ -47,6 +47,9 @@ USER appuser
 # Memberi tahu Docker bahwa container akan listen di port 5000
 EXPOSE 5000
 
+# PERBAIKAN: Reset ENTRYPOINT agar CMD tidak dijalankan oleh bun
+ENTRYPOINT []
+
 # Perintah untuk menjalankan aplikasi menggunakan PM2
-# PERBAIKAN: Gunakan path absolut ke pm2-runtime
+# Gunakan path absolut ke pm2-runtime
 CMD ["/root/.bun/bin/pm2-runtime", "index.js"]

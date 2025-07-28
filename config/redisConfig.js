@@ -268,6 +268,26 @@ const redisClient = {
       redisAvailable = false;
     }
   },
+
+  incr: async (key) => {
+    try {
+      const client = await clientPromise;
+      if (!client || !redisAvailable) {
+        logger.debug(`Redis unavailable, using local cache for INCR: ${key}`);
+        let value = getLocalCache(key) || 0;
+        value++;
+        setLocalCache(key, value);
+        return value;
+      }
+      return await client.incr(key);
+    } catch (error) {
+      logger.warn(`Redis INCR error, using local cache: ${error.message}`);
+      let value = getLocalCache(key) || 0;
+      value++;
+      setLocalCache(key, value);
+      return value;
+    }
+  },
 };
 
 module.exports = redisClient;

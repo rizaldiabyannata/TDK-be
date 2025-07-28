@@ -8,6 +8,7 @@ const contactFormSchema = new mongoose.Schema({
   email: {
     type: String,
     required: true,
+    // eslint-disable-next-line no-useless-escape
     match: /.+\@.+\..+/,
   },
   message: {

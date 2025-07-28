@@ -8,12 +8,7 @@ const path = require("path");
 const helmet = require("helmet");
 const mongoose = require("mongoose");
 
-const envPath =
-  process.env.BUN_ENV === "production"
-    ? path.resolve(__dirname, ".env.production")
-    : path.resolve(__dirname, ".env.development");
-
-dotenv.config({ path: envPath });
+dotenv.config();
 
 const logger = require("./utils/logger");
 

@@ -1,6 +1,6 @@
 services:
   redis:
-    image: redis:alphine
+    image: redis
     container_name: redis-tdk
     deploy:
       resources:
@@ -17,7 +17,7 @@ services:
       - app-network
 
   mongo:
-    image: mongo:latest
+    image: mongo
     container_name: mongo-tdk
     deploy:
       resources:

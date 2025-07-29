@@ -6,12 +6,15 @@ const redisClient = require("../config/redisConfig");
 const protect = async (req, res, next) => {
   let token;
 
-  console.log("Checking for access token in cookies...");
-  console.log("Cookies:", req.cookies);
+  console.log("Checking for access token in Authorization header...");
+  console.log("Authorization Header:", req.headers.authorization);
 
-  if (req.cookies && req.cookies.accessToken) {
+  if (
+    req.headers.authorization &&
+    req.headers.authorization.startsWith("Bearer")
+  ) {
     try {
-      token = req.cookies.accessToken;
+      token = req.headers.authorization.split(" ")[1];
 
       const isRevoked = await redisClient.get(`denylist:${token}`);
       if (isRevoked) {
@@ -72,8 +75,11 @@ const authorize = () => {
 
 const optionalAuth = async (req, res, next) => {
   let token;
-  if (req.cookies && req.cookies.refreshToken) {
-    token = req.cookies.refreshToken;
+  if (
+    req.headers.authorization &&
+    req.headers.authorization.startsWith("Bearer")
+  ) {
+    token = req.headers.authorization.split(" ")[1];
   }
 
   if (!token) {
@@ -88,7 +94,7 @@ const optionalAuth = async (req, res, next) => {
     }
   } catch (error) {
     logger.debug(
-      `Optional auth: Token tidak valid, melanjutkan sebagai guest. Error: ${error.message}`
+      `Optional auth: Invalid token, proceeding as guest. Error: ${error.message}`
     );
   }
 

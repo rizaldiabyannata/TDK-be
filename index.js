@@ -71,7 +71,7 @@ app.use(
         scriptSrc: ["'self'"],
         styleSrc: ["'self'", "'unsafe-inline'"],
         imgSrc: ["'self'", "data:", "http://localhost:5000"],
-        connectSrc: ["'self'"],
+        connectSrc: ["'self'", "http://36.69.250.114:3000"],
         fontSrc: ["'self'", "https:"],
         objectSrc: ["'none'"],
         scriptSrcAttr: ["'none'"],

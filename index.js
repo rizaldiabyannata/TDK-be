@@ -56,7 +56,7 @@ app.get("/api/runtime", (req, res) => {
 // };
 
 const corsOptions = {
-  origin: "http://36.69.250.114:3000", // Hardcode alamat IP frontend Anda
+  origin: ["http://36.69.250.114:3000", "http://localhost:3000"], // Hardcode alamat IP frontend Anda
   credentials: true,
 };
 

@@ -1,7 +1,11 @@
 services:
   redis:
-    image: redis:latest
+    image: redis:alphine
     container_name: redis-tdk
+    deploy:
+      resources:
+        limits:
+          memory: 512M
     restart: always
     ports:
       - "6379:6379"
@@ -15,6 +19,10 @@ services:
   mongo:
     image: mongo:latest
     container_name: mongo-tdk
+    deploy:
+      resources:
+        limits:
+          memory: 2G
     restart: always
     ports:
       - "27017:27017"

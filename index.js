@@ -37,7 +37,7 @@ app.get("/api/runtime", (req, res) => {
 // This is the corrected line. Calling cors() with no options allows all origins.
 const allowedOrigins = [
   "http://125.167.144.91:3000",
-  "http://36.84.8.199:3000",
+  "http://36.69.250.114:3000",
 ];
 
 const corsOptions = {

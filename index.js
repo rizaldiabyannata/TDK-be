@@ -23,31 +23,37 @@ const routes = require("./routers/index");
 
 const app = express();
 
+app.get("/api/runtime", (req, res) => {
+  const uptime = process.uptime();
+  const hours = Math.floor(uptime / 3600);
+  const minutes = Math.floor((uptime % 3600) / 60);
+  const seconds = Math.floor(uptime % 60);
+  res.json({
+    message: "Backend runtime",
+    uptime: `${hours}h ${minutes}m ${seconds}s`,
+  });
+});
+
 // This is the corrected line. Calling cors() with no options allows all origins.
-const allowedOrigins = ["http://125.167.144.91:3000"];
+const allowedOrigins = [
+  "http://125.167.144.91:3000",
+  "http://36.84.8.199:3000",
+];
 
 const corsOptions = {
   credentials: true,
   origin: (origin, callback) => {
-    // 2. Izinkan koneksi dari localhost (untuk tim development)
-    //    Regex ini akan cocok dengan http://localhost:3000, http://localhost:3001, dll.
-    if (/localhost(:\d+)?$/.test(origin)) {
-      return callback(null, true);
+    if (
+      !origin ||
+      allowedOrigins.includes(origin) ||
+      /localhost(:\d+)?$/.test(origin)
+    ) {
+      callback(null, true);
+    } else {
+      callback(new Error("Origin ini tidak diizinkan oleh kebijakan CORS"));
     }
-
-    // 3. Izinkan koneksi dari domain produksi Anda
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
-
-    // 4. Tolak semua permintaan dari domain lain
-    return callback(
-      new Error("Origin ini tidak diizinkan oleh kebijakan CORS")
-    );
   },
 };
-
-app.use(cors(corsOptions));
 
 app.use(cors(corsOptions));
 
@@ -81,17 +87,6 @@ app.use(
 app.use("/uploads", express.static(path.join(__dirname, "public", "uploads")));
 
 app.use("/api", routes);
-
-app.get("/api/runtime", (req, res) => {
-  const uptime = process.uptime();
-  const hours = Math.floor(uptime / 3600);
-  const minutes = Math.floor((uptime % 3600) / 60);
-  const seconds = Math.floor(uptime % 60);
-  res.json({
-    message: "Backend runtime",
-    uptime: `${hours}h ${minutes}m ${seconds}s`,
-  });
-});
 
 const startServer = async () => {
   try {

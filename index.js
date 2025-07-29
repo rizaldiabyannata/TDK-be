@@ -76,7 +76,11 @@ app.use(
     },
   })
 );
-app.use(morgan("dev"));
+
+if (process.env.NODE_ENV === "development") {
+  app.use(morgan("dev"));
+}
+
 app.use(
   morgan("combined", {
     stream: {

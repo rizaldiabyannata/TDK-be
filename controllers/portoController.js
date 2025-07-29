@@ -84,7 +84,11 @@ const getAllPortos = async (req, res) => {
     }
 
     const [portos, totalPortos] = await Promise.all([
-      Porto.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit),
+      Porto.find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .select("title slug coverImage createdAt shortDescription"),
       Porto.countDocuments(filter),
     ]);
 

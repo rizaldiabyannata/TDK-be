@@ -20,13 +20,14 @@ const {
   uploadSingleFileOptional,
 } = require("../middleware/multerMiddleware");
 const { sanitizeParams } = require("../middleware/validationMiddleware");
+const cacheMiddleware = require("../middleware/cacheMiddleware");
 
 /**
  * @route   GET /api/blogs
  * @desc    Dapatkan semua artikel blog dengan filter
  * @access  Publik
  */
-router.get("/", getAllBlogs);
+router.get("/", cacheMiddleware(3600), getAllBlogs);
 
 /**
  * @route   GET /api/blogs/archives

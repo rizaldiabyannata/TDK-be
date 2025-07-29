@@ -1,24 +1,32 @@
-// create-indexes.js
-require("dotenv").config(); // If you use environment variables
+require("dotenv").config({ path: require('path').resolve(__dirname, '../.env') });
 const mongoose = require("mongoose");
 const Blog = require("../models/BlogModel");
+const Porto = require("../models/PortoModel");
+const logger = require("../utils/logger");
 
-mongoose
-  .connect(process.env.MONGO_URI)
-  .then(async () => {
-    console.log("Connected to MongoDB");
-    try {
-      await Blog.collection.createIndex(
-        { title: "text", summary: "text", content: "text" },
-        { name: "blog_text_index" }
-      );
-      console.log("Text index created successfully");
-    } catch (error) {
-      console.error("Error creating text index:", error);
-    } finally {
-      mongoose.disconnect();
-    }
-  })
-  .catch((err) => {
-    console.error("Error connecting to MongoDB:", err);
-  });
+const createIndexes = async () => {
+  try {
+    await mongoose.connect(process.env.MONGO_URI);
+    logger.info("Connected to MongoDB for index creation.");
+
+    // Blog indexes
+    await Blog.collection.createIndex({ slug: 1 }, { unique: true });
+    await Blog.collection.createIndex({ isArchived: 1, createdAt: -1 });
+    await Blog.collection.createIndex({ title: "text", content: "text" });
+    logger.info("Indexes for Blog model created successfully.");
+
+    // Porto indexes
+    await Porto.collection.createIndex({ slug: 1 }, { unique: true });
+    await Porto.collection.createIndex({ isArchived: 1, createdAt: -1 });
+    await Porto.collection.createIndex({ title: "text", description: "text", shortDescription: "text" });
+    logger.info("Indexes for Porto model created successfully.");
+
+  } catch (error) {
+    logger.error("Error creating indexes:", error);
+  } finally {
+    await mongoose.disconnect();
+    logger.info("Disconnected from MongoDB.");
+  }
+};
+
+createIndexes();

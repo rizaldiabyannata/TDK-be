@@ -20,13 +20,14 @@ const {
   convertToWebp,
 } = require("../middleware/multerMiddleware");
 const { sanitizeParams } = require("../middleware/validationMiddleware");
+const cacheMiddleware = require("../middleware/cacheMiddleware");
 
 /**
  * @route   GET /api/portos
  * @desc    Dapatkan semua item portofolio dengan filter (status, search, pagination)
  * @access  Publik
  */
-router.get("/", getAllPortos);
+router.get("/", cacheMiddleware(3600), getAllPortos);
 
 /**
  * @route   GET /api/portos/archives

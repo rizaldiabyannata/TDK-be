@@ -85,7 +85,11 @@ const getAllBlogs = async (req, res) => {
     }
 
     const [blogs, totalBlogs] = await Promise.all([
-      Blog.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit),
+      Blog.find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .select("title slug coverImage createdAt"),
       Blog.countDocuments(filter),
     ]);
 

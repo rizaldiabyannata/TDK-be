@@ -34,28 +34,33 @@ app.get("/api/runtime", (req, res) => {
   });
 });
 
-app.use(cookieParser());
 // This is the corrected line. Calling cors() with no options allows all origins.
-const allowedOrigins = [
-  "http://125.167.144.91:3000",
-  "http://36.69.250.114:3000",
-];
+// const allowedOrigins = [
+//   "http://125.167.144.91:3000",
+//   "http://36.69.250.114:3000",
+// ];
+
+// const corsOptions = {
+//   credentials: true,
+//   origin: (origin, callback) => {
+//     if (
+//       !origin ||
+//       allowedOrigins.includes(origin) ||
+//       /localhost(:\d+)?$/.test(origin)
+//     ) {
+//       callback(null, true);
+//     } else {
+//       callback(new Error("Origin ini tidak diizinkan oleh kebijakan CORS"));
+//     }
+//   },
+// };
 
 const corsOptions = {
+  origin: "http://36.69.250.114:3000", // Hardcode alamat IP frontend Anda
   credentials: true,
-  origin: (origin, callback) => {
-    if (
-      !origin ||
-      allowedOrigins.includes(origin) ||
-      /localhost(:\d+)?$/.test(origin)
-    ) {
-      callback(null, true);
-    } else {
-      callback(new Error("Origin ini tidak diizinkan oleh kebijakan CORS"));
-    }
-  },
 };
 
+app.use(cookieParser());
 app.use(cors(corsOptions));
 app.use(express.json());
 app.use(

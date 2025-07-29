@@ -60,8 +60,8 @@ const corsOptions = {
   credentials: true,
 };
 
-app.use(cookieParser());
 app.use(cors(corsOptions));
+app.use(cookieParser());
 app.use(express.json());
 app.use(
   helmet({

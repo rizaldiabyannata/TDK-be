@@ -24,7 +24,32 @@ const routes = require("./routers/index");
 const app = express();
 
 // This is the corrected line. Calling cors() with no options allows all origins.
-app.use(cors());
+const allowedOrigins = ["http://125.167.144.91:3000"];
+
+const corsOptions = {
+  credentials: true,
+  origin: (origin, callback) => {
+    // 2. Izinkan koneksi dari localhost (untuk tim development)
+    //    Regex ini akan cocok dengan http://localhost:3000, http://localhost:3001, dll.
+    if (/localhost(:\d+)?$/.test(origin)) {
+      return callback(null, true);
+    }
+
+    // 3. Izinkan koneksi dari domain produksi Anda
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    // 4. Tolak semua permintaan dari domain lain
+    return callback(
+      new Error("Origin ini tidak diizinkan oleh kebijakan CORS")
+    );
+  },
+};
+
+app.use(cors(corsOptions));
+
+app.use(cors(corsOptions));
 
 app.use(express.json());
 app.use(cookieParser());

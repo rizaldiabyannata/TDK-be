@@ -5,7 +5,7 @@ const cookieParser = require("cookie-parser");
 const morgan = require("morgan");
 const fs = require("fs");
 const path = require("path");
-// const helmet = require("helmet");
+const helmet = require("helmet");
 const mongoose = require("mongoose");
 
 dotenv.config();
@@ -34,52 +34,35 @@ app.get("/api/runtime", (req, res) => {
   });
 });
 
-// This is the corrected line. Calling cors() with no options allows all origins.
-// const allowedOrigins = [
-//   "http://125.167.144.91:3000",
-//   "http://36.69.250.114:3000",
-// ];
-
-// const corsOptions = {
-//   credentials: true,
-//   origin: (origin, callback) => {
-//     if (
-//       !origin ||
-//       allowedOrigins.includes(origin) ||
-//       /localhost(:\d+)?$/.test(origin)
-//     ) {
-//       callback(null, true);
-//     } else {
-//       callback(new Error("Origin ini tidak diizinkan oleh kebijakan CORS"));
-//     }
-//   },
-// };
-
 const corsOptions = {
-  origin: ["http://36.69.250.114:3000", "http://localhost:3000"], // Hardcode alamat IP frontend Anda
+  origin: ["http://36.69.250.114:3000", "http://localhost:3000"],
   credentials: true,
 };
 
 app.use(cors(corsOptions));
 app.use(cookieParser());
 app.use(express.json());
-// app.use(
-//   helmet({
-//     contentSecurityPolicy: {
-//       directives: {
-//         defaultSrc: ["'self'"],
-//         scriptSrc: ["'self'"],
-//         styleSrc: ["'self'", "'unsafe-inline'"],
-//         imgSrc: ["'self'", "data:", "http://localhost:5000"],
-//         connectSrc: ["'self'", "http://36.69.250.114:3000"],
-//         fontSrc: ["'self'", "https:"],
-//         objectSrc: ["'none'"],
-//         scriptSrcAttr: ["'none'"],
-//         upgradeInsecureRequests: [],
-//       },
-//     },
-//   })
-// );
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", "data:", "http://localhost:5000"],
+        connectSrc: [
+          "'self'",
+          "http://localhost:3000",
+          "http://36.69.250.114:3000",
+        ],
+        fontSrc: ["'self'", "https:"],
+        objectSrc: ["'none'"],
+        scriptSrcAttr: ["'none'"],
+        upgradeInsecureRequests: [],
+      },
+    },
+  })
+);
 app.use(morgan("dev"));
 app.use(
   morgan("combined", {

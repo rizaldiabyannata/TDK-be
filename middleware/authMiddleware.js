@@ -6,15 +6,12 @@ const redisClient = require("../config/redisConfig");
 const protect = async (req, res, next) => {
   let token;
 
-  console.log("Checking for access token in Authorization header...");
-  console.log("Authorization Header:", req.headers.authorization);
+  console.log("Checking for access token in cookies...");
+  console.log("Cookies:", req.cookies);
 
-  if (
-    req.headers.authorization &&
-    req.headers.authorization.startsWith("Bearer")
-  ) {
+  if (req.cookies && req.cookies.accessToken) {
     try {
-      token = req.headers.authorization.split(" ")[1];
+      token = req.cookies.accessToken;
 
       const isRevoked = await redisClient.get(`denylist:${token}`);
       if (isRevoked) {
@@ -75,11 +72,8 @@ const authorize = () => {
 
 const optionalAuth = async (req, res, next) => {
   let token;
-  if (
-    req.headers.authorization &&
-    req.headers.authorization.startsWith("Bearer")
-  ) {
-    token = req.headers.authorization.split(" ")[1];
+  if (req.cookies && req.cookies.accessToken) {
+    token = req.cookies.accessToken;
   }
 
   if (!token) {

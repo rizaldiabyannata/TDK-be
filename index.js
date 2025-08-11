@@ -35,13 +35,17 @@ app.get("/api/runtime", (req, res) => {
 });
 
 const corsOptions = {
-  origin: ["http://36.69.250.114:3000", "http://localhost:3000"],
+  origin: ["http://36.69.250.114:3000", "http://localhost:3000", "http://127.0.0.1:3000/"],
   credentials: true,
 };
 
 app.use(cors(corsOptions));
 app.use(cookieParser());
 app.use(express.json());
+
+// [FIX] Membuat Content Security Policy (CSP) lebih fleksibel untuk development
+const isDevelopment = process.env.BUN_ENV === 'development';
+
 app.use(
   helmet({
     contentSecurityPolicy: {
@@ -50,19 +54,19 @@ app.use(
         scriptSrc: ["'self'"],
         styleSrc: ["'self'", "'unsafe-inline'"],
         imgSrc: ["'self'", "data:", "http://localhost:5000"],
-        connectSrc: [
-          "'self'",
-          "http://localhost:3000",
-          "http://36.69.250.114:3000",
-        ],
+        // Jika development, izinkan koneksi dari mana saja.
+        // Jika production, batasi hanya ke domain yang diizinkan.
+        connectSrc: isDevelopment ? ["*"] : ["'self'", "http://localhost:3000", "http://36.69.250.114:3000"],
         fontSrc: ["'self'", "https:"],
         objectSrc: ["'none'"],
         scriptSrcAttr: ["'none'"],
         upgradeInsecureRequests: [],
+        crossOriginResourcePolicy: isDevelopment ? false : true,
       },
     },
   })
 );
+
 app.use(morgan("dev"));
 app.use(
   morgan("combined", {
@@ -78,14 +82,11 @@ app.use("/api", routes);
 const startServer = async () => {
   try {
     await connectDB();
-
     await seedAdmin();
-
     const PORT = process.env.PORT || 5000;
     const server = app.listen(PORT, "0.0.0.0", () => {
       logger.info(`Server is running on port ${PORT}`);
     });
-
     const gracefulShutdown = () => {
       logger.warn("Received kill signal, shutting down gracefully.");
       server.close(() => {
@@ -96,7 +97,6 @@ const startServer = async () => {
         });
       });
     };
-
     process.on("SIGTERM", gracefulShutdown);
     process.on("SIGINT", gracefulShutdown);
   } catch (error) {

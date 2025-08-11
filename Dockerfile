@@ -7,8 +7,7 @@ FROM oven/bun:1.0 AS builder
 # Menetapkan direktori kerja
 WORKDIR /usr/src/app
 
-# Bun menggunakan bun.lockb secara default. Menyalin ini terlebih dahulu
-# akan memanfaatkan layer caching.
+# Menyalin file yang jarang berubah terlebih dahulu untuk memanfaatkan caching
 COPY package.json bun.lockb ./
 
 # Menginstal dependensi menggunakan 'bun install'.
@@ -30,7 +29,7 @@ WORKDIR /usr/src/app
 RUN addgroup --system appgroup && adduser --system --ingroup appgroup --no-create-home appuser
 
 # Menyalin dependensi dan kode aplikasi dari tahap 'builder'
-COPY --from=builder /usr/src/app .
+COPY --from=builder /usr/src/app ./
 
 # Membuat direktori untuk uploads dan logs
 RUN mkdir -p uploads logs

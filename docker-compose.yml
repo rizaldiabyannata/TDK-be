@@ -31,6 +31,17 @@ services:
     networks:
       - app-network
 
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: app-tdk
+    restart: always
+    ports:
+      - "3000:3000"
+    networks:
+      - app-network
+
 volumes:
   redis-data:
   mongo-data:

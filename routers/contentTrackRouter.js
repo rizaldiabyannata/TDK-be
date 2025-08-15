@@ -8,13 +8,13 @@ router.get("/", contentTrackingController.getHomePageContent);
 router.put(
   "/featured-blogs",
   protect,
-  contentTrackingController.updateFeaturedBlogs
+  contentTrackingController.addFeaturedBlog
 );
 
 router.put(
   "/highlighted-portfolios",
   protect,
-  contentTrackingController.updateHighlightedPortfolios
+  contentTrackingController.addHighlightedPortfolio
 );
 
 router.post("/reset", protect, contentTrackingController.resetHomePageContent);

@@ -6,9 +6,6 @@ const redisClient = require("../config/redisConfig");
 const protect = async (req, res, next) => {
   let token;
 
-  console.log("Checking for access token in cookies...");
-  console.log("Cookies:", req.cookies);
-
   if (req.cookies && req.cookies.accessToken) {
     try {
       token = req.cookies.accessToken;

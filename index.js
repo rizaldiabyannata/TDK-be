@@ -35,7 +35,11 @@ app.get("/api/runtime", (req, res) => {
 });
 
 const corsOptions = {
-  origin: ["http://36.69.250.114:3000", "http://localhost:3000", "http://127.0.0.1:3000/"],
+  origin: [
+    "http://36.69.250.114:3000",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000/",
+  ],
   credentials: true,
 };
 
@@ -44,10 +48,13 @@ app.use(cookieParser());
 app.use(express.json());
 
 // [FIX] Membuat Content Security Policy (CSP) lebih fleksibel untuk development
-const isDevelopment = process.env.BUN_ENV === 'development';
+const isDevelopment = process.env.BUN_ENV === "development";
 
 app.use(
   helmet({
+    crossOriginResourcePolicy: {
+      policy: isDevelopment ? "cross-origin" : "same-origin",
+    },
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
@@ -56,12 +63,13 @@ app.use(
         imgSrc: ["'self'", "data:", "http://localhost:5000"],
         // Jika development, izinkan koneksi dari mana saja.
         // Jika production, batasi hanya ke domain yang diizinkan.
-        connectSrc: isDevelopment ? ["*"] : ["'self'", "http://localhost:3000", "http://36.69.250.114:3000"],
+        connectSrc: isDevelopment
+          ? ["*"]
+          : ["'self'", "http://localhost:3000", "http://36.69.250.114:3000"],
         fontSrc: ["'self'", "https:"],
         objectSrc: ["'none'"],
         scriptSrcAttr: ["'none'"],
         upgradeInsecureRequests: [],
-        crossOriginResourcePolicy: isDevelopment ? false : true,
       },
     },
   })

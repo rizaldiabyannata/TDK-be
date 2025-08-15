@@ -22,12 +22,13 @@ const getHomePageContent = async (req, res) => {
     const cachedData = await redisClient.get(HOME_PAGE_CONTENT_CACHE_KEY);
     if (cachedData) {
       logger.info(`Cache hit for: ${HOME_PAGE_CONTENT_CACHE_KEY}`);
+      const parsedData = JSON.parse(cachedData);
       return res.status(200).json({
         success: true,
         data: {
-          highlightedPortfolios: cachedData.highlightedPortfolios,
-          featuredBlogs: cachedData.featuredBlogs,
-          lastUpdated: cachedData.lastUpdated,
+          highlightedPortfolios: parsedData.highlightedPortfolios,
+          featuredBlogs: parsedData.featuredBlogs,
+          lastUpdated: parsedData.lastUpdated,
         },
       });
     }
@@ -70,7 +71,7 @@ const getHomePageContent = async (req, res) => {
     await redisClient.set(
       HOME_PAGE_CONTENT_CACHE_KEY,
       JSON.stringify(homePageContent),
-      CACHE_EXPIRY_SECONDS_HOME
+      { EX: CACHE_EXPIRY_SECONDS_HOME }
     );
 
     logger.info(`Retrieved home page content (${homePageContent._id})`);
@@ -85,139 +86,6 @@ const getHomePageContent = async (req, res) => {
     logger.error(`Error fetching home page content: ${error.message}`, {
       error,
     });
-    return res
-      .status(500)
-      .json({ message: "An internal server error occurred." });
-  }
-};
-
-const updateFeaturedBlogs = async (req, res) => {
-  try {
-    const { blogIds } = req.body;
-
-    if (!blogIds || !Array.isArray(blogIds)) {
-      return res.status(400).json({
-        message: "Blog IDs must be provided as an array",
-      });
-    }
-
-    const objectIdBlogIds = blogIds.map(
-      (id) => new mongoose.Types.ObjectId(id)
-    );
-
-    const existingBlogs = await Blog.find({
-      _id: { $in: objectIdBlogIds },
-      isArchived: { $ne: true },
-    }).select("_id");
-
-    if (existingBlogs.length !== objectIdBlogIds.length) {
-      logger.info(
-        "Some blogs were not found, are archived, or duplicates exist"
-      );
-      return res.status(404).json({
-        message:
-          "Some blogs were not found, are archived, or contain duplicates",
-      });
-    }
-
-    let homePageContent = await HomePageContent.findOne();
-
-    if (!homePageContent) {
-      homePageContent = new HomePageContent();
-    }
-
-    homePageContent.featuredBlogs = objectIdBlogIds;
-    homePageContent.lastUpdated = Date.now();
-    await homePageContent.save();
-
-    await clearHomePageContentCache();
-    logger.info(
-      `Updated featured blogs for home page content (${homePageContent._id})`
-    );
-
-    return res.status(200).json({
-      message: "Featured blogs updated successfully",
-      data: {
-        featuredBlogs: homePageContent.featuredBlogs || [],
-        highlightedPortfolios: homePageContent.highlightedPortfolios || [],
-        lastUpdated: homePageContent.lastUpdated || null,
-      },
-    });
-  } catch (error) {
-    logger.error(`Error updating featured blogs: ${error.message}`, { error });
-
-    if (error instanceof mongoose.Error.CastError) {
-      return res.status(400).json({
-        message: "Some provided blog IDs are invalid",
-      });
-    }
-    return res
-      .status(500)
-      .json({ message: "An internal server error occurred." });
-  }
-};
-
-const updateHighlightedPortfolios = async (req, res) => {
-  try {
-    const { portfolioIds } = req.body;
-
-    if (!portfolioIds || !Array.isArray(portfolioIds)) {
-      return res.status(400).json({
-        message: "Portfolio IDs must be provided as an array",
-      });
-    }
-
-    const objectIdPortfolioIds = portfolioIds.map(
-      (id) => new mongoose.Types.ObjectId(id)
-    );
-
-    const existingPortfolios = await Portfolio.find({
-      _id: { $in: objectIdPortfolioIds },
-      isArchived: { $ne: true },
-    }).select("_id");
-
-    if (existingPortfolios.length !== objectIdPortfolioIds.length) {
-      logger.info(
-        "Some portfolios were not found, are archived, or duplicates exist"
-      );
-      return res.status(404).json({
-        message:
-          "Some portfolios were not found, are archived, or contain duplicates",
-      });
-    }
-
-    let homePageContent = await HomePageContent.findOne();
-
-    if (!homePageContent) {
-      homePageContent = new HomePageContent();
-    }
-
-    homePageContent.highlightedPortfolios = objectIdPortfolioIds;
-    homePageContent.lastUpdated = Date.now();
-    await homePageContent.save();
-
-    await clearHomePageContentCache();
-    logger.info(
-      `Updated highlighted portfolios for home page content (${homePageContent._id})`
-    );
-
-    return res.status(200).json({
-      message: "Highlighted portfolios updated successfully",
-      data: {
-        featuredBlogs: homePageContent.featuredBlogs || [],
-        highlightedPortfolios: homePageContent.highlightedPortfolios || [],
-        lastUpdated: homePageContent.lastUpdated || null,
-      },
-    });
-  } catch (error) {
-    logger.error(`Error updating highlighted portfolios: ${error.message}`, {
-      error,
-    });
-    if (error instanceof mongoose.Error.CastError) {
-      return res.status(400).json({
-        message: "Some provided portfolio IDs are invalid",
-      });
-    }
     return res
       .status(500)
       .json({ message: "An internal server error occurred." });
@@ -513,8 +381,6 @@ const removeHighlightedPortfolio = async (req, res) => {
 
 module.exports = {
   getHomePageContent,
-  updateFeaturedBlogs,
-  updateHighlightedPortfolios,
   resetHomePageContent,
   addFeaturedBlog,
   removeFeaturedBlog,

@@ -22,15 +22,7 @@ const getHomePageContent = async (req, res) => {
     const cachedData = await redisClient.get(HOME_PAGE_CONTENT_CACHE_KEY);
     if (cachedData) {
       logger.info(`Cache hit for: ${HOME_PAGE_CONTENT_CACHE_KEY}`);
-      const parsedData = JSON.parse(cachedData);
-      return res.status(200).json({
-        success: true,
-        data: {
-          highlightedPortfolios: parsedData.highlightedPortfolios,
-          featuredBlogs: parsedData.featuredBlogs,
-          lastUpdated: parsedData.lastUpdated,
-        },
-      });
+      return res.status(200).json(cachedData); // Return cached data directly
     }
 
     logger.info(

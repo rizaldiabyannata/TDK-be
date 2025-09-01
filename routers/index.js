@@ -8,6 +8,8 @@ const statisticRouter = require("./statisticRouter");
 const contentTrackRouter = require("./contentTrackRouter");
 const contactFormRouter = require("./contactFormRouter");
 const logger = require("../utils/logger");
+const { uploadSingleFile } = require("../middleware/multerMiddleware");
+const { protect } = require("../middleware/authMiddleware");
 
 router.use("/test", (req, res) => {
   res.send("Test route is working");
@@ -19,6 +21,15 @@ router.use("/portfolios", portfolioRouters);
 router.use("/statistic", statisticRouter);
 router.use("/content-tracking", contentTrackRouter);
 router.use("/contact-form", contactFormRouter);
+router.use("/upload/image/", protect, uploadSingleFile("image"), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ message: "No image file uploaded." });
+  }
+  res.status(200).json({
+    message: "Image uploaded successfully.",
+    url: req.fileUrl,
+  });
+});
 
 router.get("/health/redis", async (req, res) => {
   try {

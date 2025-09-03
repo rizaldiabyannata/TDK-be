@@ -60,8 +60,13 @@ const getAllPortos = async (req, res) => {
     const searchTerm = req.query.search
       ? sanitizeMongoQuery(req.query.search)
       : "";
-    const status = req.query.status || "active";
+    let status = req.query.status || "active";
     const skip = (page - 1) * limit;
+
+    // Jika pengguna tidak terotentikasi, paksa status menjadi 'active'
+    if (!req.user) {
+      status = "active";
+    }
 
     const filter = {};
     if (status === "active") {

@@ -26,7 +26,7 @@ const { sanitizeParams } = require("../middleware/validationMiddleware");
  * @desc    Dapatkan semua artikel blog dengan filter
  * @access  Publik
  */
-router.get("/", getAllBlogs);
+router.get("/", optionalAuth, getAllBlogs);
 
 /**
  * @route   GET /api/blogs/archives

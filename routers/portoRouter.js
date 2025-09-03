@@ -26,7 +26,7 @@ const { sanitizeParams } = require("../middleware/validationMiddleware");
  * @desc    Dapatkan semua item portofolio dengan filter (status, search, pagination)
  * @access  Publik
  */
-router.get("/", getAllPortos);
+router.get("/", optionalAuth, getAllPortos);
 
 /**
  * @route   GET /api/portos/archives

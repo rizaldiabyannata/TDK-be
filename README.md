@@ -104,6 +104,18 @@ This is a backend boilerplate built with Express.js, MongoDB, and Redis. It prov
   ```
   The application will be accessible at `http://localhost:5000`.
 
+## 🧪 Testing
+
+This project includes a basic smoke test to verify that the application server is running correctly after deployment.
+
+To run the test, first ensure the application is running (e.g., with `docker-compose up`), then execute:
+
+```bash
+bun test
+```
+
+The script will ping the `/api/runtime` endpoint and exit with a success code if the server responds with a `200 OK`.
+
 ## 📂 Project Structure
 
 ```

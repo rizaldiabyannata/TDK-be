@@ -6,7 +6,7 @@
     "dev": "bun --hot index.js",
     "start": "bun index.js",
     "create-index": "bun ./maintain/create-indexes.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "bun test/smoke-test.js"
   },
   "keywords": [],
   "author": "",

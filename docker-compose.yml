@@ -38,7 +38,7 @@ services:
     container_name: app-tdk
     restart: always
     ports:
-      - "3000:3000"
+      - "5000:5000"
     networks:
       - app-network
 

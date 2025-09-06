@@ -8,10 +8,6 @@ const { default: slugify } = require("slugify");
 const CACHE_KEY_PREFIX_PORTO = "porto:";
 const CACHE_KEY_ARCHIVE = "portoArchive";
 
-const sanitizeMongoQuery = (str) => {
-  return str.replace(/[$}{]/g, "");
-};
-
 const getFromDbOrCache = async (cacheKey, dbQuery) => {
   if (await redisClient.isConnected()) {
     const cachedData = await redisClient.get(cacheKey);
@@ -57,9 +53,7 @@ const getAllPortos = async (req, res) => {
     const page = parseInt(req.query.page, 10) || 1;
     const limit = parseInt(req.query.limit, 10) || 10;
 
-    const searchTerm = req.query.search
-      ? sanitizeMongoQuery(req.query.search)
-      : "";
+    const searchTerm = req.query.search || "";
     let status = req.query.status || "active";
     const skip = (page - 1) * limit;
 
@@ -76,16 +70,7 @@ const getAllPortos = async (req, res) => {
     }
 
     if (searchTerm) {
-      const safeRegex = new RegExp(
-        // eslint-disable-next-line no-useless-escape
-        searchTerm.replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&"),
-        "i"
-      );
-      filter.$or = [
-        { title: { $regex: safeRegex } },
-        { description: { $regex: safeRegex } },
-        { shortDescription: { $regex: safeRegex } },
-      ];
+      filter.$text = { $search: searchTerm };
     }
 
     const [portos, totalPortos] = await Promise.all([

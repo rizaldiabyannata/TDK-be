@@ -1,126 +1,64 @@
 const redisClient = require("../config/redisConfig");
 const logger = require("../utils/logger");
-const Blog = require("../models/BlogModel");
-const Porto = require("../models/PortoModel");
-
-const models = {
-  Blog: Blog,
-  Portfolio: Porto,
-};
 
 /**
- * Middleware untuk melacak total, unique, dan riwayat harian sebuah konten.
- * @param {'Blog' | 'Portfolio'} type - Tipe konten yang akan dilacak.
+ * Middleware to track views using Redis for high performance.
+ * This middleware no longer writes to MongoDB directly to avoid performance bottlenecks.
+ * A separate background worker is required to periodically persist these counts from Redis to MongoDB.
+ *
+ * @param {'Blog' | 'Portfolio'} type - The type of content to track.
  */
 const trackView = (type) => {
   return async (req, res, next) => {
+    // 1. Skip tracking for logged-in admins
     if (req.user) {
-      logger.debug(
-        `[Tracker] Akses oleh admin terdeteksi. Pelacakan view dilewati.`
-      );
-      return next();
-    }
-
-    const Model = models[type];
-    if (!Model) {
-      logger.warn(`Tipe model tidak valid di viewTracker: ${type}`);
       return next();
     }
 
     const { slug } = req.params;
-    const ip = req.headers["x-forwarded-for"] || req.ip;
-
-    logger.debug(
-      `[Tracker] Memulai pelacakan untuk tipe: ${type}, slug: ${slug}, IP: ${ip}`
-    );
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    try {
-      logger.debug(
-        `[Tracker] Menggunakan tanggal untuk query: ${today.toISOString()}`
-      );
-
-      const updateResult = await Model.updateOne(
-        { slug: slug, "viewHistory.date": today },
-        {
-          $inc: {
-            "views.total": 1,
-            "viewHistory.$.count": 1,
-          },
-        }
-      );
-
-      logger.debug(
-        `[Tracker] Hasil update riwayat yang ada: modifiedCount = ${updateResult.modifiedCount}, matchedCount = ${updateResult.matchedCount}`
-      );
-
-      if (updateResult.modifiedCount === 0) {
-        logger.debug(
-          `[Tracker] Riwayat untuk hari ini tidak ditemukan, mencoba membuat entri baru.`
-        );
-        const pushResult = await Model.updateOne(
-          { slug: slug, "viewHistory.date": { $ne: today } },
-          {
-            $inc: { "views.total": 1 },
-            $push: {
-              viewHistory: { date: today, count: 1 },
-            },
-          }
-        );
-        logger.debug(
-          `[Tracker] Hasil pembuatan entri baru: modifiedCount = ${pushResult.modifiedCount}, matchedCount = ${pushResult.matchedCount}`
-        );
-      } else {
-        logger.debug(
-          `[Tracker] Berhasil memperbarui riwayat yang ada untuk slug: ${slug}`
-        );
-      }
-    } catch (error) {
-      logger.error(
-        `[Tracker] Gagal memperbarui riwayat penayangan untuk ${slug}: ${error.message}`
-      );
-    }
-
-    if (!(await redisClient.isConnected())) {
-      logger.warn(
-        `[Tracker] Redis client tidak siap, pelacakan unique view untuk ${slug} dilewati.`
-      );
+    if (!slug) {
       return next();
     }
 
-    const redisKey = `view:${type}:${slug}:${ip}`;
-    logger.debug(
-      `[Tracker] Menggunakan kunci Redis untuk unique view: ${redisKey}`
+    // 2. Check if Redis is available, if not, skip tracking
+    if (!(await redisClient.isConnected())) {
+      logger.warn(`[Tracker] Redis client not ready, view tracking for ${slug} skipped.`);
+      return next();
+    }
+
+    const ip = req.headers["x-forwarded-for"] || req.ip;
+    const dateStr = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+
+    // --- Fire-and-forget Redis operations for performance ---
+
+    // 3. Increment total view count
+    redisClient.incr(`views:${type}:${slug}:total`).catch(err =>
+      logger.error(`[Tracker] Failed to INCR total views for ${slug}: ${err.message}`)
     );
 
-    try {
-      const keyExists = await redisClient.get(redisKey);
-      logger.debug(
-        `[Tracker] Apakah kunci '${redisKey}' ada di Redis? -> ${
-          keyExists ? "Ya" : "Tidak"
-        }`
-      );
+    // 4. Increment daily view count
+    redisClient.incr(`views:${type}:${slug}:daily:${dateStr}`).catch(err =>
+      logger.error(`[Tracker] Failed to INCR daily views for ${slug}: ${err.message}`)
+    );
 
-      if (!keyExists) {
-        logger.info(
-          `[Tracker] Unique view terdeteksi untuk ${type} ${slug}. Memperbarui database.`
+    // 5. Handle unique view tracking
+    const uniqueIpKey = `unique_ip:${type}:${slug}:${ip}`;
+    try {
+      const alreadyViewed = await redisClient.get(uniqueIpKey);
+
+      if (!alreadyViewed) {
+        // This is a unique view for this IP in the last 24 hours.
+        // Set the key to prevent another unique view count from this IP for 24 hours.
+        redisClient.set(uniqueIpKey, "1", { EX: 86400 }); // 86400 seconds = 24 hours
+
+        // Increment the unique view counter.
+        redisClient.incr(`views:${type}:${slug}:unique`).catch(err =>
+          logger.error(`[Tracker] Failed to INCR unique views for ${slug}: ${err.message}`)
         );
-        await Model.updateOne({ slug }, { $inc: { "views.unique": 1 } });
-        await redisClient.set(redisKey, "1", { EX: 86400 });
-        logger.info(
-          `[Tracker] Unique view berhasil dicatat untuk ${type} ${slug} dari IP ${ip}`
-        );
-      } else {
-        logger.debug(
-          `[Tracker] Bukan unique view untuk ${type} ${slug} dari IP ${ip}. Melanjutkan.`
-        );
+        logger.info(`[Tracker] Unique view recorded for ${type} ${slug} from IP ${ip}`);
       }
     } catch (error) {
-      logger.error(
-        `[Tracker] Error saat melacak unique view di Redis untuk ${slug}: ${error.message}`
-      );
+      logger.error(`[Tracker] Error during unique view tracking for ${slug}: ${error.message}`);
     }
 
     next();

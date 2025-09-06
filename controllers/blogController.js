@@ -8,10 +8,6 @@ const { default: slugify } = require("slugify");
 const CACHE_KEY_PREFIX_BLOG = "blog:";
 const CACHE_KEY_ARCHIVE = "blogArchive";
 
-const sanitizeMongoQuery = (str) => {
-  return str.replace(/[$}{]/g, "");
-};
-
 const getFromDbOrCache = async (cacheKey, dbQuery) => {
   if (await redisClient.isConnected()) {
     const cachedData = await redisClient.get(cacheKey);
@@ -59,9 +55,7 @@ const getAllBlogs = async (req, res) => {
     const page = parseInt(req.query.page, 10) || 1;
     const limit = parseInt(req.query.limit, 10) || 5;
 
-    const searchTerm = req.query.search
-      ? sanitizeMongoQuery(req.query.search)
-      : "";
+    const searchTerm = req.query.search || "";
     let status = req.query.status || "active";
     const skip = (page - 1) * limit;
 
@@ -78,15 +72,7 @@ const getAllBlogs = async (req, res) => {
     }
 
     if (searchTerm) {
-      const safeRegex = new RegExp(
-        // eslint-disable-next-line no-useless-escape
-        searchTerm.replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&"),
-        "i"
-      );
-      filter.$or = [
-        { title: { $regex: safeRegex } },
-        { content: { $regex: safeRegex } },
-      ];
+      filter.$text = { $search: searchTerm };
     }
 
     const [blogs, totalBlogs] = await Promise.all([

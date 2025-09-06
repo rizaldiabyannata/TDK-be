@@ -21,10 +21,16 @@ if (process.env.BUN_ENV === "production") {
 
 import logger, { warn, info, error as logError } from "./utils/logger.js";
 
-const logsDir = path.join(__dirname, "logs");
+
+// Pastikan folder logs di utils/logs
+const logsDir = path.join(__dirname, "utils", "logs");
 if (!fs.existsSync(logsDir)) fs.mkdirSync(logsDir, { recursive: true });
-const uploadsDir = path.join(__dirname, "uploads");
+
+// Pastikan folder public/uploads/images
+const uploadsDir = path.join(__dirname, "public", "uploads");
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+const imagesDir = path.join(uploadsDir, "images");
+if (!fs.existsSync(imagesDir)) fs.mkdirSync(imagesDir, { recursive: true });
 
 import seedAdmin from "./seeder/seedAdmin.js";
 import connectDB from "./config/db.js";

@@ -9,7 +9,7 @@ WORKDIR /usr/src/app
 COPY package.json bun.lockb ./
 
 # Install dependencies with strict lockfile
-RUN bun install --frozen-lockfile
+RUN bun install
 
 # Copy the rest of the application code
 COPY . .
@@ -27,9 +27,10 @@ RUN addgroup --system appgroup && adduser --system --ingroup appgroup --no-creat
 # Copy built app and dependencies from builder stage
 COPY --from=builder /usr/src/app ./
 
+
 # Create uploads and logs directories with correct ownership
-RUN mkdir -p uploads logs && \
-    chown -R appuser:appgroup /usr/src/app uploads logs
+RUN mkdir -p public/uploads/images utils/logs && \
+    chown -R appuser:appgroup /usr/src/app public/uploads utils/logs
 
 USER appuser
 

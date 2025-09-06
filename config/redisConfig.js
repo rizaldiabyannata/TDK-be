@@ -1,5 +1,5 @@
-const redis = require("redis");
-const logger = require("../utils/logger");
+import redis from "redis";
+import logger from "../utils/logger.js";
 
 let redisAvailable = false;
 let reconnectAttempts = 0;
@@ -290,4 +290,4 @@ const redisClient = {
   },
 };
 
-module.exports = redisClient;
+export default redisClient;

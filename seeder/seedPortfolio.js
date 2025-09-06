@@ -1,6 +1,6 @@
-const dotenv = require("dotenv");
-const connectDB = require("../config/db"); // Pastikan path ini benar
-const Porto = require("../models/PortoModel"); // Pastikan path ini benar
+import dotenv from "dotenv";
+import connectDB from "../config/db.js"; // Pastikan path ini benar
+import Porto from "../models/PortoModel.js"; // Pastikan path ini benar
 
 // Konfigurasi environment variables
 dotenv.config();

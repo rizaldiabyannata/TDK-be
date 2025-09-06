@@ -1,9 +1,9 @@
-const express = require("express");
+import express from "express";
 const router = express.Router();
-const { param } = require("express-validator");
+import { param } from "express-validator";
 
 // Impor fungsi controller dan middleware yang diperlukan
-const {
+import {
   getAllBlogs,
   getBlogArchive,
   getBlogBySlug,
@@ -12,15 +12,15 @@ const {
   deleteBlog,
   archiveBlog,
   unarchiveBlog,
-} = require("../controllers/blogController");
-const { protect, optionalAuth } = require("../middleware/authMiddleware");
-const { trackView } = require("../middleware/viewTracker");
-const {
+} from "../controllers/blogController.js";
+import { protect, optionalAuth } from "../middleware/authMiddleware.js";
+import { trackView } from "../middleware/viewTracker.js";
+import {
   uploadSingleFile,
   convertToWebp,
   uploadSingleFileOptional,
-} = require("../middleware/multerMiddleware");
-const { validate } = require("../middleware/validationMiddleware");
+} from "../middleware/multerMiddleware.js";
+import { validate } from "../middleware/validationMiddleware.js";
 
 const slugValidation = [param("slug").isSlug(), validate];
 
@@ -99,4 +99,4 @@ router.put(
  */
 router.delete("/:slug", protect, slugValidation, deleteBlog);
 
-module.exports = router;
+export default router;

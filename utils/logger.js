@@ -1,5 +1,10 @@
-const winston = require("winston");
-const path = require("path");
+import winston from "winston";
+import path from "path";
+import { fileURLToPath } from "url";
+
+// Menyesuaikan __dirname untuk ES Modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Mendapatkan environment
 const ENV = process.env.BUN_ENV || "development";
@@ -54,4 +59,4 @@ if (ENV === "production") {
   );
 }
 
-module.exports = logger;
+export default logger;

@@ -1,8 +1,8 @@
 // maintain/fix-data.js
-const mongoose = require("mongoose");
-const dotenv = require("dotenv");
-const Blog = require("../models/BlogModel"); // Sesuaikan path ke model Anda
-const logger = require("../utils/logger"); // Gunakan logger untuk melacak progres
+import mongoose from "mongoose";
+import dotenv from "dotenv";
+import Blog from "../models/BlogModel.js"; // Sesuaikan path ke model Anda
+import logger from "../utils/logger.js"; // Gunakan logger untuk melacak progres
 
 // Muat environment variables dari file .env
 dotenv.config();

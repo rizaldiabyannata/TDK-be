@@ -1,6 +1,6 @@
-const multer = require("multer");
-const logger = require("../utils/logger");
-const imageService = require("../services/imageService");
+import multer from "multer";
+import logger from "../utils/logger.js";
+import * as imageService from "../services/imageService.js";
 
 const storage = multer.memoryStorage();
 
@@ -22,7 +22,7 @@ const upload = multer({
  * Middleware untuk menangani upload satu file (wajib ada).
  * @param {string} fieldName - Nama field dari form-data.
  */
-const uploadSingleFile = (fieldName) => (req, res, next) => {
+export const uploadSingleFile = (fieldName) => (req, res, next) => {
   upload.single(fieldName)(req, res, (err) => {
     if (err) {
       logger.error(`Error upload file tunggal: ${err.message}`);
@@ -43,7 +43,7 @@ const uploadSingleFile = (fieldName) => (req, res, next) => {
  * Jika tidak ada file, middleware akan lanjut tanpa error.
  * @param {string} fieldName - Nama field dari form-data.
  */
-const uploadSingleFileOptional = (fieldName) => (req, res, next) => {
+export const uploadSingleFileOptional = (fieldName) => (req, res, next) => {
   upload.single(fieldName)(req, res, (err) => {
     if (err) {
       logger.error(`Error upload file opsional: ${err.message}`);
@@ -59,7 +59,7 @@ const uploadSingleFileOptional = (fieldName) => (req, res, next) => {
  * @param {string} fieldName - Nama field dari form-data.
  * @param {number} maxCount - Jumlah maksimum file.
  */
-const uploadMultipleFiles =
+export const uploadMultipleFiles =
   (fieldName, maxCount = 5) =>
   (req, res, next) => {
     upload.array(fieldName, maxCount)(req, res, (err) => {
@@ -77,7 +77,7 @@ const uploadMultipleFiles =
  * Middleware untuk menangani upload file dari beberapa field.
  * @param {Array<object>} fields - Konfigurasi field [{ name: 'avatar', maxCount: 1 }, ...].
  */
-const uploadFields = (fields) => (req, res, next) => {
+export const uploadFields = (fields) => (req, res, next) => {
   upload.fields(fields)(req, res, (err) => {
     if (err) {
       logger.error(`Error upload fields: ${err.message}`);
@@ -91,7 +91,7 @@ const uploadFields = (fields) => (req, res, next) => {
  * Middleware untuk mengonversi gambar yang di-upload ke format WebP.
  * Dijalankan setelah middleware upload.
  */
-const convertToWebp = async (req, res, next) => {
+export const convertToWebp = async (req, res, next) => {
   if (!req.file && !req.files) {
     return next();
   }
@@ -127,10 +127,3 @@ const convertToWebp = async (req, res, next) => {
   }
 };
 
-module.exports = {
-  uploadSingleFile,
-  uploadSingleFileOptional,
-  uploadMultipleFiles,
-  uploadFields,
-  convertToWebp,
-};

@@ -1,9 +1,9 @@
-const Blog = require("../models/BlogModel");
-const redisClient = require("../config/redisConfig");
-const logger = require("../utils/logger");
-const imageService = require("../services/imageService");
-const { sanitizeRichText } = require("../services/sanitizerService");
-const { default: slugify } = require("slugify");
+import Blog from "../models/BlogModel.js";
+import redisClient from "../config/redisConfig.js";
+import logger from "../utils/logger.js";
+import * as imageService from "../services/imageService.js";
+import { sanitizeRichText } from "../services/sanitizerService.js";
+import slugify from "slugify";
 
 const CACHE_KEY_PREFIX_BLOG = "blog:";
 const CACHE_KEY_ARCHIVE = "blogArchive";
@@ -50,7 +50,7 @@ const invalidateBlogCache = async (slug = null) => {
   }
 };
 
-const getAllBlogs = async (req, res) => {
+export const getAllBlogs = async (req, res) => {
   try {
     const page = parseInt(req.query.page, 10) || 1;
     const limit = parseInt(req.query.limit, 10) || 5;
@@ -97,7 +97,7 @@ const getAllBlogs = async (req, res) => {
   }
 };
 
-const getBlogArchive = async (req, res) => {
+export const getBlogArchive = async (req, res) => {
   try {
     const archives = await getFromDbOrCache(CACHE_KEY_ARCHIVE, () =>
       Blog.aggregate([
@@ -148,7 +148,7 @@ const getBlogArchive = async (req, res) => {
   }
 };
 
-const getBlogBySlug = async (req, res) => {
+export const getBlogBySlug = async (req, res) => {
   const { slug } = req.params;
   try {
     let blog;
@@ -188,7 +188,7 @@ const getBlogBySlug = async (req, res) => {
   }
 };
 
-const createBlog = async (req, res) => {
+export const createBlog = async (req, res) => {
   const sanitizedData = sanitizeRichText(req.body);
   const { title, content } = sanitizedData;
 
@@ -227,7 +227,7 @@ const createBlog = async (req, res) => {
   }
 };
 
-const updateBlog = async (req, res) => {
+export const updateBlog = async (req, res) => {
   const { slug } = req.params;
 
   try {
@@ -282,7 +282,7 @@ const updateBlog = async (req, res) => {
   }
 };
 
-const deleteBlog = async (req, res) => {
+export const deleteBlog = async (req, res) => {
   const { slug } = req.params;
   try {
     const blog = await Blog.findOne({ slug });
@@ -302,7 +302,7 @@ const deleteBlog = async (req, res) => {
   }
 };
 
-const archiveBlog = async (req, res) => {
+export const archiveBlog = async (req, res) => {
   const { slug } = req.params;
   try {
     const updatedBlog = await Blog.findOneAndUpdate(
@@ -333,7 +333,7 @@ const archiveBlog = async (req, res) => {
   }
 };
 
-const unarchiveBlog = async (req, res) => {
+export const unarchiveBlog = async (req, res) => {
   const { slug } = req.params;
   try {
     const updatedBlog = await Blog.findOneAndUpdate(
@@ -364,13 +364,3 @@ const unarchiveBlog = async (req, res) => {
   }
 };
 
-module.exports = {
-  getAllBlogs,
-  getBlogArchive,
-  getBlogBySlug,
-  createBlog,
-  updateBlog,
-  deleteBlog,
-  archiveBlog,
-  unarchiveBlog,
-};

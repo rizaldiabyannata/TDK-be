@@ -1,12 +1,17 @@
-const express = require("express");
-const cors = require("cors");
-const dotenv = require("dotenv");
-const cookieParser = require("cookie-parser");
-const morgan = require("morgan");
-const fs = require("fs");
-const path = require("path");
-const helmet = require("helmet");
-const mongoose = require("mongoose");
+import express from "express";
+import cors from "cors";
+import dotenv from "dotenv";
+import cookieParser from "cookie-parser";
+import morgan from "morgan";
+import fs from "fs";
+import path from "path";
+import helmet from "helmet";
+import mongoose from "mongoose";
+import { fileURLToPath } from "url";
+
+// Menyesuaikan __dirname untuk ES Modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 dotenv.config();
 
@@ -14,16 +19,16 @@ if (process.env.BUN_ENV === "production") {
   console.log = () => {};
 }
 
-const logger = require("./utils/logger");
+import logger from "./utils/logger.js";
 
 const logsDir = path.join(__dirname, "logs");
 if (!fs.existsSync(logsDir)) fs.mkdirSync(logsDir, { recursive: true });
 const uploadsDir = path.join(__dirname, "uploads");
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 
-const seedAdmin = require("./seeder/seedAdmin");
-const connectDB = require("./config/db");
-const routes = require("./routers/index");
+import seedAdmin from "./seeder/seedAdmin.js";
+import connectDB from "./config/db.js";
+import routes from "./routers/index.js";
 
 const app = express();
 
@@ -124,4 +129,4 @@ const startServer = async () => {
 
 startServer();
 
-module.exports = app;
+export default app;

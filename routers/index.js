@@ -1,15 +1,15 @@
-const express = require("express");
+import express from "express";
 const router = express.Router();
-const userRouters = require("./userRouter");
-const { testRedisConnection } = require("../test/test-redis-connection");
-const blogRouters = require("./blogRouter");
-const portfolioRouters = require("./portoRouter");
-const statisticRouter = require("./statisticRouter");
-const contentTrackRouter = require("./contentTrackRouter");
-const contactFormRouter = require("./contactFormRouter");
-const logger = require("../utils/logger");
-const { uploadSingleFile } = require("../middleware/multerMiddleware");
-const { protect } = require("../middleware/authMiddleware");
+import userRouters from "./userRouter.js";
+import { testRedisConnection } from "../test/test-redis-connection.js";
+import blogRouters from "./blogRouter.js";
+import portfolioRouters from "./portoRouter.js";
+import statisticRouter from "./statisticRouter.js";
+import contentTrackRouter from "./contentTrackRouter.js";
+import contactFormRouter from "./contactFormRouter.js";
+import logger from "../utils/logger.js";
+import { uploadSingleFile } from "../middleware/multerMiddleware.js";
+import { protect } from "../middleware/authMiddleware.js";
 
 router.use("/test", (req, res) => {
   res.send("Test route is working");
@@ -60,4 +60,4 @@ router.get("/health/redis", async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

@@ -2,6 +2,7 @@
   "name": "template-expressjs",
   "version": "1.0.0",
   "main": "index.js",
+  "type": "module",
   "scripts": {
     "dev": "bun --hot index.js",
     "start": "node index.js",

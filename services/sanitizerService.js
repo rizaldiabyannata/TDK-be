@@ -1,6 +1,6 @@
-const createDOMPurify = require("dompurify");
-const { JSDOM } = require("jsdom");
-const logger = require("../utils/logger");
+import createDOMPurify from "dompurify";
+import { JSDOM } from "jsdom";
+import logger from "../utils/logger.js";
 
 // Buat instance JSDOM untuk menyediakan lingkungan 'window' di server
 const window = new JSDOM("").window;
@@ -13,7 +13,7 @@ logger.info("Sanitizer service initialized.");
  * @param {object} data - Objek yang akan disanitasi (misalnya, req.body).
  * @returns {object} Objek dengan field rich text yang sudah bersih.
  */
-const sanitizeRichText = (data) => {
+export const sanitizeRichText = (data) => {
   if (!data || typeof data !== "object") {
     return data;
   }
@@ -40,8 +40,4 @@ const sanitizeRichText = (data) => {
   }
 
   return sanitizedData;
-};
-
-module.exports = {
-  sanitizeRichText,
 };

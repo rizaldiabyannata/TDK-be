@@ -1,8 +1,9 @@
 // test-redis-connection.js
-const redisClient = require("../config/redisConfig");
-const logger = require("../utils/logger"); // Adjust the path as needed
+import redisClient from "../config/redisConfig.js";
+import logger from "../utils/logger.js"; // Adjust the path as needed
+import { fileURLToPath } from "url";
 
-async function testRedisConnection() {
+export async function testRedisConnection() {
   try {
     // Set a test value
     await redisClient.set("test-connection", "success", 60); // 60 seconds expiry
@@ -29,18 +30,23 @@ async function testRedisConnection() {
   }
 }
 
-// Export for use in other files
-module.exports = { testRedisConnection };
-
 // Or run directly if this is a standalone script
-if (require.main === module) {
+const currentFileUrl = import.meta.url;
+if (
+  process.argv[1] === fileURLToPath(currentFileUrl) ||
+  process.argv[1].endsWith("test/test-redis-connection.js")
+) {
   testRedisConnection()
     .then((success) => {
       console.log(`Redis test ${success ? "PASSED" : "FAILED"}`);
-      process.exit(success ? 0 : 1);
+      return redisClient.quit(); // Gracefully close connection
+    })
+    .then(() => {
+      process.exit(0);
     })
     .catch((err) => {
       console.error("Test error:", err);
+      redisClient.quit();
       process.exit(1);
     });
 }

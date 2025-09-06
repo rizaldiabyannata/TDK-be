@@ -1,11 +1,11 @@
-const Portfolio = require("../models/PortoModel");
-const Blog = require("../models/BlogModel");
-const logger = require("../utils/logger");
-const redisClient = require("../config/redisConfig");
+import Portfolio from "../models/PortoModel.js";
+import Blog from "../models/BlogModel.js";
+import logger from "../utils/logger.js";
+import redisClient from "../config/redisConfig.js";
 
 const DASHBOARD_CACHE_KEY = "dashboard_stats";
 
-const getDashboardStats = async (req, res) => {
+export const getDashboardStats = async (req, res) => {
   try {
     // 1. Check for cached data first
     if (await redisClient.isConnected()) {
@@ -190,8 +190,4 @@ const getDashboardStats = async (req, res) => {
       .status(500)
       .json({ message: "An internal server error occurred." });
   }
-};
-
-module.exports = {
-  getDashboardStats,
 };

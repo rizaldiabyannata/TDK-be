@@ -1,7 +1,7 @@
-const { body } = require('express-validator');
+import { body } from 'express-validator';
 
 // Aturan untuk rute login
-const loginRules = () => {
+export const loginRules = () => {
   return [
     body('name').notEmpty().withMessage('Name field is required.'),
     body('password').notEmpty().withMessage('Password field is required.'),
@@ -9,7 +9,7 @@ const loginRules = () => {
 };
 
 // Aturan untuk rute reset password
-const resetPasswordRules = () => {
+export const resetPasswordRules = () => {
   return [
     body('otp')
       .isLength({ min: 6, max: 6 }).withMessage('OTP must be 6 digits long.')
@@ -22,7 +22,7 @@ const resetPasswordRules = () => {
 };
 
 // Aturan untuk rute update user (misalnya, email)
-const updateUserRules = () => {
+export const updateUserRules = () => {
     return [
       body('email')
         .optional() // Membuat field ini tidak wajib
@@ -30,9 +30,3 @@ const updateUserRules = () => {
         .normalizeEmail(), // Membersihkan email (misal: menghapus titik di gmail)
     ];
   };
-
-module.exports = {
-  loginRules,
-  resetPasswordRules,
-  updateUserRules,
-};

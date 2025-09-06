@@ -1,9 +1,9 @@
-const User = require("../models/UserModel");
-const logger = require("../utils/logger");
-const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
-const otpService = require("../utils/otpService");
-const redisClient = require("../config/redisConfig");
+import User from "../models/UserModel.js";
+import logger from "../utils/logger.js";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+import * as otpService from "../utils/otpService.js";
+import redisClient from "../config/redisConfig.js";
 
 const generateTokens = (user) => {
   const accessToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
@@ -21,7 +21,7 @@ const generateTokens = (user) => {
   return { accessToken, refreshToken };
 };
 
-const loginUser = async (req, res) => {
+export const loginUser = async (req, res) => {
   const { name, password } = req.body;
   const ip = req.ip;
   const key = `login_attempts:${ip}`;
@@ -87,7 +87,7 @@ const loginUser = async (req, res) => {
   }
 };
 
-const refreshToken = async (req, res) => {
+export const refreshToken = async (req, res) => {
   const oldRefreshToken = req.cookies.refreshToken;
 
   if (!oldRefreshToken) {
@@ -143,7 +143,7 @@ const refreshToken = async (req, res) => {
   }
 };
 
-const logoutUser = async (req, res) => {
+export const logoutUser = async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith("Bearer ")) {
@@ -182,7 +182,7 @@ const logoutUser = async (req, res) => {
   }
 };
 
-const getUserProfile = async (req, res) => {
+export const getUserProfile = async (req, res) => {
   try {
     const user = req.user;
 
@@ -204,7 +204,7 @@ const getUserProfile = async (req, res) => {
   }
 };
 
-const updateUser = async (req, res) => {
+export const updateUser = async (req, res) => {
   try {
     const userId = req.user._id;
     const { email } = req.body;
@@ -246,7 +246,7 @@ const updateUser = async (req, res) => {
   }
 };
 
-const requestPasswordResetOTP = async (req, res) => {
+export const requestPasswordResetOTP = async (req, res) => {
   try {
     const email = req.user.email;
 
@@ -280,7 +280,7 @@ const requestPasswordResetOTP = async (req, res) => {
   }
 };
 
-const verifyOTPAndResetPassword = async (req, res) => {
+export const verifyOTPAndResetPassword = async (req, res) => {
   try {
     const email = req.user.email;
     const { otp, newPassword } = req.body;
@@ -322,12 +322,3 @@ const verifyOTPAndResetPassword = async (req, res) => {
   }
 };
 
-module.exports = {
-  loginUser,
-  getUserProfile,
-  refreshToken,
-  updateUser,
-  requestPasswordResetOTP,
-  verifyOTPAndResetPassword,
-  logoutUser,
-};

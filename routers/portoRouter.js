@@ -1,8 +1,8 @@
-const express = require("express");
+import express from "express";
 const router = express.Router();
-const { param } = require("express-validator");
+import { param } from "express-validator";
 
-const {
+import {
   getAllPortos,
   getPortoArchive,
   getPortoBySlug,
@@ -11,16 +11,16 @@ const {
   deletePorto,
   archivePorto,
   unarchivePorto,
-} = require("../controllers/portoController");
+} from "../controllers/portoController.js";
 
-const { protect, optionalAuth } = require("../middleware/authMiddleware");
-const { trackView } = require("../middleware/viewTracker");
-const {
+import { protect, optionalAuth } from "../middleware/authMiddleware.js";
+import { trackView } from "../middleware/viewTracker.js";
+import {
   uploadSingleFile,
   uploadSingleFileOptional,
   convertToWebp,
-} = require("../middleware/multerMiddleware");
-const { validate } = require("../middleware/validationMiddleware");
+} from "../middleware/multerMiddleware.js";
+import { validate } from "../middleware/validationMiddleware.js";
 
 const slugValidation = [param("slug").isSlug(), validate];
 
@@ -99,4 +99,4 @@ router.put(
  */
 router.delete("/:slug", protect, slugValidation, deletePorto);
 
-module.exports = router;
+export default router;

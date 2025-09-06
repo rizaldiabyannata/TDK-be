@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
 
 const homePageContentSchema = new mongoose.Schema({
   featuredBlogs: [
@@ -20,4 +20,4 @@ const homePageContentSchema = new mongoose.Schema({
 });
 
 const HomePageContent = mongoose.model("PageContent", homePageContentSchema);
-module.exports = HomePageContent;
+export default HomePageContent;

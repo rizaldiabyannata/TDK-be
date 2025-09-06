@@ -1,7 +1,7 @@
-const ContactForm = require("../models/ContactFormModel");
-const logger = require("../utils/logger");
+import ContactForm from "../models/ContactFormModel.js";
+import logger from "../utils/logger.js";
 
-const submitContactForm = async (req, res) => {
+export const submitContactForm = async (req, res) => {
   const { name, email, message } = req.body;
 
   if (!name || !email || !message) {
@@ -31,7 +31,7 @@ const submitContactForm = async (req, res) => {
   }
 };
 
-const getAllContactForms = async (req, res) => {
+export const getAllContactForms = async (req, res) => {
   try {
     const contactForms = await ContactForm.find().sort({ createdAt: -1 });
 
@@ -45,5 +45,3 @@ const getAllContactForms = async (req, res) => {
       .json({ message: "An internal server error occurred." });
   }
 };
-
-module.exports = { submitContactForm, getAllContactForms };

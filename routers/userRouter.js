@@ -1,8 +1,8 @@
-const express = require("express");
+import express from "express";
 const router = express.Router();
-const rateLimit = require("express-rate-limit");
+import rateLimit from "express-rate-limit";
 
-const {
+import {
   loginUser,
   refreshToken,
   getUserProfile,
@@ -10,16 +10,16 @@ const {
   requestPasswordResetOTP,
   verifyOTPAndResetPassword,
   logoutUser,
-} = require("../controllers/userController");
-const { protect } = require("../middleware/authMiddleware");
-const { validate } = require("../middleware/validationMiddleware");
-const {
+} from "../controllers/userController.js";
+import { protect } from "../middleware/authMiddleware.js";
+import { validate } from "../middleware/validationMiddleware.js";
+import {
   loginRules,
   resetPasswordRules,
   updateUserRules,
-} = require("../validators/userValidators");
+} from "../validators/userValidators.js";
 
-const ipBlockMiddleware = require("../middleware/ipBlockMiddleware");
+import ipBlockMiddleware from "../middleware/ipBlockMiddleware.js";
 
 const strictLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -77,4 +77,4 @@ router.put(
 
 router.post("/logout", lenientLimiter, protect, logoutUser);
 
-module.exports = router;
+export default router;

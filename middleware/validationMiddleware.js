@@ -1,8 +1,8 @@
-const { validationResult } = require("express-validator");
-const logger = require("../utils/logger");
+import { validationResult } from "express-validator";
+import logger from "../utils/logger.js";
 
 // Middleware untuk menangani hasil dari aturan validasi express-validator
-const validate = (req, res, next) => {
+export const validate = (req, res, next) => {
   const errors = validationResult(req);
   if (errors.isEmpty()) {
     return next(); // Tidak ada error, lanjutkan ke controller
@@ -23,5 +23,3 @@ const validate = (req, res, next) => {
     errors: extractedErrors,
   });
 };
-
-module.exports = { validate };

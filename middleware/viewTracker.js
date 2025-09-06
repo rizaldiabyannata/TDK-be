@@ -1,5 +1,5 @@
-const redisClient = require("../config/redisConfig");
-const logger = require("../utils/logger");
+import redisClient from "../config/redisConfig.js";
+import logger from "../utils/logger.js";
 
 /**
  * Middleware to track views using Redis for high performance.
@@ -8,7 +8,7 @@ const logger = require("../utils/logger");
  *
  * @param {'Blog' | 'Portfolio'} type - The type of content to track.
  */
-const trackView = (type) => {
+export const trackView = (type) => {
   return async (req, res, next) => {
     // 1. Skip tracking for logged-in admins
     if (req.user) {
@@ -64,5 +64,3 @@ const trackView = (type) => {
     next();
   };
 };
-
-module.exports = { trackView };

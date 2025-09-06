@@ -1,5 +1,5 @@
-const mongoose = require("mongoose");
-const slugify = require("slugify");
+import mongoose from "mongoose";
+import slugify from "slugify";
 
 const portfolioSchema = new mongoose.Schema({
   title: {
@@ -81,4 +81,4 @@ portfolioSchema.index({ isArchived: 1, createdAt: -1 });
 
 const Portfolio = mongoose.model("Portfolio", portfolioSchema);
 
-module.exports = Portfolio;
+export default Portfolio;

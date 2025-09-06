@@ -1,7 +1,7 @@
-const nodemailer = require("nodemailer");
-const OtpModel = require("../models/OtpModel");
-const logger = require("./logger");
-const bcrypt = require("bcryptjs");
+import nodemailer from "nodemailer";
+import OtpModel from "../models/OtpModel.js";
+import logger from "./logger.js";
+import bcrypt from "bcryptjs";
 
 const transporter = nodemailer.createTransport({
   service: "gmail",
@@ -11,11 +11,11 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-const generateOTP = () => {
+export const generateOTP = () => {
   return Math.floor(100000 + Math.random() * 900000).toString();
 };
 
-const sendPasswordResetOTP = async (email, otp) => {
+export const sendPasswordResetOTP = async (email, otp) => {
   const subject = "Permintaan Reset Password Admin";
 
   // --- TEMPLATE HTML BARU ---
@@ -117,7 +117,7 @@ const sendPasswordResetOTP = async (email, otp) => {
   }
 };
 
-const createPasswordResetOTP = async (email) => {
+export const createPasswordResetOTP = async (email) => {
   try {
     const plainOTP = generateOTP();
 
@@ -144,7 +144,7 @@ const createPasswordResetOTP = async (email) => {
   }
 };
 
-const verifyPasswordResetOTP = async (email, plainOTP) => {
+export const verifyPasswordResetOTP = async (email, plainOTP) => {
   try {
     const otpRecords = await OtpModel.find({
       email,
@@ -172,7 +172,7 @@ const verifyPasswordResetOTP = async (email, plainOTP) => {
   }
 };
 
-const deleteOTP = async (otpId) => {
+export const deleteOTP = async (otpId) => {
   try {
     await OtpModel.deleteOne({ _id: otpId });
     return true;
@@ -180,12 +180,4 @@ const deleteOTP = async (otpId) => {
     logger.error(`Error deleting OTP: ${error.message}`);
     throw new Error(`Error deleting OTP: ${error.message}`);
   }
-};
-
-module.exports = {
-  generateOTP,
-  sendPasswordResetOTP,
-  createPasswordResetOTP,
-  verifyPasswordResetOTP,
-  deleteOTP,
 };

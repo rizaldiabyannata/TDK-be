@@ -1,6 +1,6 @@
-const bcrypt = require("bcryptjs");
-const User = require("../models/UserModel"); // Pastikan path ini benar
-const logger = require("../utils/logger"); // Gunakan logger standar untuk konsistensi
+import bcrypt from "bcryptjs";
+import User from "../models/UserModel.js"; // Pastikan path ini benar
+import logger from "../utils/logger.js"; // Gunakan logger standar untuk konsistensi
 
 // Konfigurasi Admin dari environment variables
 const adminConfig = {
@@ -44,4 +44,4 @@ const seedAdmin = async () => {
   }
 };
 
-module.exports = seedAdmin;
+export default seedAdmin;

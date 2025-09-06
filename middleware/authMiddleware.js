@@ -1,9 +1,9 @@
-const jwt = require("jsonwebtoken");
-const User = require("../models/UserModel");
-const logger = require("../utils/logger");
-const redisClient = require("../config/redisConfig");
+import jwt from "jsonwebtoken";
+import User from "../models/UserModel.js";
+import logger from "../utils/logger.js";
+import redisClient from "../config/redisConfig.js";
 
-const protect = async (req, res, next) => {
+export const protect = async (req, res, next) => {
   let token;
 
   if (req.cookies && req.cookies.accessToken) {
@@ -54,7 +54,7 @@ const protect = async (req, res, next) => {
   }
 };
 
-const authorize = () => {
+export const authorize = () => {
   return (req, res, next) => {
     if (!req.user) {
       return res.status(401).json({
@@ -67,7 +67,7 @@ const authorize = () => {
   };
 };
 
-const optionalAuth = async (req, res, next) => {
+export const optionalAuth = async (req, res, next) => {
   let token;
   if (req.cookies && req.cookies.accessToken) {
     token = req.cookies.accessToken;
@@ -91,5 +91,3 @@ const optionalAuth = async (req, res, next) => {
 
   next();
 };
-
-module.exports = { protect, authorize, optionalAuth };

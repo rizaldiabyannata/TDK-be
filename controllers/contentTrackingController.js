@@ -1,9 +1,9 @@
-const HomePageContent = require("../models/TrackingModel");
-const Blog = require("../models/BlogModel");
-const Portfolio = require("../models/PortoModel");
-const logger = require("../utils/logger");
-const mongoose = require("mongoose");
-const redisClient = require("../config/redisConfig");
+import HomePageContent from "../models/TrackingModel.js";
+import Blog from "../models/BlogModel.js";
+import Portfolio from "../models/PortoModel.js";
+import logger from "../utils/logger.js";
+import mongoose from "mongoose";
+import redisClient from "../config/redisConfig.js";
 
 const HOME_PAGE_CONTENT_CACHE_KEY = "home_page_content";
 const CACHE_EXPIRY_SECONDS_HOME = 300;
@@ -17,7 +17,7 @@ const clearHomePageContentCache = async () => {
   }
 };
 
-const getHomePageContent = async (req, res) => {
+export const getHomePageContent = async (req, res) => {
   try {
     const cachedData = await redisClient.get(HOME_PAGE_CONTENT_CACHE_KEY);
     if (cachedData) {
@@ -84,7 +84,7 @@ const getHomePageContent = async (req, res) => {
   }
 };
 
-const resetHomePageContent = async (req, res) => {
+export const resetHomePageContent = async (req, res) => {
   try {
     let homePageContent = await HomePageContent.findOne();
 
@@ -119,7 +119,7 @@ const resetHomePageContent = async (req, res) => {
   }
 };
 
-const addFeaturedBlog = async (req, res) => {
+export const addFeaturedBlog = async (req, res) => {
   try {
     const { blogId } = req.body;
 
@@ -185,7 +185,7 @@ const addFeaturedBlog = async (req, res) => {
   }
 };
 
-const removeFeaturedBlog = async (req, res) => {
+export const removeFeaturedBlog = async (req, res) => {
   try {
     const { blogId } = req.params;
 
@@ -240,7 +240,7 @@ const removeFeaturedBlog = async (req, res) => {
   }
 };
 
-const addHighlightedPortfolio = async (req, res) => {
+export const addHighlightedPortfolio = async (req, res) => {
   try {
     const { portfolioId } = req.body;
 
@@ -311,7 +311,7 @@ const addHighlightedPortfolio = async (req, res) => {
   }
 };
 
-const removeHighlightedPortfolio = async (req, res) => {
+export const removeHighlightedPortfolio = async (req, res) => {
   try {
     const { portfolioId } = req.params;
 
@@ -371,11 +371,3 @@ const removeHighlightedPortfolio = async (req, res) => {
   }
 };
 
-module.exports = {
-  getHomePageContent,
-  resetHomePageContent,
-  addFeaturedBlog,
-  removeFeaturedBlog,
-  addHighlightedPortfolio,
-  removeHighlightedPortfolio,
-};

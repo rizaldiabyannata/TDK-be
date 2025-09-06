@@ -1,5 +1,5 @@
-const mongoose = require("mongoose");
-const slugify = require("slugify");
+import mongoose from "mongoose";
+import slugify from "slugify";
 
 const blogSchema = new mongoose.Schema({
   title: {
@@ -87,4 +87,4 @@ blogSchema.index({ isArchived: 1, createdAt: -1 });
 
 const Blog = mongoose.model("Blog", blogSchema);
 
-module.exports = Blog;
+export default Blog;

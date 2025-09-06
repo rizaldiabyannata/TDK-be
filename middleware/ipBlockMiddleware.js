@@ -1,5 +1,5 @@
-const redisClient = require("../config/redisConfig");
-const logger = require("../utils/logger");
+import redisClient from "../config/redisConfig.js";
+import logger from "../utils/logger.js";
 
 const FAILED_ATTEMPTS_LIMIT = 3;
 const BLOCK_DURATION = 60 * 60; // 1 jam dalam detik
@@ -38,4 +38,4 @@ const ipBlockMiddleware = async (req, res, next) => {
   }
 };
 
-module.exports = ipBlockMiddleware;
+export default ipBlockMiddleware;

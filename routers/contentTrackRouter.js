@@ -1,7 +1,7 @@
-const express = require("express");
+import express from "express";
 const router = express.Router();
-const contentTrackingController = require("../controllers/contentTrackingController");
-const { protect } = require("../middleware/authMiddleware");
+import * as contentTrackingController from "../controllers/contentTrackingController.js";
+import { protect } from "../middleware/authMiddleware.js";
 
 router.get("/", contentTrackingController.getHomePageContent);
 
@@ -42,4 +42,4 @@ router.delete(
   contentTrackingController.removeHighlightedPortfolio
 );
 
-module.exports = router;
+export default router;

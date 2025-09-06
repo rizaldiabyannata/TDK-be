@@ -1,9 +1,9 @@
-const Porto = require("../models/PortoModel");
-const redisClient = require("../config/redisConfig");
-const logger = require("../utils/logger");
-const imageService = require("../services/imageService");
-const { sanitizeRichText } = require("../services/sanitizerService");
-const { default: slugify } = require("slugify");
+import Porto from "../models/PortoModel.js";
+import redisClient from "../config/redisConfig.js";
+import logger from "../utils/logger.js";
+import * as imageService from "../services/imageService.js";
+import { sanitizeRichText } from "../services/sanitizerService.js";
+import slugify from "slugify";
 
 const CACHE_KEY_PREFIX_PORTO = "porto:";
 const CACHE_KEY_ARCHIVE = "portoArchive";
@@ -48,7 +48,7 @@ const invalidatePortoCache = async (slug = null) => {
   }
 };
 
-const getAllPortos = async (req, res) => {
+export const getAllPortos = async (req, res) => {
   try {
     const page = parseInt(req.query.page, 10) || 1;
     const limit = parseInt(req.query.limit, 10) || 10;
@@ -95,7 +95,7 @@ const getAllPortos = async (req, res) => {
   }
 };
 
-const getPortoBySlug = async (req, res) => {
+export const getPortoBySlug = async (req, res) => {
   const { slug } = req.params;
   try {
     let porto;
@@ -136,7 +136,7 @@ const getPortoBySlug = async (req, res) => {
   }
 };
 
-const createPorto = async (req, res) => {
+export const createPorto = async (req, res) => {
   const sanitizedData = sanitizeRichText(req.body);
   const { title, description, shortDescription } = sanitizedData;
 
@@ -179,7 +179,7 @@ const createPorto = async (req, res) => {
   }
 };
 
-const updatePorto = async (req, res) => {
+export const updatePorto = async (req, res) => {
   const { slug } = req.params;
 
   try {
@@ -237,7 +237,7 @@ const updatePorto = async (req, res) => {
   }
 };
 
-const deletePorto = async (req, res) => {
+export const deletePorto = async (req, res) => {
   const { slug } = req.params;
   try {
     const porto = await Porto.findOne({ slug });
@@ -258,7 +258,7 @@ const deletePorto = async (req, res) => {
   }
 };
 
-const archivePorto = async (req, res) => {
+export const archivePorto = async (req, res) => {
   const { slug } = req.params;
   try {
     const updatedPorto = await Porto.findOneAndUpdate(
@@ -289,7 +289,7 @@ const archivePorto = async (req, res) => {
   }
 };
 
-const unarchivePorto = async (req, res) => {
+export const unarchivePorto = async (req, res) => {
   const { slug } = req.params;
   try {
     const updatedPorto = await Porto.findOneAndUpdate(
@@ -320,7 +320,7 @@ const unarchivePorto = async (req, res) => {
   }
 };
 
-const getPortoArchive = async (req, res) => {
+export const getPortoArchive = async (req, res) => {
   try {
     const archives = await getFromDbOrCache(CACHE_KEY_ARCHIVE, () =>
       Porto.aggregate([
@@ -351,13 +351,3 @@ const getPortoArchive = async (req, res) => {
   }
 };
 
-module.exports = {
-  getAllPortos,
-  getPortoBySlug,
-  createPorto,
-  updatePorto,
-  deletePorto,
-  archivePorto,
-  unarchivePorto,
-  getPortoArchive,
-};

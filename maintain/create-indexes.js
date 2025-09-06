@@ -1,7 +1,7 @@
 // create-indexes.js
-require("dotenv").config(); // If you use environment variables
-const mongoose = require("mongoose");
-const Blog = require("../models/BlogModel");
+import "dotenv/config"; // If you use environment variables
+import mongoose from "mongoose";
+import Blog from "../models/BlogModel.js";
 
 mongoose
   .connect(process.env.MONGO_URI)

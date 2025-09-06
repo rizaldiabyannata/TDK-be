@@ -1,9 +1,9 @@
-import { config } from "dotenv";
-import connectDB from "../config/db"; // Pastikan path ini benar
-import { deleteMany, insertMany } from "../models/BlogModel.js.js"; // Pastikan path ini benar
+import dotenv from "dotenv";
+import connectDB from "../config/db.js"; // Pastikan path ini benar
+import Blog from "../models/BlogModel.js"; // Pastikan path ini benar
 
 // Konfigurasi environment variables
-config();
+dotenv.config();
 
 // Hubungkan ke database
 connectDB();
@@ -76,10 +76,10 @@ const blogs = [
 const importData = async () => {
   try {
     // Hapus data lama
-    await deleteMany();
+    await Blog.deleteMany();
 
     // Masukkan data baru
-    await insertMany(blogs);
+    await Blog.insertMany(blogs);
 
     console.log("Data Blog berhasil diimpor!");
     process.exit();
@@ -92,7 +92,7 @@ const importData = async () => {
 // Fungsi untuk menghapus data
 const destroyData = async () => {
   try {
-    await deleteMany();
+    await Blog.deleteMany();
     console.log("Data Blog berhasil dihapus!");
     process.exit();
   } catch (error) {

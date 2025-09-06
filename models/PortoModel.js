@@ -1,18 +1,18 @@
-import { Schema, model } from "mongoose";
+import mongoose from "mongoose";
 import slugify from "slugify";
 
-const portfolioSchema = new Schema({
+const portfolioSchema = new mongoose.Schema({
   title: {
     type: String,
     required: true,
     trim: true,
   },
   description: {
-    type: Schema.Types.Mixed,
+    type: mongoose.Schema.Types.Mixed,
     required: true,
   },
   shortDescription: {
-    type: Schema.Types.Mixed,
+    type: mongoose.Schema.Types.Mixed,
     required: true,
   },
   coverImage: {
@@ -79,6 +79,6 @@ portfolioSchema.index({
 
 portfolioSchema.index({ isArchived: 1, createdAt: -1 });
 
-const Portfolio = model("Portfolio", portfolioSchema);
+const Portfolio = mongoose.model("Portfolio", portfolioSchema);
 
 export default Portfolio;

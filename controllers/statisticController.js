@@ -1,21 +1,21 @@
-import { aggregate, find } from "../models/PortoModel.js";
-import { aggregate as _aggregate, find as _find } from "../models/BlogModel.js";
-import { info, error as _error } from "../utils/logger.js";
-import { isConnected, get, set } from "../config/redisConfig.js";
+import Portfolio from "../models/PortoModel.js";
+import Blog from "../models/BlogModel.js";
+import logger from "../utils/logger.js";
+import redisClient from "../config/redisConfig.js";
 
 const DASHBOARD_CACHE_KEY = "dashboard_stats";
 
-const getDashboardStats = async (req, res) => {
+export const getDashboardStats = async (req, res) => {
   try {
     // 1. Check for cached data first
-    if (await isConnected()) {
-      const cachedData = await get(DASHBOARD_CACHE_KEY);
+    if (await redisClient.isConnected()) {
+      const cachedData = await redisClient.get(DASHBOARD_CACHE_KEY);
       if (cachedData) {
-        info("Dashboard stats cache HIT.");
+        logger.info("Dashboard stats cache HIT.");
         return res.status(200).json(JSON.parse(cachedData));
       }
     }
-    info("Dashboard stats cache MISS. Fetching from DB.");
+    logger.info("Dashboard stats cache MISS. Fetching from DB.");
 
     // 2. Fetch data from DB (with bug fix for date range)
     const days = parseInt(req.query.days || "7");
@@ -27,7 +27,7 @@ const getDashboardStats = async (req, res) => {
     startDate.setDate(startDate.getDate() - (days - 1)); // FIX: Correctly calculate start date
     startDate.setHours(0, 0, 0, 0);
 
-    const portfolioStatsPromise = aggregate([
+    const portfolioStatsPromise = Portfolio.aggregate([
       { $match: { isArchived: { $ne: true } } },
       {
         $group: {
@@ -38,7 +38,7 @@ const getDashboardStats = async (req, res) => {
       },
     ]);
 
-    const blogStatsPromise = _aggregate([
+    const blogStatsPromise = Blog.aggregate([
       { $match: { isArchived: { $ne: true } } },
       {
         $group: {
@@ -49,17 +49,17 @@ const getDashboardStats = async (req, res) => {
       },
     ]);
 
-    const topPortfoliosPromise = find({ isArchived: { $ne: true } })
+    const topPortfoliosPromise = Portfolio.find({ isArchived: { $ne: true } })
       .sort({ "views.total": -1 })
       .limit(5)
       .select("title slug views");
 
-    const topBlogsPromise = _find({ isArchived: { $ne: true } })
+    const topBlogsPromise = Blog.find({ isArchived: { $ne: true } })
       .sort({ "views.total": -1 })
       .limit(5)
       .select("title slug views");
 
-    const blogDailyViewsPromise = _aggregate([
+    const blogDailyViewsPromise = Blog.aggregate([
       { $unwind: "$viewHistory" },
       {
         $match: {
@@ -81,7 +81,7 @@ const getDashboardStats = async (req, res) => {
       { $project: { _id: 0, date: "$_id", views: 1 } },
     ]);
 
-    const portfolioDailyViewsPromise = aggregate([
+    const portfolioDailyViewsPromise = Portfolio.aggregate([
       { $unwind: "$viewHistory" },
       {
         $match: {
@@ -177,21 +177,17 @@ const getDashboardStats = async (req, res) => {
     };
 
     // 3. Set the data in cache before responding
-    if (await isConnected()) {
-      await set(DASHBOARD_CACHE_KEY, JSON.stringify(responseData), {
+    if (await redisClient.isConnected()) {
+      await redisClient.set(DASHBOARD_CACHE_KEY, JSON.stringify(responseData), {
         EX: 600, // Cache for 10 minutes
       });
     }
 
     return res.status(200).json(responseData);
   } catch (error) {
-    _error(`Error fetching dashboard stats: ${error.message}`, { error });
+    logger.error(`Error fetching dashboard stats: ${error.message}`, { error });
     return res
       .status(500)
       .json({ message: "An internal server error occurred." });
   }
-};
-
-export default {
-  getDashboardStats,
 };

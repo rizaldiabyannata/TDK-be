@@ -1,22 +1,26 @@
-import { Router } from "express";
-const router = Router();
+import express from "express";
+const router = express.Router();
 import { param } from "express-validator";
 
-import portoController from "../controllers/portoController.js";
-const {
-  getAllPortos, getPortoArchive, getPortoBySlug, createPorto, updatePorto, deletePorto, archivePorto, unarchivePorto,
-} = portoController;
+import {
+  getAllPortos,
+  getPortoArchive,
+  getPortoBySlug,
+  createPorto,
+  updatePorto,
+  deletePorto,
+  archivePorto,
+  unarchivePorto,
+} from "../controllers/portoController.js";
 
-import _default from "../middleware/authMiddleware.js";
-const { protect, optionalAuth } = _default;
-import __default from "../middleware/viewTracker.js";
-const { trackView } = __default;
-import ___default from "../middleware/multerMiddleware.js";
-const {
-  uploadSingleFile, uploadSingleFileOptional, convertToWebp,
-} = ___default;
-import ____default from "../middleware/validationMiddleware.js";
-const { validate } = ____default;
+import { protect, optionalAuth } from "../middleware/authMiddleware.js";
+import { trackView } from "../middleware/viewTracker.js";
+import {
+  uploadSingleFile,
+  uploadSingleFileOptional,
+  convertToWebp,
+} from "../middleware/multerMiddleware.js";
+import { validate } from "../middleware/validationMiddleware.js";
 
 const slugValidation = [param("slug").isSlug(), validate];
 

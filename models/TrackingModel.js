@@ -1,15 +1,15 @@
-import { Schema, model } from "mongoose";
+import mongoose from "mongoose";
 
-const homePageContentSchema = new Schema({
+const homePageContentSchema = new mongoose.Schema({
   featuredBlogs: [
     {
-      type: Schema.Types.ObjectId,
+      type: mongoose.Schema.Types.ObjectId,
       ref: "Blog",
     },
   ],
   highlightedPortfolios: [
     {
-      type: Schema.Types.ObjectId,
+      type: mongoose.Schema.Types.ObjectId,
       ref: "Portfolio",
     },
   ],
@@ -19,5 +19,5 @@ const homePageContentSchema = new Schema({
   },
 });
 
-const HomePageContent = model("PageContent", homePageContentSchema);
+const HomePageContent = mongoose.model("PageContent", homePageContentSchema);
 export default HomePageContent;

@@ -1,54 +1,54 @@
-import Porto, { find, countDocuments, findOne, findOneAndUpdate, deleteOne, aggregate } from "../models/PortoModel.js";
-import { isConnected, get, set, del } from "../config/redisConfig.js";
-import { info, warn, error as _error } from "../utils/logger.js";
-import { deleteFile } from "../services/imageService.js";
+import Porto from "../models/PortoModel.js";
+import redisClient from "../config/redisConfig.js";
+import logger from "../utils/logger.js";
+import * as imageService from "../services/imageService.js";
 import { sanitizeRichText } from "../services/sanitizerService.js";
-import { default as slugify } from "slugify";
+import slugify from "slugify";
 
 const CACHE_KEY_PREFIX_PORTO = "porto:";
 const CACHE_KEY_ARCHIVE = "portoArchive";
 
 const getFromDbOrCache = async (cacheKey, dbQuery) => {
-  if (await isConnected()) {
-    const cachedData = await get(cacheKey);
+  if (await redisClient.isConnected()) {
+    const cachedData = await redisClient.get(cacheKey);
     if (cachedData) {
-      info(`Cache HIT for key: ${cacheKey}`);
+      logger.info(`Cache HIT for key: ${cacheKey}`);
       return cachedData;
     }
   } else {
-    warn("Redis client not connected, using DB query directly.");
+    logger.warn("Redis client not connected, using DB query directly.");
   }
 
-  info(`Cache MISS: ${cacheKey}. Getting data from DB.`);
+  logger.info(`Cache MISS: ${cacheKey}. Getting data from DB.`);
   const dbData = await dbQuery();
 
-  if ((await isConnected()) && dbData) {
+  if ((await redisClient.isConnected()) && dbData) {
     const expiry = cacheKey.includes("Archive") ? 21600 : 3600;
-    await set(cacheKey, dbData, { EX: expiry });
+    await redisClient.set(cacheKey, dbData, { EX: expiry });
   }
 
   return dbData;
 };
 
 const invalidatePortoCache = async (slug = null) => {
-  if (!(await isConnected())) {
-    warn("Redis client not ready, cache invalidation skipped.");
+  if (!(await redisClient.isConnected())) {
+    logger.warn("Redis client not ready, cache invalidation skipped.");
     return;
   }
   try {
-    await del(CACHE_KEY_ARCHIVE);
-    info(`Cache deleted with key: ${CACHE_KEY_ARCHIVE}`);
+    await redisClient.delete(CACHE_KEY_ARCHIVE);
+    logger.info(`Cache deleted with key: ${CACHE_KEY_ARCHIVE}`);
 
     if (slug) {
-      await del(`${CACHE_KEY_PREFIX_PORTO}${slug}`);
-      info(`Cache deleted with key: ${CACHE_KEY_PREFIX_PORTO}${slug}`);
+      await redisClient.delete(`${CACHE_KEY_PREFIX_PORTO}${slug}`);
+      logger.info(`Cache deleted with key: ${CACHE_KEY_PREFIX_PORTO}${slug}`);
     }
   } catch (error) {
-    _error(`Failed to delete: ${error.message}`);
+    logger.error(`Failed to delete: ${error.message}`);
   }
 };
 
-const getAllPortos = async (req, res) => {
+export const getAllPortos = async (req, res) => {
   try {
     const page = parseInt(req.query.page, 10) || 1;
     const limit = parseInt(req.query.limit, 10) || 10;
@@ -74,8 +74,8 @@ const getAllPortos = async (req, res) => {
     }
 
     const [portos, totalPortos] = await Promise.all([
-      find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit),
-      countDocuments(filter),
+      Porto.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit),
+      Porto.countDocuments(filter),
     ]);
 
     const totalPages = Math.ceil(totalPortos / limit);
@@ -90,22 +90,22 @@ const getAllPortos = async (req, res) => {
       },
     });
   } catch (error) {
-    _error(`Error in getAllPortos: ${error.message}`);
+    logger.error(`Error in getAllPortos: ${error.message}`);
     res.status(500).json({ message: "An internal server error occurred." });
   }
 };
 
-const getPortoBySlug = async (req, res) => {
+export const getPortoBySlug = async (req, res) => {
   const { slug } = req.params;
   try {
     let porto;
 
     if (req.user) {
-      info(`[Admin Access] Bypass cache: ${slug}`);
-      porto = await findOne({ slug });
+      logger.info(`[Admin Access] Bypass cache: ${slug}`);
+      porto = await Porto.findOne({ slug });
     } else {
       const cacheKey = `${CACHE_KEY_PREFIX_PORTO}${slug}`;
-      porto = await getFromDbOrCache(cacheKey, () => findOne({ slug }));
+      porto = await getFromDbOrCache(cacheKey, () => Porto.findOne({ slug }));
     }
 
     if (!porto) {
@@ -131,12 +131,12 @@ const getPortoBySlug = async (req, res) => {
       });
     }
   } catch (error) {
-    _error(`Error in getPortoBySlug: ${error.message}`);
+    logger.error(`Error in getPortoBySlug: ${error.message}`);
     res.status(500).json({ message: "An internal server error occurred." });
   }
 };
 
-const createPorto = async (req, res) => {
+export const createPorto = async (req, res) => {
   const sanitizedData = sanitizeRichText(req.body);
   const { title, description, shortDescription } = sanitizedData;
 
@@ -171,21 +171,21 @@ const createPorto = async (req, res) => {
       },
     });
   } catch (error) {
-    _error(`Error in createPorto: ${error.message}`);
+    logger.error(`Error in createPorto: ${error.message}`);
     if (req.fileUrl) {
-      await deleteFile(req.fileUrl);
+      await imageService.deleteFile(req.fileUrl);
     }
     res.status(400).json({ message: error.message });
   }
 };
 
-const updatePorto = async (req, res) => {
+export const updatePorto = async (req, res) => {
   const { slug } = req.params;
 
   try {
-    const existingPorto = await findOne({ slug });
+    const existingPorto = await Porto.findOne({ slug });
     if (!existingPorto) {
-      if (req.fileUrl) await deleteFile(req.fileUrl);
+      if (req.fileUrl) await imageService.deleteFile(req.fileUrl);
       return res.status(404).json({ message: "Portfolio not found" });
     }
 
@@ -203,13 +203,13 @@ const updatePorto = async (req, res) => {
       sanitizedData.coverImage = req.fileUrl;
     }
 
-    const updatedPorto = await findOneAndUpdate({ slug }, sanitizedData, {
+    const updatedPorto = await Porto.findOneAndUpdate({ slug }, sanitizedData, {
       new: true,
       runValidators: true,
     });
 
     if (req.fileUrl && existingPorto.coverImage) {
-      await deleteFile(existingPorto.coverImage);
+      await imageService.deleteFile(existingPorto.coverImage);
     }
 
     await invalidatePortoCache(slug);
@@ -231,37 +231,37 @@ const updatePorto = async (req, res) => {
       },
     });
   } catch (error) {
-    _error(`Error in updatePorto: ${error.message}`);
-    if (req.fileUrl) await deleteFile(req.fileUrl);
+    logger.error(`Error in updatePorto: ${error.message}`);
+    if (req.fileUrl) await imageService.deleteFile(req.fileUrl);
     res.status(400).json({ message: error.message });
   }
 };
 
-const deletePorto = async (req, res) => {
+export const deletePorto = async (req, res) => {
   const { slug } = req.params;
   try {
-    const porto = await findOne({ slug });
+    const porto = await Porto.findOne({ slug });
     if (!porto) {
       return res.status(404).json({ message: "Portfolio not found" });
     }
 
     if (porto.coverImage) {
-      await deleteFile(porto.coverImage);
+      await imageService.deleteFile(porto.coverImage);
     }
 
-    await deleteOne({ slug });
+    await Porto.deleteOne({ slug });
     await invalidatePortoCache(slug);
     res.json({ message: "Portfolio deleted successfully" });
   } catch (error) {
-    _error(`Error on deletePorto: ${error.message}`);
+    logger.error(`Error on deletePorto: ${error.message}`);
     res.status(500).json({ message: "An internal server error occurred." });
   }
 };
 
-const archivePorto = async (req, res) => {
+export const archivePorto = async (req, res) => {
   const { slug } = req.params;
   try {
-    const updatedPorto = await findOneAndUpdate(
+    const updatedPorto = await Porto.findOneAndUpdate(
       { slug },
       { isArchived: true },
       { new: true }
@@ -284,15 +284,15 @@ const archivePorto = async (req, res) => {
       },
     });
   } catch (error) {
-    _error(`Error archiving portfolio: ${error.message}`);
+    logger.error(`Error archiving portfolio: ${error.message}`);
     res.status(500).json({ message: "An internal server error occurred." });
   }
 };
 
-const unarchivePorto = async (req, res) => {
+export const unarchivePorto = async (req, res) => {
   const { slug } = req.params;
   try {
-    const updatedPorto = await findOneAndUpdate(
+    const updatedPorto = await Porto.findOneAndUpdate(
       { slug },
       { isArchived: false },
       { new: true }
@@ -315,15 +315,15 @@ const unarchivePorto = async (req, res) => {
       },
     });
   } catch (error) {
-    _error(`Error unarchiving portfolio: ${error.message}`);
+    logger.error(`Error unarchiving portfolio: ${error.message}`);
     res.status(500).json({ message: "An internal server error occurred." });
   }
 };
 
-const getPortoArchive = async (req, res) => {
+export const getPortoArchive = async (req, res) => {
   try {
     const archives = await getFromDbOrCache(CACHE_KEY_ARCHIVE, () =>
-      aggregate([
+      Porto.aggregate([
         {
           $group: {
             _id: {
@@ -346,18 +346,8 @@ const getPortoArchive = async (req, res) => {
     );
     res.json(archives);
   } catch (error) {
-    _error(`Error on getPortoArchive: ${error.message}`);
+    logger.error(`Error on getPortoArchive: ${error.message}`);
     res.status(500).json({ message: "An internal server error occurred." });
   }
 };
 
-export default {
-  getAllPortos,
-  getPortoBySlug,
-  createPorto,
-  updatePorto,
-  deletePorto,
-  archivePorto,
-  unarchivePorto,
-  getPortoArchive,
-};

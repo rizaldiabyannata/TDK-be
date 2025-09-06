@@ -1,6 +1,8 @@
-import { genSalt, hash } from "bcryptjs";
+import bcrypt from "bcryptjs";
+import dotenv from "dotenv";
 import User from "../models/UserModel.js"; // Pastikan path ini benar
-import { warn, info, error as _error } from "../utils/logger.js"; // Gunakan logger standar untuk konsistensi
+import logger from "../utils/logger.js"; // Gunakan logger standar untuk konsistensi
+dotenv.config();
 
 // Konfigurasi Admin dari environment variables
 const adminConfig = {
@@ -12,7 +14,7 @@ const seedAdmin = async () => {
   try {
     // Validasi apakah konfigurasi admin ada
     if (!adminConfig.password || !adminConfig.username) {
-      warn(
+      logger.warn(
         "Admin credentials are not set in .env file. Skipping admin seed."
       );
       return;
@@ -22,13 +24,13 @@ const seedAdmin = async () => {
     const existingAdmin = await User.findOne({ email: adminConfig.email });
 
     if (existingAdmin) {
-      info("Admin user already exists. Seeding skipped.");
+      logger.info("Admin user already exists. Seeding skipped.");
       return; // Hentikan proses jika admin sudah ada
     }
 
     // Hash password admin
-    const salt = await genSalt(10);
-    const hashedPassword = await hash(adminConfig.password, salt);
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(adminConfig.password, salt);
 
     // Buat pengguna admin baru
     await User.create({
@@ -36,9 +38,9 @@ const seedAdmin = async () => {
       password: hashedPassword,
     });
 
-    info(`Admin account for ${adminConfig.email} created successfully.`);
+    logger.info(`Admin account for ${adminConfig.email} created successfully.`);
   } catch (error) {
-    _error(`Error during admin seeding: ${error.message}`);
+    logger.error(`Error during admin seeding: ${error.message}`);
     // Hentikan aplikasi jika proses seeding gagal, karena ini adalah langkah kritis
     process.exit(1);
   }

@@ -1,22 +1,26 @@
-import { Router } from "express";
-const router = Router();
+import express from "express";
+const router = express.Router();
 import { param } from "express-validator";
 
 // Impor fungsi controller dan middleware yang diperlukan
-import blogController from "../controllers/blogController.js";
-const {
-  getAllBlogs, getBlogArchive, getBlogBySlug, createBlog, updateBlog, deleteBlog, archiveBlog, unarchiveBlog,
-} = blogController;
-import _default from "../middleware/authMiddleware.js";
-const { protect, optionalAuth } = _default;
-import __default from "../middleware/viewTracker.js";
-const { trackView } = __default;
-import ___default from "../middleware/multerMiddleware.js";
-const {
-  uploadSingleFile, convertToWebp, uploadSingleFileOptional,
-} = ___default;
-import ____default from "../middleware/validationMiddleware.js";
-const { validate } = ____default;
+import {
+  getAllBlogs,
+  getBlogArchive,
+  getBlogBySlug,
+  createBlog,
+  updateBlog,
+  deleteBlog,
+  archiveBlog,
+  unarchiveBlog,
+} from "../controllers/blogController.js";
+import { protect, optionalAuth } from "../middleware/authMiddleware.js";
+import { trackView } from "../middleware/viewTracker.js";
+import {
+  uploadSingleFile,
+  convertToWebp,
+  uploadSingleFileOptional,
+} from "../middleware/multerMiddleware.js";
+import { validate } from "../middleware/validationMiddleware.js";
 
 const slugValidation = [param("slug").isSlug(), validate];
 

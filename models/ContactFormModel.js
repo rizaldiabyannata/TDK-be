@@ -1,6 +1,6 @@
-import { Schema, model } from "mongoose";
+import mongoose from "mongoose";
 
-const contactFormSchema = new Schema({
+const contactFormSchema = new mongoose.Schema({
   name: {
     type: String,
     required: true,
@@ -21,6 +21,6 @@ const contactFormSchema = new Schema({
   },
 });
 
-const ContactForm = model("ContactForm", contactFormSchema);
+const ContactForm = mongoose.model("ContactForm", contactFormSchema);
 
 export default ContactForm;

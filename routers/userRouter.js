@@ -1,16 +1,23 @@
-import { Router } from "express";
-const router = Router();
+import express from "express";
+const router = express.Router();
 import rateLimit from "express-rate-limit";
 
-import userController from "../controllers/userController.js";
-const {
-  loginUser, refreshToken, getUserProfile, updateUser, requestPasswordResetOTP, verifyOTPAndResetPassword, logoutUser,
-} = userController;
-import _default from "../middleware/authMiddleware.js";
-const { protect } = _default;
-import __default from "../middleware/validationMiddleware.js";
-const { validate } = __default;
-import { loginRules, resetPasswordRules, updateUserRules } from "../validators/userValidators.js";
+import {
+  loginUser,
+  refreshToken,
+  getUserProfile,
+  updateUser,
+  requestPasswordResetOTP,
+  verifyOTPAndResetPassword,
+  logoutUser,
+} from "../controllers/userController.js";
+import { protect } from "../middleware/authMiddleware.js";
+import { validate } from "../middleware/validationMiddleware.js";
+import {
+  loginRules,
+  resetPasswordRules,
+  updateUserRules,
+} from "../validators/userValidators.js";
 
 import ipBlockMiddleware from "../middleware/ipBlockMiddleware.js";
 

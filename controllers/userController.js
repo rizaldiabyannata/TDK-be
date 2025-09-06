@@ -1,16 +1,16 @@
 import User from "../models/UserModel.js";
-import { warn, info, error as _error } from "../utils/logger.js";
-import { compare, genSalt, hash } from "bcryptjs";
-import { sign, verify, decode } from "jsonwebtoken";
-import { createPasswordResetOTP, sendPasswordResetOTP, verifyPasswordResetOTP, deleteOTP } from "../utils/otpService.js";
-import { incr, expire, set, del, get } from "../config/redisConfig.js";
+import logger from "../utils/logger.js";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+import * as otpService from "../utils/otpService.js";
+import redisClient from "../config/redisConfig.js";
 
 const generateTokens = (user) => {
-  const accessToken = sign({ id: user._id }, process.env.JWT_SECRET, {
+  const accessToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
     expiresIn: "15m",
   });
 
-  const refreshToken = sign(
+  const refreshToken = jwt.sign(
     { id: user._id },
     process.env.JWT_REFRESH_SECRET,
     {
@@ -21,7 +21,7 @@ const generateTokens = (user) => {
   return { accessToken, refreshToken };
 };
 
-const loginUser = async (req, res) => {
+export const loginUser = async (req, res) => {
   const { name, password } = req.body;
   const ip = req.ip;
   const key = `login_attempts:${ip}`;
@@ -33,26 +33,26 @@ const loginUser = async (req, res) => {
     if (
       !admin ||
       admin.name !== name ||
-      !(await compare(password, admin.password))
+      !(await bcrypt.compare(password, admin.password))
     ) {
-      warn(
+      logger.warn(
         `Failed admin login attempt: Invalid credentials for ${name} from IP ${ip}`
       );
-      const attempts = await incr(key);
-      await expire(key, 15 * 60); // Expire in 15 minutes
+      const attempts = await redisClient.incr(key);
+      await redisClient.expire(key, 15 * 60); // Expire in 15 minutes
 
       if (attempts >= 3) {
-        await set(blockKey, "true", { EX: 60 * 60 });
-        warn(`IP ${ip} has been blocked for 1 hour.`);
+        await redisClient.set(blockKey, "true", { EX: 60 * 60 });
+        logger.warn(`IP ${ip} has been blocked for 1 hour.`);
       }
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
-    await del(key);
+    await redisClient.delete(key);
 
     const { accessToken, refreshToken } = generateTokens(admin);
 
-    info(`Admin logged in: ${name}`);
+    logger.info(`Admin logged in: ${name}`);
 
     res.cookie("accessToken", accessToken, {
       httpOnly: true,
@@ -77,7 +77,7 @@ const loginUser = async (req, res) => {
       },
     });
   } catch (error) {
-    _error(`Error logging in admin: ${error.message}`);
+    logger.error(`Error logging in admin: ${error.message}`);
     res.status(500).json({
       message:
         process.env.BUN_ENV === "production"
@@ -87,7 +87,7 @@ const loginUser = async (req, res) => {
   }
 };
 
-const refreshToken = async (req, res) => {
+export const refreshToken = async (req, res) => {
   const oldRefreshToken = req.cookies.refreshToken;
 
   if (!oldRefreshToken) {
@@ -96,13 +96,13 @@ const refreshToken = async (req, res) => {
 
   try {
     // Periksa apakah refresh token lama ada di denylist
-    const isRevoked = await get(`denylist:${oldRefreshToken}`);
+    const isRevoked = await redisClient.get(`denylist:${oldRefreshToken}`);
     if (isRevoked) {
-      warn(`Attempt to use a revoked refresh token.`);
+      logger.warn(`Attempt to use a revoked refresh token.`);
       return res.status(403).json({ message: "Invalid refresh token." });
     }
 
-    const decoded = verify(oldRefreshToken, process.env.JWT_REFRESH_SECRET);
+    const decoded = jwt.verify(oldRefreshToken, process.env.JWT_REFRESH_SECRET);
     const user = await User.findById(decoded.id);
 
     if (!user) {
@@ -113,11 +113,11 @@ const refreshToken = async (req, res) => {
     const { accessToken, refreshToken: newRefreshToken } = generateTokens(user);
 
     // Tambahkan refresh token lama ke denylist untuk mencegah penggunaan kembali
-    const oldTokenDecoded = decode(oldRefreshToken);
+    const oldTokenDecoded = jwt.decode(oldRefreshToken);
     if (oldTokenDecoded && oldTokenDecoded.exp) {
       const expiresIn = oldTokenDecoded.exp - Math.floor(Date.now() / 1000);
       if (expiresIn > 0) {
-        await set(`denylist:${oldRefreshToken}`, "revoked", {
+        await redisClient.set(`denylist:${oldRefreshToken}`, "revoked", {
           EX: expiresIn,
         });
       }
@@ -133,7 +133,7 @@ const refreshToken = async (req, res) => {
 
     res.status(200).json({ accessToken });
   } catch (error) {
-    _error(`Error refreshing token: ${error.message}`);
+    logger.error(`Error refreshing token: ${error.message}`);
     return res.status(403).json({
       message:
         process.env.BUN_ENV === "production"
@@ -143,20 +143,20 @@ const refreshToken = async (req, res) => {
   }
 };
 
-const logoutUser = async (req, res) => {
+export const logoutUser = async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith("Bearer ")) {
       const token = authHeader.split(" ")[1];
-      const decoded = decode(token);
+      const decoded = jwt.decode(token);
 
       if (decoded && decoded.exp) {
         const expiresIn = decoded.exp - Math.floor(Date.now() / 1000);
         if (expiresIn > 0) {
-          await set(`denylist:${token}`, "revoked", {
+          await redisClient.set(`denylist:${token}`, "revoked", {
             EX: expiresIn,
           });
-          info(
+          logger.info(
             `Token untuk user ${req.user?.name} ditambahkan ke denylist.`
           );
         }
@@ -166,13 +166,13 @@ const logoutUser = async (req, res) => {
     res.clearCookie("accessToken");
     res.clearCookie("refreshToken");
 
-    info(`Admin logged out: ${req.user?.name} (ID: ${req.user?._id})`);
+    logger.info(`Admin logged out: ${req.user?.name} (ID: ${req.user?._id})`);
 
     res.status(200).json({
       message: "Logout successful",
     });
   } catch (error) {
-    _error(`Error during logout: ${error.message}`);
+    logger.error(`Error during logout: ${error.message}`);
     res.status(500).json({
       message:
         process.env.BUN_ENV === "production"
@@ -182,11 +182,11 @@ const logoutUser = async (req, res) => {
   }
 };
 
-const getUserProfile = async (req, res) => {
+export const getUserProfile = async (req, res) => {
   try {
     const user = req.user;
 
-    info(`Admin profile fetched: ${user._id}`);
+    logger.info(`Admin profile fetched: ${user._id}`);
     res.json({
       user: {
         username: user.name,
@@ -194,7 +194,7 @@ const getUserProfile = async (req, res) => {
       },
     });
   } catch (error) {
-    _error(`Error in getAdminProfile: ${error.message}`);
+    logger.error(`Error in getAdminProfile: ${error.message}`);
     res.status(500).json({
       message:
         process.env.BUN_ENV === "production"
@@ -204,7 +204,7 @@ const getUserProfile = async (req, res) => {
   }
 };
 
-const updateUser = async (req, res) => {
+export const updateUser = async (req, res) => {
   try {
     const userId = req.user._id;
     const { email } = req.body;
@@ -222,11 +222,11 @@ const updateUser = async (req, res) => {
     });
 
     if (!updatedUser) {
-      warn(`Update failed: Admin user not found with ID ${userId}`);
+      logger.warn(`Update failed: Admin user not found with ID ${userId}`);
       return res.status(404).json({ message: "Admin user not found" });
     }
 
-    info(`Admin user updated successfully: ${userId}`);
+    logger.info(`Admin user updated successfully: ${userId}`);
     res.status(200).json({
       message: "Admin user updated successfully",
       user: {
@@ -235,7 +235,7 @@ const updateUser = async (req, res) => {
       },
     });
   } catch (error) {
-    _error(`Error updating admin user: ${error.message}`);
+    logger.error(`Error updating admin user: ${error.message}`);
 
     res.status(500).json({
       message:
@@ -246,7 +246,7 @@ const updateUser = async (req, res) => {
   }
 };
 
-const requestPasswordResetOTP = async (req, res) => {
+export const requestPasswordResetOTP = async (req, res) => {
   try {
     const email = req.user.email;
 
@@ -261,16 +261,16 @@ const requestPasswordResetOTP = async (req, res) => {
       });
     }
 
-    const plainOTP = await createPasswordResetOTP(email);
+    const plainOTP = await otpService.createPasswordResetOTP(email);
 
-    await sendPasswordResetOTP(email, plainOTP);
+    await otpService.sendPasswordResetOTP(email, plainOTP);
 
-    info(`Admin password reset OTP sent to: ${email}`);
+    logger.info(`Admin password reset OTP sent to: ${email}`);
     return res.status(200).json({
       message: "OTP has been sent to your email",
     });
   } catch (error) {
-    _error(`Error in requestPasswordResetOTP: ${error.message}`);
+    logger.error(`Error in requestPasswordResetOTP: ${error.message}`);
     return res.status(500).json({
       message:
         process.env.BUN_ENV === "production"
@@ -280,7 +280,7 @@ const requestPasswordResetOTP = async (req, res) => {
   }
 };
 
-const verifyOTPAndResetPassword = async (req, res) => {
+export const verifyOTPAndResetPassword = async (req, res) => {
   try {
     const email = req.user.email;
     const { otp, newPassword } = req.body;
@@ -291,7 +291,7 @@ const verifyOTPAndResetPassword = async (req, res) => {
       });
     }
 
-    const otpRecord = await verifyPasswordResetOTP(email, otp);
+    const otpRecord = await otpService.verifyPasswordResetOTP(email, otp);
     if (!otpRecord) {
       return res.status(400).json({ message: "Invalid or expired OTP" });
     }
@@ -301,18 +301,18 @@ const verifyOTPAndResetPassword = async (req, res) => {
       return res.status(404).json({ message: "Admin user not found" });
     }
 
-    const salt = await genSalt(10);
-    const hashedPassword = await hash(newPassword, salt);
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
 
     admin.password = hashedPassword;
     await admin.save();
 
-    await deleteOTP(otpRecord._id);
+    await otpService.deleteOTP(otpRecord._id);
 
-    info(`Admin password reset successful for: ${email}`);
+    logger.info(`Admin password reset successful for: ${email}`);
     return res.status(200).json({ message: "Password reset successful" });
   } catch (error) {
-    _error(`Error in verifyOTPAndResetPassword: ${error.message}`);
+    logger.error(`Error in verifyOTPAndResetPassword: ${error.message}`);
     return res.status(500).json({
       message:
         process.env.BUN_ENV === "production"
@@ -322,12 +322,3 @@ const verifyOTPAndResetPassword = async (req, res) => {
   }
 };
 
-export default {
-  loginUser,
-  getUserProfile,
-  refreshToken,
-  updateUser,
-  requestPasswordResetOTP,
-  verifyOTPAndResetPassword,
-  logoutUser,
-};

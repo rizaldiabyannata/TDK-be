@@ -1,14 +1,13 @@
-import { Router } from "express";
-const router = Router();
+import express from "express";
+const router = express.Router();
 import rateLimit from "express-rate-limit";
 
-import contactFormController from "../controllers/contactFormController.js";
-const {
-  submitContactForm, getAllContactForms,
-} = contactFormController;
+import {
+  submitContactForm,
+  getAllContactForms,
+} from "../controllers/contactFormController.js";
 
-import _default from "../middleware/authMiddleware.js";
-const { protect } = _default;
+import { protect } from "../middleware/authMiddleware.js";
 
 // Create a rate limiter to prevent spam on the contact form
 const contactFormLimiter = rateLimit({

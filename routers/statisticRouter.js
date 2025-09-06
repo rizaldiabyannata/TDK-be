@@ -1,7 +1,6 @@
-import { Router } from "express";
-const router = Router();
-import statisticController from "../controllers/statisticController.js";
-const { getDashboardStats } = statisticController;
+import express from "express";
+const router = express.Router();
+import { getDashboardStats } from "../controllers/statisticController.js";
 
 router.get("/", getDashboardStats);
 

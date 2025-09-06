@@ -1,9 +1,9 @@
-import { config } from "dotenv";
-import connectDB from "../config/db"; // Pastikan path ini benar
-import { deleteMany, insertMany } from "../models/PortoModel.js"; // Pastikan path ini benar
+import dotenv from "dotenv";
+import connectDB from "../config/db.js"; // Pastikan path ini benar
+import Porto from "../models/PortoModel.js"; // Pastikan path ini benar
 
 // Konfigurasi environment variables
-config();
+dotenv.config();
 
 // Hubungkan ke database
 connectDB();
@@ -59,10 +59,10 @@ const portfolios = [
 const importData = async () => {
   try {
     // Hapus data lama
-    await deleteMany();
+    await Porto.deleteMany();
 
     // Masukkan data baru
-    await insertMany(portfolios);
+    await Porto.insertMany(portfolios);
 
     console.log("Data Portofolio berhasil diimpor!");
     process.exit();
@@ -75,7 +75,7 @@ const importData = async () => {
 // Fungsi untuk menghapus data
 const destroyData = async () => {
   try {
-    await deleteMany();
+    await Porto.deleteMany();
     console.log("Data Portofolio berhasil dihapus!");
     process.exit();
   } catch (error) {

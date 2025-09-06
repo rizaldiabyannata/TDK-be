@@ -1,8 +1,7 @@
-import { Router } from "express";
-const router = Router();
-import contentTrackingController from "../controllers/contentTrackingController.js";
-import authMiddleware from "../middleware/authMiddleware.js";
-const { protect } = authMiddleware;
+import express from "express";
+const router = express.Router();
+import * as contentTrackingController from "../controllers/contentTrackingController.js";
+import { protect } from "../middleware/authMiddleware.js";
 
 router.get("/", contentTrackingController.getHomePageContent);
 

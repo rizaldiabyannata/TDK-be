@@ -1,7 +1,7 @@
-import { Schema, model } from "mongoose";
+import mongoose from "mongoose";
 import slugify from "slugify";
 
-const blogSchema = new Schema({
+const blogSchema = new mongoose.Schema({
   title: {
     type: String,
     required: true,
@@ -13,7 +13,7 @@ const blogSchema = new Schema({
     required: true,
   },
   content: {
-    type: Schema.Types.Mixed,
+    type: mongoose.Schema.Types.Mixed,
     required: true,
   },
   coverImage: {
@@ -21,7 +21,7 @@ const blogSchema = new Schema({
     required: true,
   },
   summary: {
-    type: Schema.Types.Mixed,
+    type: mongoose.Schema.Types.Mixed,
   },
   author: {
     type: String,
@@ -85,6 +85,6 @@ blogSchema.index({
 
 blogSchema.index({ isArchived: 1, createdAt: -1 });
 
-const Blog = model("Blog", blogSchema);
+const Blog = mongoose.model("Blog", blogSchema);
 
 export default Blog;

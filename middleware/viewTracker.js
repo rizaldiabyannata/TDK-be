@@ -1,5 +1,5 @@
-import { isConnected, incr, get, set } from "../config/redisConfig.js";
-import { warn, error as _error, info } from "../utils/logger.js";
+import redisClient from "../config/redisConfig.js";
+import logger from "../utils/logger.js";
 
 /**
  * Middleware to track views using Redis for high performance.
@@ -8,7 +8,7 @@ import { warn, error as _error, info } from "../utils/logger.js";
  *
  * @param {'Blog' | 'Portfolio'} type - The type of content to track.
  */
-const trackView = (type) => {
+export const trackView = (type) => {
   return async (req, res, next) => {
     // 1. Skip tracking for logged-in admins
     if (req.user) {
@@ -21,8 +21,8 @@ const trackView = (type) => {
     }
 
     // 2. Check if Redis is available, if not, skip tracking
-    if (!(await isConnected())) {
-      warn(`[Tracker] Redis client not ready, view tracking for ${slug} skipped.`);
+    if (!(await redisClient.isConnected())) {
+      logger.warn(`[Tracker] Redis client not ready, view tracking for ${slug} skipped.`);
       return next();
     }
 
@@ -32,37 +32,35 @@ const trackView = (type) => {
     // --- Fire-and-forget Redis operations for performance ---
 
     // 3. Increment total view count
-    incr(`views:${type}:${slug}:total`).catch(err =>
-      _error(`[Tracker] Failed to INCR total views for ${slug}: ${err.message}`)
+    redisClient.incr(`views:${type}:${slug}:total`).catch(err =>
+      logger.error(`[Tracker] Failed to INCR total views for ${slug}: ${err.message}`)
     );
 
     // 4. Increment daily view count
-    incr(`views:${type}:${slug}:daily:${dateStr}`).catch(err =>
-      _error(`[Tracker] Failed to INCR daily views for ${slug}: ${err.message}`)
+    redisClient.incr(`views:${type}:${slug}:daily:${dateStr}`).catch(err =>
+      logger.error(`[Tracker] Failed to INCR daily views for ${slug}: ${err.message}`)
     );
 
     // 5. Handle unique view tracking
     const uniqueIpKey = `unique_ip:${type}:${slug}:${ip}`;
     try {
-      const alreadyViewed = await get(uniqueIpKey);
+      const alreadyViewed = await redisClient.get(uniqueIpKey);
 
       if (!alreadyViewed) {
         // This is a unique view for this IP in the last 24 hours.
         // Set the key to prevent another unique view count from this IP for 24 hours.
-        set(uniqueIpKey, "1", { EX: 86400 }); // 86400 seconds = 24 hours
+        redisClient.set(uniqueIpKey, "1", { EX: 86400 }); // 86400 seconds = 24 hours
 
         // Increment the unique view counter.
-        incr(`views:${type}:${slug}:unique`).catch(err =>
-          _error(`[Tracker] Failed to INCR unique views for ${slug}: ${err.message}`)
+        redisClient.incr(`views:${type}:${slug}:unique`).catch(err =>
+          logger.error(`[Tracker] Failed to INCR unique views for ${slug}: ${err.message}`)
         );
-        info(`[Tracker] Unique view recorded for ${type} ${slug} from IP ${ip}`);
+        logger.info(`[Tracker] Unique view recorded for ${type} ${slug} from IP ${ip}`);
       }
     } catch (error) {
-      _error(`[Tracker] Error during unique view tracking for ${slug}: ${error.message}`);
+      logger.error(`[Tracker] Error during unique view tracking for ${slug}: ${error.message}`);
     }
 
     next();
   };
 };
-
-export default { trackView };

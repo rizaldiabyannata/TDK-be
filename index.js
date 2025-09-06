@@ -7,19 +7,23 @@ import fs from "fs";
 import path from "path";
 import helmet from "helmet";
 import mongoose from "mongoose";
+import { fileURLToPath } from "url";
+
+// Menyesuaikan __dirname untuk ES Modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 dotenv.config();
 
-
 if (process.env.BUN_ENV === "production") {
-  console.log = () => { };
+  console.log = () => {};
 }
 
-import logger from "./utils/logger.js";
+import logger, { warn, info, error as logError } from "./utils/logger.js";
 
-const logsDir = path.join(path.dirname(new URL(import.meta.url).pathname), "logs");
+const logsDir = path.join(__dirname, "logs");
 if (!fs.existsSync(logsDir)) fs.mkdirSync(logsDir, { recursive: true });
-const uploadsDir = path.join(path.dirname(new URL(import.meta.url).pathname), "uploads");
+const uploadsDir = path.join(__dirname, "uploads");
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 
 import seedAdmin from "./seeder/seedAdmin.js";
@@ -89,11 +93,11 @@ if (isDevelopment) {
 app.use(
   morgan("combined", {
     stream: {
-      write: (message) => logger.info(message.trim()),
+  write: (message) => info(message.trim()),
     },
   })
 );
-app.use("/uploads", express.static(path.join(path.dirname(new URL(import.meta.url).pathname), "public", "uploads")));
+app.use("/uploads", express.static(path.join(__dirname, "public", "uploads")));
 
 app.use("/api", routes);
 
@@ -103,14 +107,14 @@ const startServer = async () => {
     await seedAdmin();
     const PORT = process.env.PORT || 5000;
     const server = app.listen(PORT, "0.0.0.0", () => {
-      logger.info(`Server is running on port ${PORT}`);
+  info(`Server is running on port ${PORT}`);
     });
     const gracefulShutdown = () => {
-      logger.warn("Received kill signal, shutting down gracefully.");
+  warn("Received kill signal, shutting down gracefully.");
       server.close(() => {
-        logger.info("HTTP server closed.");
+  info("HTTP server closed.");
         mongoose.connection.close(false, () => {
-          logger.info("MongoDb connection closed.");
+          info("MongoDb connection closed.");
           process.exit(0);
         });
       });
@@ -118,7 +122,7 @@ const startServer = async () => {
     process.on("SIGTERM", gracefulShutdown);
     process.on("SIGINT", gracefulShutdown);
   } catch (error) {
-    logger.error("Failed to start the server:", error);
+  logError("Failed to start the server:", error);
     process.exit(1);
   }
 };

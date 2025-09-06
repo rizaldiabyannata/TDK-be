@@ -10,8 +10,6 @@ const mongoose = require("mongoose");
 
 dotenv.config();
 
-// In production, disable informational console.log to reduce noise.
-// Keep console.warn and console.error active to ensure critical errors are logged.
 if (process.env.BUN_ENV === "production") {
   console.log = () => {};
 }

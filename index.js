@@ -10,11 +10,10 @@ const mongoose = require("mongoose");
 
 dotenv.config();
 
-// Disable console logs in production
+// In production, disable informational console.log to reduce noise.
+// Keep console.warn and console.error active to ensure critical errors are logged.
 if (process.env.BUN_ENV === "production") {
   console.log = () => {};
-  console.warn = () => {};
-  console.error = () => {};
 }
 
 const logger = require("./utils/logger");
@@ -29,6 +28,9 @@ const connectDB = require("./config/db");
 const routes = require("./routers/index");
 
 const app = express();
+
+// Trust the first proxy in front of the app
+app.set("trust proxy", 1);
 
 app.get("/api/runtime", (req, res) => {
   const uptime = process.uptime();

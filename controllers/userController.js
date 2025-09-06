@@ -18,8 +18,6 @@ const generateTokens = (user) => {
     }
   );
 
-  console.log("\nRefresh Token:", refreshToken);
-
   return { accessToken, refreshToken };
 };
 
@@ -165,6 +163,7 @@ const logoutUser = async (req, res) => {
       }
     }
 
+    res.clearCookie("accessToken");
     res.clearCookie("refreshToken");
 
     logger.info(`Admin logged out: ${req.user?.name} (ID: ${req.user?._id})`);

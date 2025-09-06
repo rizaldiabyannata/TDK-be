@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+const { param } = require("express-validator");
 
 const {
   getAllPortos,
@@ -19,7 +20,9 @@ const {
   uploadSingleFileOptional,
   convertToWebp,
 } = require("../middleware/multerMiddleware");
-const { sanitizeParams } = require("../middleware/validationMiddleware");
+const { validate } = require("../middleware/validationMiddleware");
+
+const slugValidation = [param("slug").isSlug(), validate];
 
 /**
  * @route   GET /api/portos
@@ -53,14 +56,14 @@ router.post(
  * @desc    Mengarsipkan item portofolio
  * @access  Private (Admin)
  */
-router.patch("/:slug/archive", protect, sanitizeParams, archivePorto);
+router.patch("/:slug/archive", protect, slugValidation, archivePorto);
 
 /**
  * @route   PATCH /api/portos/:slug/unarchive
  * @desc    Mengembalikan item portofolio dari arsip
  * @access  Private (Admin)
  */
-router.patch("/:slug/unarchive", protect, sanitizeParams, unarchivePorto);
+router.patch("/:slug/unarchive", protect, slugValidation, unarchivePorto);
 
 /**
  * @route   GET /api/portos/:slug
@@ -70,8 +73,8 @@ router.patch("/:slug/unarchive", protect, sanitizeParams, unarchivePorto);
 router.get(
   "/:slug",
   optionalAuth,
+  slugValidation,
   trackView("Portfolio"),
-  sanitizeParams,
   getPortoBySlug
 );
 
@@ -85,7 +88,7 @@ router.put(
   protect,
   uploadSingleFileOptional("coverImage"),
   convertToWebp,
-  sanitizeParams,
+  slugValidation,
   updatePorto
 );
 
@@ -94,6 +97,6 @@ router.put(
  * @desc    Hapus item portofolio
  * @access  Private (Admin)
  */
-router.delete("/:slug", protect, sanitizeParams, deletePorto);
+router.delete("/:slug", protect, slugValidation, deletePorto);
 
 module.exports = router;

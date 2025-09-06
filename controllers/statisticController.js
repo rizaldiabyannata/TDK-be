@@ -1,16 +1,30 @@
 const Portfolio = require("../models/PortoModel");
 const Blog = require("../models/BlogModel");
 const logger = require("../utils/logger");
+const redisClient = require("../config/redisConfig");
+
+const DASHBOARD_CACHE_KEY = "dashboard_stats";
 
 const getDashboardStats = async (req, res) => {
   try {
+    // 1. Check for cached data first
+    if (await redisClient.isConnected()) {
+      const cachedData = await redisClient.get(DASHBOARD_CACHE_KEY);
+      if (cachedData) {
+        logger.info("Dashboard stats cache HIT.");
+        return res.status(200).json(JSON.parse(cachedData));
+      }
+    }
+    logger.info("Dashboard stats cache MISS. Fetching from DB.");
+
+    // 2. Fetch data from DB (with bug fix for date range)
     const days = parseInt(req.query.days || "7");
 
     const endDate = new Date();
     endDate.setHours(23, 59, 59, 999);
 
     const startDate = new Date();
-    startDate.setDate(startDate.getDate());
+    startDate.setDate(startDate.getDate() - (days - 1)); // FIX: Correctly calculate start date
     startDate.setHours(0, 0, 0, 0);
 
     const portfolioStatsPromise = Portfolio.aggregate([
@@ -114,6 +128,7 @@ const getDashboardStats = async (req, res) => {
     const blogUniqueViews = blogStats.uniqueViews || 0;
 
     const dailyDataMap = new Map();
+    // Initialize map with all dates in the range
     for (let i = 0; i < days; i++) {
       const date = new Date(startDate);
       date.setDate(date.getDate() + i);
@@ -142,7 +157,7 @@ const getDashboardStats = async (req, res) => {
       totalViews: item.portfolioViews + item.blogViews,
     }));
 
-    return res.status(200).json({
+    const responseData = {
       success: true,
       data: {
         summary: {
@@ -159,7 +174,16 @@ const getDashboardStats = async (req, res) => {
         },
         dailyData,
       },
-    });
+    };
+
+    // 3. Set the data in cache before responding
+    if (await redisClient.isConnected()) {
+      await redisClient.set(DASHBOARD_CACHE_KEY, JSON.stringify(responseData), {
+        EX: 600, // Cache for 10 minutes
+      });
+    }
+
+    return res.status(200).json(responseData);
   } catch (error) {
     logger.error(`Error fetching dashboard stats: ${error.message}`, { error });
     return res

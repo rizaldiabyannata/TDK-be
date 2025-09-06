@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+const { param } = require("express-validator");
 
 // Impor fungsi controller dan middleware yang diperlukan
 const {
@@ -11,7 +12,7 @@ const {
   deleteBlog,
   archiveBlog,
   unarchiveBlog,
-} = require("../controllers/blogController"); // Pastikan path ini benar
+} = require("../controllers/blogController");
 const { protect, optionalAuth } = require("../middleware/authMiddleware");
 const { trackView } = require("../middleware/viewTracker");
 const {
@@ -19,7 +20,9 @@ const {
   convertToWebp,
   uploadSingleFileOptional,
 } = require("../middleware/multerMiddleware");
-const { sanitizeParams } = require("../middleware/validationMiddleware");
+const { validate } = require("../middleware/validationMiddleware");
+
+const slugValidation = [param("slug").isSlug(), validate];
 
 /**
  * @route   GET /api/blogs
@@ -53,14 +56,14 @@ router.post(
  * @desc    Mengarsipkan artikel blog
  * @access  Private (Admin)
  */
-router.patch("/:slug/archive", protect, sanitizeParams, archiveBlog);
+router.patch("/:slug/archive", protect, slugValidation, archiveBlog);
 
 /**
  * @route   PATCH /api/blogs/:slug/unarchive
  * @desc    Mengembalikan artikel blog dari arsip
  * @access  Private (Admin)
  */
-router.patch("/:slug/unarchive", protect, sanitizeParams, unarchiveBlog);
+router.patch("/:slug/unarchive", protect, slugValidation, unarchiveBlog);
 
 /**
  * @route   GET /api/blogs/:slug
@@ -70,8 +73,8 @@ router.patch("/:slug/unarchive", protect, sanitizeParams, unarchiveBlog);
 router.get(
   "/:slug",
   optionalAuth,
+  slugValidation,
   trackView("Blog"),
-  sanitizeParams,
   getBlogBySlug
 );
 
@@ -85,7 +88,7 @@ router.put(
   protect,
   uploadSingleFileOptional("coverImage"),
   convertToWebp,
-  sanitizeParams,
+  slugValidation,
   updateBlog
 );
 
@@ -94,6 +97,6 @@ router.put(
  * @desc    Hapus artikel blog
  * @access  Private (Admin)
  */
-router.delete("/:slug", protect, sanitizeParams, deleteBlog);
+router.delete("/:slug", protect, slugValidation, deleteBlog);
 
 module.exports = router;

@@ -24,12 +24,4 @@ const validate = (req, res, next) => {
   });
 };
 
-const sanitizeParams = (req, res, next) => {
-  if (req.params.slug) {
-    // Hanya izinkan huruf, angka, dan tanda hubung
-    req.params.slug = req.params.slug.replace(/[^a-zA-Z0-9-]/g, "");
-  }
-  next();
-};
-
-module.exports = { validate, sanitizeParams };
+module.exports = { validate };

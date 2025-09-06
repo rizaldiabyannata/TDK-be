@@ -21,7 +21,6 @@ if (process.env.BUN_ENV === "production") {
 
 import logger, { warn, info, error as logError } from "./utils/logger.js";
 
-
 // Pastikan folder logs di utils/logs
 const logsDir = path.join(__dirname, "utils", "logs");
 if (!fs.existsSync(logsDir)) fs.mkdirSync(logsDir, { recursive: true });
@@ -63,7 +62,7 @@ const corsOptions = {
     if (ORIGIN_WHITELIST.includes(origin)) {
       return callback(null, true);
     } else {
-      return callback(new Error('Not allowed by CORS'), false);
+      return callback(new Error("Not allowed by CORS"), false);
     }
   },
   credentials: true,
@@ -79,7 +78,7 @@ const isDevelopment = process.env.BUN_ENV === "development";
 app.use(
   helmet({
     crossOriginResourcePolicy: {
-      policy: isDevelopment ? "cross-origin" : "same-origin",
+      policy: "cross-origin",
     },
     contentSecurityPolicy: {
       directives: {
@@ -93,7 +92,7 @@ app.use(
               "'self'",
               "http://localhost:3000",
               "http://36.69.250.114:3000",
-              "https://tdk.frontend.rizaldiabyannata.dev"
+              "https://tdk.frontend.rizaldiabyannata.dev",
             ],
         fontSrc: ["'self'", "https:"],
         objectSrc: ["'none'"],
@@ -110,7 +109,7 @@ if (isDevelopment) {
 app.use(
   morgan("combined", {
     stream: {
-  write: (message) => info(message.trim()),
+      write: (message) => info(message.trim()),
     },
   })
 );
@@ -124,12 +123,12 @@ const startServer = async () => {
     await seedAdmin();
     const PORT = process.env.PORT || 5000;
     const server = app.listen(PORT, "0.0.0.0", () => {
-  info(`Server is running on port ${PORT}`);
+      info(`Server is running on port ${PORT}`);
     });
     const gracefulShutdown = () => {
-  warn("Received kill signal, shutting down gracefully.");
+      warn("Received kill signal, shutting down gracefully.");
       server.close(() => {
-  info("HTTP server closed.");
+        info("HTTP server closed.");
         mongoose.connection.close(false, () => {
           info("MongoDb connection closed.");
           process.exit(0);
@@ -139,7 +138,7 @@ const startServer = async () => {
     process.on("SIGTERM", gracefulShutdown);
     process.on("SIGINT", gracefulShutdown);
   } catch (error) {
-  logError("Failed to start the server:", error);
+    logError("Failed to start the server:", error);
     process.exit(1);
   }
 };

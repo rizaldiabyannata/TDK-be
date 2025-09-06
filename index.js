@@ -10,6 +10,13 @@ const mongoose = require("mongoose");
 
 dotenv.config();
 
+// Disable console logs in production
+if (process.env.BUN_ENV === "production") {
+  console.log = () => {};
+  console.warn = () => {};
+  console.error = () => {};
+}
+
 const logger = require("./utils/logger");
 
 const logsDir = path.join(__dirname, "logs");
@@ -75,7 +82,9 @@ app.use(
   })
 );
 
-app.use(morgan("dev"));
+if (isDevelopment) {
+  app.use(morgan("dev"));
+}
 app.use(
   morgan("combined", {
     stream: {

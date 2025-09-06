@@ -92,9 +92,10 @@ This is a backend boilerplate built with Express.js, MongoDB, and Redis. It prov
   The application will run at `http://localhost:5000` and will automatically restart on file changes.
 
 - **Production Mode:**
+  To run the application in production mode, use the following command. This disables development-specific logging (like `console.log`) for better performance and security.
 
   ```bash
-  bun start
+  BUN_ENV=production bun start
   ```
 
 - **With Docker:**

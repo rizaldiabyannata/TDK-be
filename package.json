@@ -4,7 +4,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "bun --hot index.js",
-    "start": "bun index.js",
+    "start": "node index.js",
     "create-index": "bun ./maintain/create-indexes.js",
     "test": "bun test/smoke-test.js"
   },

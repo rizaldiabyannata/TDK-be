@@ -41,12 +41,12 @@ app.get("/api/runtime", (req, res) => {
   });
 });
 
+const ORIGIN_WHITELIST = process.env.ORIGIN_WHITELIST
+  ? process.env.ORIGIN_WHITELIST.split(",").map((origin) => origin.trim())
+  : [];
+
 const corsOptions = {
-  origin: [
-    "http://36.69.250.114:3000",
-    "http://localhost:3000",
-    "http://127.0.0.1:3000/",
-  ],
+  origin: ORIGIN_WHITELIST,
   credentials: true,
 };
 

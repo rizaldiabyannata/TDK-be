@@ -1,8 +1,8 @@
-const multer = require("multer");
-const logger = require("../utils/logger");
-const imageService = require("../services/imageService");
+import multer, { memoryStorage } from "multer";
+import { error as _error } from "../utils/logger.js";
+import { processImageToWebp } from "../services/imageService.js";
 
-const storage = multer.memoryStorage();
+const storage = memoryStorage();
 
 const fileFilter = (req, file, cb) => {
   if (file.mimetype.startsWith("image")) {
@@ -25,7 +25,7 @@ const upload = multer({
 const uploadSingleFile = (fieldName) => (req, res, next) => {
   upload.single(fieldName)(req, res, (err) => {
     if (err) {
-      logger.error(`Error upload file tunggal: ${err.message}`);
+      _error(`Error upload file tunggal: ${err.message}`);
       return res.status(400).json({ message: `Error upload: ${err.message}` });
     }
 
@@ -46,7 +46,7 @@ const uploadSingleFile = (fieldName) => (req, res, next) => {
 const uploadSingleFileOptional = (fieldName) => (req, res, next) => {
   upload.single(fieldName)(req, res, (err) => {
     if (err) {
-      logger.error(`Error upload file opsional: ${err.message}`);
+      _error(`Error upload file opsional: ${err.message}`);
       return res.status(400).json({ message: `Error upload: ${err.message}` });
     }
 
@@ -64,7 +64,7 @@ const uploadMultipleFiles =
   (req, res, next) => {
     upload.array(fieldName, maxCount)(req, res, (err) => {
       if (err) {
-        logger.error(`Error upload file ganda: ${err.message}`);
+        _error(`Error upload file ganda: ${err.message}`);
         return res
           .status(400)
           .json({ message: `Error upload: ${err.message}` });
@@ -80,7 +80,7 @@ const uploadMultipleFiles =
 const uploadFields = (fields) => (req, res, next) => {
   upload.fields(fields)(req, res, (err) => {
     if (err) {
-      logger.error(`Error upload fields: ${err.message}`);
+      _error(`Error upload fields: ${err.message}`);
       return res.status(400).json({ message: `Error upload: ${err.message}` });
     }
     next();
@@ -98,12 +98,12 @@ const convertToWebp = async (req, res, next) => {
 
   try {
     if (req.file) {
-      req.fileUrl = await imageService.processImageToWebp(req.file);
+      req.fileUrl = await processImageToWebp(req.file);
     }
 
     if (req.files && Array.isArray(req.files)) {
       req.fileUrls = await Promise.all(
-        req.files.map((file) => imageService.processImageToWebp(file))
+        req.files.map((file) => processImageToWebp(file))
       );
     }
 
@@ -115,19 +115,19 @@ const convertToWebp = async (req, res, next) => {
       req.fieldFileUrls = {};
       for (const field in req.files) {
         req.fieldFileUrls[field] = await Promise.all(
-          req.files[field].map((file) => imageService.processImageToWebp(file))
+          req.files[field].map((file) => processImageToWebp(file))
         );
       }
     }
 
     next();
   } catch (error) {
-    logger.error(`Error di middleware convertToWebp: ${error.message}`);
+    _error(`Error di middleware convertToWebp: ${error.message}`);
     next(error);
   }
 };
 
-module.exports = {
+export default {
   uploadSingleFile,
   uploadSingleFileOptional,
   uploadMultipleFiles,

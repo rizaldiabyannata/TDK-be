@@ -1,14 +1,12 @@
-// create-indexes.js
 require("dotenv").config(); // If you use environment variables
-const mongoose = require("mongoose");
-const Blog = require("../models/BlogModel");
+import { connect, disconnect } from "mongoose";
+import { collection } from "../models/BlogModel.js";
 
-mongoose
-  .connect(process.env.MONGO_URI)
+connect(process.env.MONGO_URI)
   .then(async () => {
     console.log("Connected to MongoDB");
     try {
-      await Blog.collection.createIndex(
+      await collection.createIndex(
         { title: "text", summary: "text", content: "text" },
         { name: "blog_text_index" }
       );
@@ -16,7 +14,7 @@ mongoose
     } catch (error) {
       console.error("Error creating text index:", error);
     } finally {
-      mongoose.disconnect();
+      disconnect();
     }
   })
   .catch((err) => {

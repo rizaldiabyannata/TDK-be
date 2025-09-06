@@ -1,5 +1,5 @@
-const winston = require("winston");
-const path = require("path");
+import winston from "winston";
+import path from "path";
 
 // Mendapatkan environment
 const ENV = process.env.BUN_ENV || "development";
@@ -54,4 +54,7 @@ if (ENV === "production") {
   );
 }
 
-module.exports = logger;
+export const warn = logger.warn.bind(logger);
+export const info = logger.info.bind(logger);
+export const error = logger.error.bind(logger);
+export default logger;

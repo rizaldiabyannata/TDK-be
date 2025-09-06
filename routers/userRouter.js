@@ -1,25 +1,18 @@
-const express = require("express");
-const router = express.Router();
-const rateLimit = require("express-rate-limit");
+import { Router } from "express";
+const router = Router();
+import rateLimit from "express-rate-limit";
 
+import userController from "../controllers/userController.js";
 const {
-  loginUser,
-  refreshToken,
-  getUserProfile,
-  updateUser,
-  requestPasswordResetOTP,
-  verifyOTPAndResetPassword,
-  logoutUser,
-} = require("../controllers/userController");
-const { protect } = require("../middleware/authMiddleware");
-const { validate } = require("../middleware/validationMiddleware");
-const {
-  loginRules,
-  resetPasswordRules,
-  updateUserRules,
-} = require("../validators/userValidators");
+  loginUser, refreshToken, getUserProfile, updateUser, requestPasswordResetOTP, verifyOTPAndResetPassword, logoutUser,
+} = userController;
+import _default from "../middleware/authMiddleware.js";
+const { protect } = _default;
+import __default from "../middleware/validationMiddleware.js";
+const { validate } = __default;
+import { loginRules, resetPasswordRules, updateUserRules } from "../validators/userValidators.js";
 
-const ipBlockMiddleware = require("../middleware/ipBlockMiddleware");
+import ipBlockMiddleware from "../middleware/ipBlockMiddleware.js";
 
 const strictLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -77,4 +70,4 @@ router.put(
 
 router.post("/logout", lenientLimiter, protect, logoutUser);
 
-module.exports = router;
+export default router;

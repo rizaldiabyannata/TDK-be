@@ -1,6 +1,6 @@
-const mongoose = require("mongoose");
+import { Schema, model } from "mongoose";
 
-const otpSchema = new mongoose.Schema({
+const otpSchema = new Schema({
   email: {
     type: String,
     required: true,
@@ -27,4 +27,4 @@ const otpSchema = new mongoose.Schema({
 
 otpSchema.index({ email: 1 });
 
-module.exports = mongoose.model("Otp", otpSchema);
+export default model("Otp", otpSchema);

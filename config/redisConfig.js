@@ -1,7 +1,5 @@
-const redis = require("redis");
-const logger = require("../utils/logger");
-
-let redisAvailable = false;
+import redis from "redis";
+import logger from "../utils/logger.js";
 let reconnectAttempts = 0;
 const MAX_RECONNECT_ATTEMPTS = 5;
 let reconnectTimer = null;
@@ -93,6 +91,7 @@ const setLocalCache = (key, value, expirySeconds = null) => {
   return "OK";
 };
 
+export default redisClient;
 const getLocalCache = (key) => {
   const item = localCache.get(key);
   if (!item) return null;
@@ -172,16 +171,16 @@ const redisClient = {
     }
   },
 
-  delete: async (key) => {
+  del: async (key) => {
     try {
       const client = await clientPromise;
       if (!client || !redisAvailable) {
-        logger.debug(`Redis unavailable, using local cache for DELETE: ${key}`);
+        logger.debug(`Redis unavailable, using local cache for DEL: ${key}`);
         return localCache.delete(key) ? 1 : 0;
       }
       return await client.del(key);
     } catch (error) {
-      logger.warn(`Redis DELETE error, using local cache: ${error.message}`);
+      logger.warn(`Redis DEL error, using local cache: ${error.message}`);
       return localCache.delete(key) ? 1 : 0;
     }
   },
@@ -290,4 +289,9 @@ const redisClient = {
   },
 };
 
-module.exports = redisClient;
+export const incr = redisClient.incr;
+export const expire = redisClient.expire;
+export const set = redisClient.set;
+export const del = redisClient.del;
+export const get = redisClient.get;
+export const isConnected = redisClient.isConnected;

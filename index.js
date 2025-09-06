@@ -1,29 +1,30 @@
-const express = require("express");
-const cors = require("cors");
-const dotenv = require("dotenv");
-const cookieParser = require("cookie-parser");
-const morgan = require("morgan");
-const fs = require("fs");
-const path = require("path");
-const helmet = require("helmet");
-const mongoose = require("mongoose");
+import express from "express";
+import cors from "cors";
+import dotenv from "dotenv";
+import cookieParser from "cookie-parser";
+import morgan from "morgan";
+import fs from "fs";
+import path from "path";
+import helmet from "helmet";
+import mongoose from "mongoose";
 
 dotenv.config();
 
+
 if (process.env.BUN_ENV === "production") {
-  console.log = () => {};
+  console.log = () => { };
 }
 
-const logger = require("./utils/logger");
+import logger from "./utils/logger.js";
 
-const logsDir = path.join(__dirname, "logs");
+const logsDir = path.join(path.dirname(new URL(import.meta.url).pathname), "logs");
 if (!fs.existsSync(logsDir)) fs.mkdirSync(logsDir, { recursive: true });
-const uploadsDir = path.join(__dirname, "uploads");
+const uploadsDir = path.join(path.dirname(new URL(import.meta.url).pathname), "uploads");
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 
-const seedAdmin = require("./seeder/seedAdmin");
-const connectDB = require("./config/db");
-const routes = require("./routers/index");
+import seedAdmin from "./seeder/seedAdmin.js";
+import connectDB from "./config/db.js";
+import routes from "./routers/index.js";
 
 const app = express();
 
@@ -92,7 +93,7 @@ app.use(
     },
   })
 );
-app.use("/uploads", express.static(path.join(__dirname, "public", "uploads")));
+app.use("/uploads", express.static(path.join(path.dirname(new URL(import.meta.url).pathname), "public", "uploads")));
 
 app.use("/api", routes);
 
@@ -124,4 +125,4 @@ const startServer = async () => {
 
 startServer();
 
-module.exports = app;
+export default app;

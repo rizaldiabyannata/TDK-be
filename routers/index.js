@@ -1,15 +1,17 @@
-const express = require("express");
-const router = express.Router();
-const userRouters = require("./userRouter");
-const { testRedisConnection } = require("../test/test-redis-connection");
-const blogRouters = require("./blogRouter");
-const portfolioRouters = require("./portoRouter");
-const statisticRouter = require("./statisticRouter");
-const contentTrackRouter = require("./contentTrackRouter");
-const contactFormRouter = require("./contactFormRouter");
-const logger = require("../utils/logger");
-const { uploadSingleFile } = require("../middleware/multerMiddleware");
-const { protect } = require("../middleware/authMiddleware");
+import { Router } from "express";
+const router = Router();
+import userRouters from "./userRouter.js";
+import { testRedisConnection } from "../test/test-redis-connection.js";
+import blogRouters from "./blogRouter.js";
+import portfolioRouters from "./portoRouter.js";
+import statisticRouter from "./statisticRouter.js";
+import contentTrackRouter from "./contentTrackRouter.js";
+import contactFormRouter from "./contactFormRouter.js";
+import { error as _error } from "../utils/logger.js";
+import multerMiddleware from "../middleware/multerMiddleware.js";
+const { uploadSingleFile } = multerMiddleware;
+import _default from "../middleware/authMiddleware.js";
+const { protect } = _default;
 
 router.use("/test", (req, res) => {
   res.send("Test route is working");
@@ -49,7 +51,7 @@ router.get("/health/redis", async (req, res) => {
       });
     }
   } catch (error) {
-    logger.error(`Redis health check failed: ${error.message}`);
+    _error(`Redis health check failed: ${error.message}`);
     return res.status(500).json({
       status: "error",
       message:
@@ -60,4 +62,4 @@ router.get("/health/redis", async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

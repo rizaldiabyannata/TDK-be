@@ -1,13 +1,14 @@
-const express = require("express");
-const router = express.Router();
-const rateLimit = require("express-rate-limit");
+import { Router } from "express";
+const router = Router();
+import rateLimit from "express-rate-limit";
 
+import contactFormController from "../controllers/contactFormController.js";
 const {
-  submitContactForm,
-  getAllContactForms,
-} = require("../controllers/contactFormController");
+  submitContactForm, getAllContactForms,
+} = contactFormController;
 
-const { protect } = require("../middleware/authMiddleware");
+import _default from "../middleware/authMiddleware.js";
+const { protect } = _default;
 
 // Create a rate limiter to prevent spam on the contact form
 const contactFormLimiter = rateLimit({
@@ -24,4 +25,4 @@ router.post("/", contactFormLimiter, submitContactForm);
 // Protect the GET route to only allow admins to view submissions
 router.get("/", protect, getAllContactForms);
 
-module.exports = router;
+export default router;

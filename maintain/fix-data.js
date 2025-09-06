@@ -1,11 +1,11 @@
 // maintain/fix-data.js
-const mongoose = require("mongoose");
-const dotenv = require("dotenv");
-const Blog = require("../models/BlogModel"); // Sesuaikan path ke model Anda
-const logger = require("../utils/logger"); // Gunakan logger untuk melacak progres
+import { connect, disconnect } from "mongoose";
+import { config } from "dotenv";
+import { find } from "../models/BlogModel.js"; // Sesuaikan path ke model Anda
+import { error as _error, info } from "../utils/logger.js"; // Gunakan logger untuk melacak progres
 
 // Muat environment variables dari file .env
-dotenv.config();
+config();
 
 // Fungsi untuk mengubah string menjadi Title Case
 const toTitleCase = (str) => {
@@ -17,21 +17,21 @@ const toTitleCase = (str) => {
 
 const fixBlogTitles = async () => {
   if (!process.env.MONGO_URI) {
-    logger.error("MONGO_URI tidak ditemukan di file .env");
+    _error("MONGO_URI tidak ditemukan di file .env");
     process.exit(1);
   }
 
   try {
     // 1. Hubungkan ke database
-    await mongoose.connect(process.env.MONGO_URI);
-    logger.info("Berhasil terhubung ke MongoDB");
+    await connect(process.env.MONGO_URI);
+    info("Berhasil terhubung ke MongoDB");
 
     // 2. Ambil semua blog yang ingin diperbaiki
-    const blogsToFix = await Blog.find({}); // Anda bisa menambahkan filter jika perlu
-    logger.info(`Menemukan ${blogsToFix.length} blog untuk diperbaiki.`);
+    const blogsToFix = await find({}); // Anda bisa menambahkan filter jika perlu
+    info(`Menemukan ${blogsToFix.length} blog untuk diperbaiki.`);
 
     if (blogsToFix.length === 0) {
-      logger.info("Tidak ada blog yang perlu diperbaiki. Keluar.");
+      info("Tidak ada blog yang perlu diperbaiki. Keluar.");
       return;
     }
 
@@ -47,20 +47,20 @@ const fixBlogTitles = async () => {
         // Jika slug juga perlu diperbarui berdasarkan judul baru
         // blog.slug = slugify(newTitle, { lower: true, strict: true });
         await blog.save();
-        logger.info(`Memperbaiki judul: "${originalTitle}" -> "${newTitle}"`);
+        info(`Memperbaiki judul: "${originalTitle}" -> "${newTitle}"`);
         fixedCount++;
       }
     }
 
-    logger.info(
+    info(
       `Selesai! Berhasil memperbaiki ${fixedCount} dari ${blogsToFix.length} judul blog.`
     );
   } catch (error) {
-    logger.error("Terjadi kesalahan saat menjalankan skrip perbaikan:", error);
+    _error("Terjadi kesalahan saat menjalankan skrip perbaikan:", error);
   } finally {
     // 4. Putuskan koneksi database
-    await mongoose.disconnect();
-    logger.info("Koneksi MongoDB ditutup.");
+    await disconnect();
+    info("Koneksi MongoDB ditutup.");
   }
 };
 

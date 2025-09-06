@@ -1,52 +1,52 @@
-const Blog = require("../models/BlogModel");
-const redisClient = require("../config/redisConfig");
-const logger = require("../utils/logger");
-const imageService = require("../services/imageService");
-const { sanitizeRichText } = require("../services/sanitizerService");
-const { default: slugify } = require("slugify");
+import Blog, { find, countDocuments, aggregate, findOne, findOneAndUpdate, deleteOne } from "../models/BlogModel.js";
+import { isConnected, get, set, del } from "../config/redisConfig.js";
+import { info, warn, error as _error } from "../utils/logger.js";
+import { deleteFile } from "../services/imageService.js";
+import { sanitizeRichText } from "../services/sanitizerService.js";
+import { default as slugify } from "slugify";
 
 const CACHE_KEY_PREFIX_BLOG = "blog:";
 const CACHE_KEY_ARCHIVE = "blogArchive";
 
 const getFromDbOrCache = async (cacheKey, dbQuery) => {
-  if (await redisClient.isConnected()) {
-    const cachedData = await redisClient.get(cacheKey);
+  if (await isConnected()) {
+    const cachedData = await get(cacheKey);
     if (cachedData) {
-      logger.info(`Cache HIT for key: ${cacheKey}`);
+      info(`Cache HIT for key: ${cacheKey}`);
 
       return cachedData;
     }
   } else {
-    logger.warn("Redis client is not connected, skipping cache check.");
+    warn("Redis client is not connected, skipping cache check.");
   }
 
-  logger.info(`Cache MISS for key: ${cacheKey}. Getting data from DB.`);
+  info(`Cache MISS for key: ${cacheKey}. Getting data from DB.`);
   const dbData = await dbQuery();
 
-  if ((await redisClient.isConnected()) && dbData) {
+  if ((await isConnected()) && dbData) {
     const expiry = cacheKey.includes("Archive") ? 21600 : 3600;
 
-    await redisClient.set(cacheKey, dbData, { EX: expiry });
+    await set(cacheKey, dbData, { EX: expiry });
   }
 
   return dbData;
 };
 
 const invalidateBlogCache = async (slug = null) => {
-  if (!redisClient.isConnected()) {
-    logger.warn("Redis client is not connected, cache invalidation skipped.");
+  if (!isConnected()) {
+    warn("Redis client is not connected, cache invalidation skipped.");
     return;
   }
   try {
-    await redisClient.delete(CACHE_KEY_ARCHIVE);
-    logger.info(`Cache deleted for key: ${CACHE_KEY_ARCHIVE}`);
+    await del(CACHE_KEY_ARCHIVE);
+    info(`Cache deleted for key: ${CACHE_KEY_ARCHIVE}`);
 
     if (slug) {
-      await redisClient.delete(`${CACHE_KEY_PREFIX_BLOG}${slug}`);
-      logger.info(`Cache deleted for key: ${CACHE_KEY_PREFIX_BLOG}${slug}`);
+      await del(`${CACHE_KEY_PREFIX_BLOG}${slug}`);
+      info(`Cache deleted for key: ${CACHE_KEY_PREFIX_BLOG}${slug}`);
     }
   } catch (error) {
-    logger.error(`Failed to delete: ${error.message}`);
+    _error(`Failed to delete: ${error.message}`);
   }
 };
 
@@ -76,8 +76,8 @@ const getAllBlogs = async (req, res) => {
     }
 
     const [blogs, totalBlogs] = await Promise.all([
-      Blog.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit),
-      Blog.countDocuments(filter),
+      find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit),
+      countDocuments(filter),
     ]);
 
     const totalPages = Math.ceil(totalBlogs / limit);
@@ -92,7 +92,7 @@ const getAllBlogs = async (req, res) => {
       },
     });
   } catch (error) {
-    logger.error(`Error di getAllBlogs: ${error.message}`);
+    _error(`Error di getAllBlogs: ${error.message}`);
     res.status(500).json({ message: "An internal server error occurred." });
   }
 };
@@ -100,7 +100,7 @@ const getAllBlogs = async (req, res) => {
 const getBlogArchive = async (req, res) => {
   try {
     const archives = await getFromDbOrCache(CACHE_KEY_ARCHIVE, () =>
-      Blog.aggregate([
+      aggregate([
         {
           $group: {
             _id: {
@@ -143,7 +143,7 @@ const getBlogArchive = async (req, res) => {
     );
     res.json(archives);
   } catch (error) {
-    logger.error(`Error di getBlogArchive: ${error.message}`);
+    _error(`Error di getBlogArchive: ${error.message}`);
     res.status(500).json({ message: "An internal server error occurred." });
   }
 };
@@ -154,11 +154,11 @@ const getBlogBySlug = async (req, res) => {
     let blog;
 
     if (req.user) {
-      logger.info(`[Admin Access] Bypass cache for slug: ${slug}`);
-      blog = await Blog.findOne({ slug });
+      info(`[Admin Access] Bypass cache for slug: ${slug}`);
+      blog = await findOne({ slug });
     } else {
       const cacheKey = `${CACHE_KEY_PREFIX_BLOG}${slug}`;
-      blog = await getFromDbOrCache(cacheKey, () => Blog.findOne({ slug }));
+      blog = await getFromDbOrCache(cacheKey, () => findOne({ slug }));
     }
 
     if (!blog) {
@@ -183,7 +183,7 @@ const getBlogBySlug = async (req, res) => {
       });
     }
   } catch (error) {
-    logger.error(`Error in getBlogBySlug: ${error.message}`, { error });
+    _error(`Error in getBlogBySlug: ${error.message}`, { error });
     res.status(500).json({ message: "An internal server error occurred." });
   }
 };
@@ -219,9 +219,9 @@ const createBlog = async (req, res) => {
       },
     });
   } catch (error) {
-    logger.error(`Error in createBlog: ${error.message}`);
+    _error(`Error in createBlog: ${error.message}`);
     if (req.fileUrl) {
-      await imageService.deleteFile(req.fileUrl);
+      await deleteFile(req.fileUrl);
     }
     res.status(400).json({ message: "Failed Create Article" });
   }
@@ -231,9 +231,9 @@ const updateBlog = async (req, res) => {
   const { slug } = req.params;
 
   try {
-    const existingBlog = await Blog.findOne({ slug });
+    const existingBlog = await findOne({ slug });
     if (!existingBlog) {
-      if (req.fileUrl) await imageService.deleteFile(req.fileUrl);
+      if (req.fileUrl) await deleteFile(req.fileUrl);
       return res.status(404).json({ message: "Blog not found" });
     }
 
@@ -250,13 +250,13 @@ const updateBlog = async (req, res) => {
       sanitizedData.coverImage = req.fileUrl;
     }
 
-    const updatedBlog = await Blog.findOneAndUpdate({ slug }, sanitizedData, {
+    const updatedBlog = await findOneAndUpdate({ slug }, sanitizedData, {
       new: true,
       runValidators: true,
     });
 
     if (req.fileUrl && existingBlog.coverImage) {
-      await imageService.deleteFile(existingBlog.coverImage);
+      await deleteFile(existingBlog.coverImage);
     }
 
     await invalidateBlogCache("blogArchive", "blog:", slug);
@@ -276,8 +276,8 @@ const updateBlog = async (req, res) => {
       },
     });
   } catch (error) {
-    logger.error(`Error in updateBlog: ${error.message}`);
-    if (req.fileUrl) await imageService.deleteFile(req.fileUrl);
+    _error(`Error in updateBlog: ${error.message}`);
+    if (req.fileUrl) await deleteFile(req.fileUrl);
     res.status(400).json({ message: error.message });
   }
 };
@@ -285,19 +285,19 @@ const updateBlog = async (req, res) => {
 const deleteBlog = async (req, res) => {
   const { slug } = req.params;
   try {
-    const blog = await Blog.findOne({ slug });
+    const blog = await findOne({ slug });
     if (!blog) {
       return res.status(404).json({ message: "Blog not found" });
     }
 
     if (blog.coverImage) {
-      await imageService.deleteFile(blog.coverImage);
+      await deleteFile(blog.coverImage);
     }
-    await Blog.deleteOne({ slug });
+    await deleteOne({ slug });
     await invalidateBlogCache(slug);
     res.json({ message: "Blog deleted successfully" });
   } catch (error) {
-    logger.error(`Error in deleteBlog: ${error.message}`);
+    _error(`Error in deleteBlog: ${error.message}`);
     res.status(500).json({ message: "An internal server error occurred." });
   }
 };
@@ -305,7 +305,7 @@ const deleteBlog = async (req, res) => {
 const archiveBlog = async (req, res) => {
   const { slug } = req.params;
   try {
-    const updatedBlog = await Blog.findOneAndUpdate(
+    const updatedBlog = await findOneAndUpdate(
       { slug },
       { isArchived: true },
       { new: true }
@@ -328,7 +328,7 @@ const archiveBlog = async (req, res) => {
       },
     });
   } catch (error) {
-    logger.error(`Error archiving blog: ${error.message}`);
+    _error(`Error archiving blog: ${error.message}`);
     res.status(500).json({ message: "An internal server error occurred." });
   }
 };
@@ -336,7 +336,7 @@ const archiveBlog = async (req, res) => {
 const unarchiveBlog = async (req, res) => {
   const { slug } = req.params;
   try {
-    const updatedBlog = await Blog.findOneAndUpdate(
+    const updatedBlog = await findOneAndUpdate(
       { slug },
       { isArchived: false },
       { new: true }
@@ -359,12 +359,12 @@ const unarchiveBlog = async (req, res) => {
       },
     });
   } catch (error) {
-    logger.error(`Error unarchiving blog: ${error.message}`);
+    _error(`Error unarchiving blog: ${error.message}`);
     res.status(500).json({ message: "An internal server error occurred." });
   }
 };
 
-module.exports = {
+export default {
   getAllBlogs,
   getBlogArchive,
   getBlogBySlug,

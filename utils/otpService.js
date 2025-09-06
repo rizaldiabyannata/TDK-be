@@ -1,9 +1,9 @@
-const nodemailer = require("nodemailer");
-const OtpModel = require("../models/OtpModel");
-const logger = require("./logger");
-const bcrypt = require("bcryptjs");
+import { createTransport } from "nodemailer";
+import OtpModel from "../models/OtpModel.js";
+import { info, error as _error, warn } from "./logger.js";
+import { genSalt, hash, compare } from "bcryptjs";
 
-const transporter = nodemailer.createTransport({
+const transporter = createTransport({
   service: "gmail",
   auth: {
     user: process.env.EMAIL_USER,
@@ -109,10 +109,10 @@ const sendPasswordResetOTP = async (email, otp) => {
       subject,
       html: htmlContent,
     });
-    logger.info(`Password reset OTP sent to admin email: ${email}`);
+    info(`Password reset OTP sent to admin email: ${email}`);
     return true;
   } catch (error) {
-    logger.error(`Failed to send OTP email: ${error.message}`);
+    _error(`Failed to send OTP email: ${error.message}`);
     throw new Error(`Failed to send OTP: ${error.message}`);
   }
 };
@@ -121,12 +121,12 @@ const createPasswordResetOTP = async (email) => {
   try {
     const plainOTP = generateOTP();
 
-    const salt = await bcrypt.genSalt(10);
-    const hashedOTP = await bcrypt.hash(plainOTP, salt);
+    const salt = await genSalt(10);
+    const hashedOTP = await hash(plainOTP, salt);
 
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
-    await OtpModel.findOneAndUpdate(
+    await OtpModel.js.findOneAndUpdate(
       { email, purpose: "password" },
       {
         email,
@@ -139,53 +139,53 @@ const createPasswordResetOTP = async (email) => {
 
     return plainOTP;
   } catch (error) {
-    logger.error(`Error creating password reset OTP: ${error.message}`);
+    _error(`Error creating password reset OTP: ${error.message}`);
     throw new Error(`Error creating OTP: ${error.message}`);
   }
 };
 
 const verifyPasswordResetOTP = async (email, plainOTP) => {
   try {
-    const otpRecords = await OtpModel.find({
+    const otpRecords = await OtpModel.js.find({
       email,
       purpose: "password",
       expiresAt: { $gt: new Date() },
     });
 
     if (!otpRecords || otpRecords.length === 0) {
-      logger.warn(`No valid OTP found for admin email: ${email}`);
+      warn(`No valid OTP found for admin email: ${email}`);
       return null;
     }
 
     for (const record of otpRecords) {
-      const isMatch = await bcrypt.compare(plainOTP, record.otp);
+      const isMatch = await compare(plainOTP, record.otp);
       if (isMatch) {
         return record;
       }
     }
 
-    logger.warn(`Invalid OTP attempt for admin email: ${email}`);
+    warn(`Invalid OTP attempt for admin email: ${email}`);
     return null;
   } catch (error) {
-    logger.error(`Error verifying OTP: ${error.message}`);
+    _error(`Error verifying OTP: ${error.message}`);
     throw new Error(`Error verifying OTP: ${error.message}`);
   }
 };
 
 const deleteOTP = async (otpId) => {
   try {
-    await OtpModel.deleteOne({ _id: otpId });
+    await OtpModel.js.deleteOne({ _id: otpId });
     return true;
   } catch (error) {
-    logger.error(`Error deleting OTP: ${error.message}`);
+    _error(`Error deleting OTP: ${error.message}`);
     throw new Error(`Error deleting OTP: ${error.message}`);
   }
 };
 
-module.exports = {
+export { 
   generateOTP,
   sendPasswordResetOTP,
   createPasswordResetOTP,
   verifyPasswordResetOTP,
-  deleteOTP,
+  deleteOTP
 };

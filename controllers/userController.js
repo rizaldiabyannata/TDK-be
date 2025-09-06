@@ -1,16 +1,16 @@
-const User = require("../models/UserModel");
-const logger = require("../utils/logger");
-const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
-const otpService = require("../utils/otpService");
-const redisClient = require("../config/redisConfig");
+import User from "../models/UserModel.js";
+import { warn, info, error as _error } from "../utils/logger.js";
+import { compare, genSalt, hash } from "bcryptjs";
+import { sign, verify, decode } from "jsonwebtoken";
+import { createPasswordResetOTP, sendPasswordResetOTP, verifyPasswordResetOTP, deleteOTP } from "../utils/otpService.js";
+import { incr, expire, set, del, get } from "../config/redisConfig.js";
 
 const generateTokens = (user) => {
-  const accessToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+  const accessToken = sign({ id: user._id }, process.env.JWT_SECRET, {
     expiresIn: "15m",
   });
 
-  const refreshToken = jwt.sign(
+  const refreshToken = sign(
     { id: user._id },
     process.env.JWT_REFRESH_SECRET,
     {
@@ -33,26 +33,26 @@ const loginUser = async (req, res) => {
     if (
       !admin ||
       admin.name !== name ||
-      !(await bcrypt.compare(password, admin.password))
+      !(await compare(password, admin.password))
     ) {
-      logger.warn(
+      warn(
         `Failed admin login attempt: Invalid credentials for ${name} from IP ${ip}`
       );
-      const attempts = await redisClient.incr(key);
-      await redisClient.expire(key, 15 * 60); // Expire in 15 minutes
+      const attempts = await incr(key);
+      await expire(key, 15 * 60); // Expire in 15 minutes
 
       if (attempts >= 3) {
-        await redisClient.set(blockKey, "true", { EX: 60 * 60 });
-        logger.warn(`IP ${ip} has been blocked for 1 hour.`);
+        await set(blockKey, "true", { EX: 60 * 60 });
+        warn(`IP ${ip} has been blocked for 1 hour.`);
       }
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
-    await redisClient.delete(key);
+    await del(key);
 
     const { accessToken, refreshToken } = generateTokens(admin);
 
-    logger.info(`Admin logged in: ${name}`);
+    info(`Admin logged in: ${name}`);
 
     res.cookie("accessToken", accessToken, {
       httpOnly: true,
@@ -77,7 +77,7 @@ const loginUser = async (req, res) => {
       },
     });
   } catch (error) {
-    logger.error(`Error logging in admin: ${error.message}`);
+    _error(`Error logging in admin: ${error.message}`);
     res.status(500).json({
       message:
         process.env.BUN_ENV === "production"
@@ -96,13 +96,13 @@ const refreshToken = async (req, res) => {
 
   try {
     // Periksa apakah refresh token lama ada di denylist
-    const isRevoked = await redisClient.get(`denylist:${oldRefreshToken}`);
+    const isRevoked = await get(`denylist:${oldRefreshToken}`);
     if (isRevoked) {
-      logger.warn(`Attempt to use a revoked refresh token.`);
+      warn(`Attempt to use a revoked refresh token.`);
       return res.status(403).json({ message: "Invalid refresh token." });
     }
 
-    const decoded = jwt.verify(oldRefreshToken, process.env.JWT_REFRESH_SECRET);
+    const decoded = verify(oldRefreshToken, process.env.JWT_REFRESH_SECRET);
     const user = await User.findById(decoded.id);
 
     if (!user) {
@@ -113,11 +113,11 @@ const refreshToken = async (req, res) => {
     const { accessToken, refreshToken: newRefreshToken } = generateTokens(user);
 
     // Tambahkan refresh token lama ke denylist untuk mencegah penggunaan kembali
-    const oldTokenDecoded = jwt.decode(oldRefreshToken);
+    const oldTokenDecoded = decode(oldRefreshToken);
     if (oldTokenDecoded && oldTokenDecoded.exp) {
       const expiresIn = oldTokenDecoded.exp - Math.floor(Date.now() / 1000);
       if (expiresIn > 0) {
-        await redisClient.set(`denylist:${oldRefreshToken}`, "revoked", {
+        await set(`denylist:${oldRefreshToken}`, "revoked", {
           EX: expiresIn,
         });
       }
@@ -133,7 +133,7 @@ const refreshToken = async (req, res) => {
 
     res.status(200).json({ accessToken });
   } catch (error) {
-    logger.error(`Error refreshing token: ${error.message}`);
+    _error(`Error refreshing token: ${error.message}`);
     return res.status(403).json({
       message:
         process.env.BUN_ENV === "production"
@@ -148,15 +148,15 @@ const logoutUser = async (req, res) => {
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith("Bearer ")) {
       const token = authHeader.split(" ")[1];
-      const decoded = jwt.decode(token);
+      const decoded = decode(token);
 
       if (decoded && decoded.exp) {
         const expiresIn = decoded.exp - Math.floor(Date.now() / 1000);
         if (expiresIn > 0) {
-          await redisClient.set(`denylist:${token}`, "revoked", {
+          await set(`denylist:${token}`, "revoked", {
             EX: expiresIn,
           });
-          logger.info(
+          info(
             `Token untuk user ${req.user?.name} ditambahkan ke denylist.`
           );
         }
@@ -166,13 +166,13 @@ const logoutUser = async (req, res) => {
     res.clearCookie("accessToken");
     res.clearCookie("refreshToken");
 
-    logger.info(`Admin logged out: ${req.user?.name} (ID: ${req.user?._id})`);
+    info(`Admin logged out: ${req.user?.name} (ID: ${req.user?._id})`);
 
     res.status(200).json({
       message: "Logout successful",
     });
   } catch (error) {
-    logger.error(`Error during logout: ${error.message}`);
+    _error(`Error during logout: ${error.message}`);
     res.status(500).json({
       message:
         process.env.BUN_ENV === "production"
@@ -186,7 +186,7 @@ const getUserProfile = async (req, res) => {
   try {
     const user = req.user;
 
-    logger.info(`Admin profile fetched: ${user._id}`);
+    info(`Admin profile fetched: ${user._id}`);
     res.json({
       user: {
         username: user.name,
@@ -194,7 +194,7 @@ const getUserProfile = async (req, res) => {
       },
     });
   } catch (error) {
-    logger.error(`Error in getAdminProfile: ${error.message}`);
+    _error(`Error in getAdminProfile: ${error.message}`);
     res.status(500).json({
       message:
         process.env.BUN_ENV === "production"
@@ -222,11 +222,11 @@ const updateUser = async (req, res) => {
     });
 
     if (!updatedUser) {
-      logger.warn(`Update failed: Admin user not found with ID ${userId}`);
+      warn(`Update failed: Admin user not found with ID ${userId}`);
       return res.status(404).json({ message: "Admin user not found" });
     }
 
-    logger.info(`Admin user updated successfully: ${userId}`);
+    info(`Admin user updated successfully: ${userId}`);
     res.status(200).json({
       message: "Admin user updated successfully",
       user: {
@@ -235,7 +235,7 @@ const updateUser = async (req, res) => {
       },
     });
   } catch (error) {
-    logger.error(`Error updating admin user: ${error.message}`);
+    _error(`Error updating admin user: ${error.message}`);
 
     res.status(500).json({
       message:
@@ -261,16 +261,16 @@ const requestPasswordResetOTP = async (req, res) => {
       });
     }
 
-    const plainOTP = await otpService.createPasswordResetOTP(email);
+    const plainOTP = await createPasswordResetOTP(email);
 
-    await otpService.sendPasswordResetOTP(email, plainOTP);
+    await sendPasswordResetOTP(email, plainOTP);
 
-    logger.info(`Admin password reset OTP sent to: ${email}`);
+    info(`Admin password reset OTP sent to: ${email}`);
     return res.status(200).json({
       message: "OTP has been sent to your email",
     });
   } catch (error) {
-    logger.error(`Error in requestPasswordResetOTP: ${error.message}`);
+    _error(`Error in requestPasswordResetOTP: ${error.message}`);
     return res.status(500).json({
       message:
         process.env.BUN_ENV === "production"
@@ -291,7 +291,7 @@ const verifyOTPAndResetPassword = async (req, res) => {
       });
     }
 
-    const otpRecord = await otpService.verifyPasswordResetOTP(email, otp);
+    const otpRecord = await verifyPasswordResetOTP(email, otp);
     if (!otpRecord) {
       return res.status(400).json({ message: "Invalid or expired OTP" });
     }
@@ -301,18 +301,18 @@ const verifyOTPAndResetPassword = async (req, res) => {
       return res.status(404).json({ message: "Admin user not found" });
     }
 
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(newPassword, salt);
+    const salt = await genSalt(10);
+    const hashedPassword = await hash(newPassword, salt);
 
     admin.password = hashedPassword;
     await admin.save();
 
-    await otpService.deleteOTP(otpRecord._id);
+    await deleteOTP(otpRecord._id);
 
-    logger.info(`Admin password reset successful for: ${email}`);
+    info(`Admin password reset successful for: ${email}`);
     return res.status(200).json({ message: "Password reset successful" });
   } catch (error) {
-    logger.error(`Error in verifyOTPAndResetPassword: ${error.message}`);
+    _error(`Error in verifyOTPAndResetPassword: ${error.message}`);
     return res.status(500).json({
       message:
         process.env.BUN_ENV === "production"
@@ -322,7 +322,7 @@ const verifyOTPAndResetPassword = async (req, res) => {
   }
 };
 
-module.exports = {
+export default {
   loginUser,
   getUserProfile,
   refreshToken,

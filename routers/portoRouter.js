@@ -1,26 +1,22 @@
-const express = require("express");
-const router = express.Router();
-const { param } = require("express-validator");
+import { Router } from "express";
+const router = Router();
+import { param } from "express-validator";
 
+import portoController from "../controllers/portoController.js";
 const {
-  getAllPortos,
-  getPortoArchive,
-  getPortoBySlug,
-  createPorto,
-  updatePorto,
-  deletePorto,
-  archivePorto,
-  unarchivePorto,
-} = require("../controllers/portoController");
+  getAllPortos, getPortoArchive, getPortoBySlug, createPorto, updatePorto, deletePorto, archivePorto, unarchivePorto,
+} = portoController;
 
-const { protect, optionalAuth } = require("../middleware/authMiddleware");
-const { trackView } = require("../middleware/viewTracker");
+import _default from "../middleware/authMiddleware.js";
+const { protect, optionalAuth } = _default;
+import __default from "../middleware/viewTracker.js";
+const { trackView } = __default;
+import ___default from "../middleware/multerMiddleware.js";
 const {
-  uploadSingleFile,
-  uploadSingleFileOptional,
-  convertToWebp,
-} = require("../middleware/multerMiddleware");
-const { validate } = require("../middleware/validationMiddleware");
+  uploadSingleFile, uploadSingleFileOptional, convertToWebp,
+} = ___default;
+import ____default from "../middleware/validationMiddleware.js";
+const { validate } = ____default;
 
 const slugValidation = [param("slug").isSlug(), validate];
 
@@ -99,4 +95,4 @@ router.put(
  */
 router.delete("/:slug", protect, slugValidation, deletePorto);
 
-module.exports = router;
+export default router;

@@ -1,7 +1,7 @@
-const jwt = require("jsonwebtoken");
-const User = require("../models/UserModel");
-const logger = require("../utils/logger");
-const redisClient = require("../config/redisConfig");
+import { verify } from "jsonwebtoken";
+import { findById } from "../models/UserModel.js";
+import { warn, error as _error, debug } from "../utils/logger.js";
+import { get } from "../config/redisConfig.js";
 
 const protect = async (req, res, next) => {
   let token;
@@ -10,18 +10,18 @@ const protect = async (req, res, next) => {
     try {
       token = req.cookies.accessToken;
 
-      const isRevoked = await redisClient.get(`denylist:${token}`);
+      const isRevoked = await get(`denylist:${token}`);
       if (isRevoked) {
-        logger.warn(`Authentication failed: Token revoked for user.`);
+        warn(`Authentication failed: Token revoked for user.`);
         return res.status(401).json({
           success: false,
           message: "Not authorized, token has been revoked.",
         });
       }
 
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const decoded = verify(token, process.env.JWT_SECRET);
 
-      req.user = await User.findById(decoded.id).select("-password");
+      req.user = await findById(decoded.id).select("-password");
 
       if (!req.user) {
         return res.status(401).json({
@@ -32,7 +32,7 @@ const protect = async (req, res, next) => {
 
       next();
     } catch (error) {
-      logger.error(`Authentication error: ${error.message}`);
+      _error(`Authentication error: ${error.message}`);
       if (error.name === "TokenExpiredError") {
         return res.status(401).json({
           success: false,
@@ -78,13 +78,13 @@ const optionalAuth = async (req, res, next) => {
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.id).select("-password");
+    const decoded = verify(token, process.env.JWT_SECRET);
+    const user = await findById(decoded.id).select("-password");
     if (user) {
       req.user = user;
     }
   } catch (error) {
-    logger.debug(
+    debug(
       `Optional auth: Invalid token, proceeding as guest. Error: ${error.message}`
     );
   }
@@ -92,4 +92,4 @@ const optionalAuth = async (req, res, next) => {
   next();
 };
 
-module.exports = { protect, authorize, optionalAuth };
+export default { protect, authorize, optionalAuth };

@@ -1,3 +1,27 @@
+
+function getLogLocation() {
+  const stack = new Error().stack;
+  if (!stack) return '';
+  const lines = stack.split('\n');
+  // Cari baris stack yang pertama kali TIDAK mengandung 'logger.js'
+  for (let i = 2; i < lines.length; i++) {
+    if (!lines[i].includes('logger.js')) {
+      return lines[i].replace(/^\s*at\s*/, '');
+    }
+  }
+  return '';
+}
+
+export const warn = (...args) => {
+  logger.warn(`[${getLogLocation()}]`, ...args);
+};
+export const info = (...args) => {
+  logger.info(`[${getLogLocation()}]`, ...args);
+};
+export const error = (...args) => {
+  logger.error(`[${getLogLocation()}]`, ...args);
+};
+
 import winston from "winston";
 import path from "path";
 import { fileURLToPath } from "url";

@@ -2,7 +2,6 @@ import bcrypt from "bcryptjs";
 import dotenv from "dotenv";
 import User from "../models/UserModel.js"; // Pastikan path ini benar
 import logger from "../utils/logger.js"; // Gunakan logger standar untuk konsistensi
-
 dotenv.config();
 
 // Konfigurasi Admin dari environment variables

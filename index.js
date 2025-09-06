@@ -57,7 +57,15 @@ const ORIGIN_WHITELIST = process.env.ORIGIN_WHITELIST
   : [];
 
 const corsOptions = {
-  origin: ORIGIN_WHITELIST,
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps, curl, etc)
+    if (!origin) return callback(null, true);
+    if (ORIGIN_WHITELIST.includes(origin)) {
+      return callback(null, true);
+    } else {
+      return callback(new Error('Not allowed by CORS'), false);
+    }
+  },
   credentials: true,
 };
 
@@ -78,12 +86,15 @@ app.use(
         defaultSrc: ["'self'"],
         scriptSrc: ["'self'"],
         styleSrc: ["'self'", "'unsafe-inline'"],
-        imgSrc: ["'self'", "data:", "http://localhost:5000"],
-        // Jika development, izinkan koneksi dari mana saja.
-        // Jika production, batasi hanya ke domain yang diizinkan.
+        imgSrc: ["'self'", "data:", "https://tdk.api.rizaldiabyannata.dev"],
         connectSrc: isDevelopment
           ? ["*"]
-          : ["'self'", "http://localhost:3000", "http://36.69.250.114:3000"],
+          : [
+              "'self'",
+              "http://localhost:3000",
+              "http://36.69.250.114:3000",
+              "https://tdk.frontend.rizaldiabyannata.dev"
+            ],
         fontSrc: ["'self'", "https:"],
         objectSrc: ["'none'"],
         scriptSrcAttr: ["'none'"],

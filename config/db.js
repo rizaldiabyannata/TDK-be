@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import logger, { warn, info } from "../utils/logger.js";
+import logger from "../utils/logger.js";
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -9,9 +9,9 @@ const MONGO_URI =
 const connectDB = async () => {
   try {
     const conn = await mongoose.connect(MONGO_URI);
-  info(`MongoDB Connected: ${conn.connection.host}`);
+    logger.info(`MongoDB Connected: ${conn.connection.host}`);
   } catch (error) {
-  warn(`Error: ${error.message}`);
+    logger.warn(`Error: ${error.message}`);
     process.exit(1);
   }
 };

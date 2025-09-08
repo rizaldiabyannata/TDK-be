@@ -1,6 +1,6 @@
 import jwt from "jsonwebtoken";
 import User from "../models/UserModel.js";
-import logger, { warn, info, error as logError } from "../utils/logger.js";
+import logger from "../utils/logger.js";
 import redisClient from "../config/redisConfig.js";
 
 export const protect = async (req, res, next) => {
@@ -12,7 +12,7 @@ export const protect = async (req, res, next) => {
 
       const isRevoked = await redisClient.get(`denylist:${token}`);
       if (isRevoked) {
-  warn(`Authentication failed: Token revoked for user.`);
+        logger.warn(`Authentication failed: Token revoked for user.`);
         return res.status(401).json({
           success: false,
           message: "Not authorized, token has been revoked.",
@@ -32,7 +32,7 @@ export const protect = async (req, res, next) => {
 
       next();
     } catch (error) {
-  logError(`Authentication error: ${error.message}`);
+      logger.error(`Authentication error: ${error.message}`);
       if (error.name === "TokenExpiredError") {
         return res.status(401).json({
           success: false,
@@ -84,7 +84,7 @@ export const optionalAuth = async (req, res, next) => {
       req.user = user;
     }
   } catch (error) {
-  info(
+    logger.info(
       `Optional auth: Invalid token, proceeding as guest. Error: ${error.message}`
     );
   }

@@ -85,7 +85,12 @@ app.use(
         defaultSrc: ["'self'"],
         scriptSrc: ["'self'"],
         styleSrc: ["'self'", "'unsafe-inline'"],
-        imgSrc: ["'self'", "data:", "https://tdk.api.rizaldiabyannata.dev"],
+        imgSrc: [
+          "'self'",
+          "data:",
+          "http://localhost:3000",
+          "https://tdk.api.rizaldiabyannata.dev",
+        ],
         connectSrc: isDevelopment
           ? ["*"]
           : [

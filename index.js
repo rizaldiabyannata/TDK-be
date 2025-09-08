@@ -15,11 +15,7 @@ const __dirname = path.dirname(__filename);
 
 dotenv.config();
 
-if (process.env.BUN_ENV === "production") {
-  console.log = () => {};
-}
-
-import logger, { warn, info, error as logError } from "./utils/logger.js";
+import logger from "./utils/logger.js";
 
 // Pastikan folder logs di utils/logs
 const logsDir = path.join(__dirname, "utils", "logs");
@@ -114,7 +110,7 @@ if (isDevelopment) {
 app.use(
   morgan("combined", {
     stream: {
-      write: (message) => info(message.trim()),
+      write: (message) => logger.info(message.trim()),
     },
   })
 );
@@ -128,14 +124,14 @@ const startServer = async () => {
     await seedAdmin();
     const PORT = process.env.PORT || 5000;
     const server = app.listen(PORT, "0.0.0.0", () => {
-      info(`Server is running on port ${PORT}`);
+      logger.info(`Server is running on port ${PORT}`);
     });
     const gracefulShutdown = () => {
-      warn("Received kill signal, shutting down gracefully.");
+      logger.warn("Received kill signal, shutting down gracefully.");
       server.close(() => {
-        info("HTTP server closed.");
+        logger.info("HTTP server closed.");
         mongoose.connection.close(false, () => {
-          info("MongoDb connection closed.");
+          logger.info("MongoDb connection closed.");
           process.exit(0);
         });
       });
@@ -143,7 +139,7 @@ const startServer = async () => {
     process.on("SIGTERM", gracefulShutdown);
     process.on("SIGINT", gracefulShutdown);
   } catch (error) {
-    logError("Failed to start the server:", error);
+    logger.error("Failed to start the server:", error);
     process.exit(1);
   }
 };

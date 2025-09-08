@@ -1,5 +1,5 @@
 import redis from "redis";
-import logger, { warn, info, error as logError } from "../utils/logger.js";
+import logger from "../utils/logger.js";
 
 let redisAvailable = false;
 let reconnectAttempts = 0;
@@ -18,7 +18,7 @@ const createClient = async () => {
         reconnectAttempts = retries;
         if (retries > MAX_RECONNECT_ATTEMPTS) {
           redisAvailable = false;
-          warn(
+          logger.warn(
             `Redis unavailable after ${MAX_RECONNECT_ATTEMPTS} attempts, using local cache fallback`
           );
           return false;
@@ -28,11 +28,11 @@ const createClient = async () => {
     },
   });
 
-  client.on("connect", () => info("Redis connection established"));
+  client.on("connect", () => logger.info("Redis connection established"));
   client.on("ready", () => {
     redisAvailable = true;
     reconnectAttempts = 0;
-  info("Redis client is ready to use");
+    logger.info("Redis client is ready to use");
     if (reconnectTimer) {
       clearTimeout(reconnectTimer);
       reconnectTimer = null;
@@ -40,22 +40,22 @@ const createClient = async () => {
   });
   client.on("error", (err) => {
     if (redisAvailable) {
-  logError(`Redis error: ${err.message}`, { error: err });
+      logger.error(`Redis error: ${err.message}`, { error: err });
     }
     redisAvailable = false;
   });
-  client.on("reconnecting", () => info("Redis client is reconnecting"));
+  client.on("reconnecting", () => logger.info("Redis client is reconnecting"));
   client.on("end", () => {
     redisAvailable = false;
-  info("Redis connection closed");
+    logger.info("Redis connection closed");
     if (!reconnectTimer && reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
       reconnectTimer = setTimeout(async () => {
-  info("Attempting to reconnect to Redis...");
+        logger.info("Attempting to reconnect to Redis...");
         reconnectTimer = null;
         try {
           await client.connect();
         } catch (err) {
-          logError(`Failed to reconnect to Redis: ${err.message}`);
+          logger.error(`Failed to reconnect to Redis: ${err.message}`);
         }
       }, 5000);
     }
@@ -66,7 +66,7 @@ const createClient = async () => {
     redisAvailable = true;
   } catch (err) {
     redisAvailable = false;
-  warn(
+    logger.warn(
       `Failed to connect to Redis: ${err.message}. Using local cache fallback.`
     );
   }
@@ -75,7 +75,7 @@ const createClient = async () => {
 };
 
 let clientPromise = createClient().catch((err) => {
-  warn(
+  logger.warn(
     `Initial Redis connection failed: ${err.message}. Using local cache fallback.`
   );
   redisAvailable = false;
@@ -106,7 +106,7 @@ const redisClient = {
     try {
       return await clientPromise;
     } catch (error) {
-  logError(`Error getting Redis client: ${error.message}`);
+      logger.error(`Error getting Redis client: ${error.message}`);
       return null;
     }
   },
@@ -116,7 +116,7 @@ const redisClient = {
       const client = await clientPromise;
       return client && client.isReady;
     } catch (error) {
-  logError(`Error checking Redis connection: ${error.message}`);
+      logger.error(`Error checking Redis connection: ${error.message}`);
       return false;
     }
   },
@@ -141,7 +141,7 @@ const redisClient = {
       // Menggunakan client.set yang menerima objek 'options'
       return await client.set(key, stringValue, options || undefined);
     } catch (error) {
-  warn(`Redis SET error, using local cache: ${error.message}`);
+      logger.warn(`Redis SET error, using local cache: ${error.message}`);
       const expirySeconds = options && options.EX ? options.EX : null;
       return setLocalCache(key, value, expirySeconds);
     }
@@ -159,13 +159,13 @@ const redisClient = {
       try {
         return JSON.parse(reply);
       } catch (error) {
-  logError(
+        logger.error(
           `Failed to parse JSON from Redis for key ${key}: ${error.message}`
         );
         return reply;
       }
     } catch (error) {
-  warn(`Redis GET error, using local cache: ${error.message}`);
+      logger.warn(`Redis GET error, using local cache: ${error.message}`);
       return getLocalCache(key);
     }
   },
@@ -179,7 +179,7 @@ const redisClient = {
       }
       return await client.del(key);
     } catch (error) {
-  warn(`Redis DELETE error, using local cache: ${error.message}`);
+      logger.warn(`Redis DELETE error, using local cache: ${error.message}`);
       return localCache.delete(key) ? 1 : 0;
     }
   },
@@ -198,7 +198,7 @@ const redisClient = {
       const result = await client.exists(key);
       return result === 1;
     } catch (error) {
-  warn(`Redis EXISTS error, using local cache: ${error.message}`);
+      logger.warn(`Redis EXISTS error, using local cache: ${error.message}`);
       return localCache.has(key);
     }
   },
@@ -220,7 +220,7 @@ const redisClient = {
       const result = await client.expire(key, seconds);
       return result === 1;
     } catch (error) {
-  warn(`Redis EXPIRE error, using local cache: ${error.message}`);
+      logger.warn(`Redis EXPIRE error, using local cache: ${error.message}`);
       const item = localCache.get(key);
       if (!item) return false;
 
@@ -242,7 +242,7 @@ const redisClient = {
 
       return await client.flushDb();
     } catch (error) {
-  warn(
+      logger.warn(
         `Redis FLUSHDB error, clearing local cache: ${error.message}`
       );
       localCache.clear();
@@ -255,13 +255,13 @@ const redisClient = {
       const client = await clientPromise;
       if (client && redisAvailable) {
         await client.quit();
-  info("Redis connection closed gracefully");
+        logger.info("Redis connection closed gracefully");
       }
 
       localCache.clear();
       redisAvailable = false;
     } catch (error) {
-  warn(`Redis QUIT error: ${error.message}`);
+      logger.warn(`Redis QUIT error: ${error.message}`);
       localCache.clear();
       redisAvailable = false;
     }
@@ -279,7 +279,7 @@ const redisClient = {
       }
       return await client.incr(key);
     } catch (error) {
-  warn(`Redis INCR error, using local cache: ${error.message}`);
+      logger.warn(`Redis INCR error, using local cache: ${error.message}`);
       let value = getLocalCache(key) || 0;
       value++;
       setLocalCache(key, value);

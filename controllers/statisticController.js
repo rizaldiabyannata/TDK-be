@@ -12,7 +12,7 @@ export const getDashboardStats = async (req, res) => {
       const cachedData = await redisClient.get(DASHBOARD_CACHE_KEY);
       if (cachedData) {
         logger.info("Dashboard stats cache HIT.");
-        return res.status(200).json(JSON.parse(cachedData));
+        return res.status(200).json(cachedData);
       }
     }
     logger.info("Dashboard stats cache MISS. Fetching from DB.");

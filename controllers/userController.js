@@ -321,4 +321,3 @@ export const verifyOTPAndResetPassword = async (req, res) => {
     });
   }
 };
-

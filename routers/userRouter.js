@@ -48,12 +48,7 @@ router.post(
 
 router.post("/refresh-token", lenientLimiter, refreshToken);
 
-router.post(
-  "/request-password-reset",
-  strictLimiter,
-  protect,
-  requestPasswordResetOTP
-);
+router.post("/request-password-reset", strictLimiter, requestPasswordResetOTP);
 
 router.post(
   "/reset-password",

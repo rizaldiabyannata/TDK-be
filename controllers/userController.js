@@ -260,7 +260,7 @@ export const updateUser = async (req, res) => {
 
 export const requestPasswordResetOTP = async (req, res) => {
   try {
-    const email = req.user.email;
+    const email = req.body.email;
 
     if (!email) {
       return res.status(400).json({ message: "Email is required" });

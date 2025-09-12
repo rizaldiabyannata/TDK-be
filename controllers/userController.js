@@ -70,7 +70,6 @@ export const loginUser = async (req, res) => {
 
     res.status(200).json({
       message: "Login successful",
-      accessToken,
       user: {
         name: admin.name,
         email: admin.email || null,
@@ -207,12 +206,20 @@ export const getUserProfile = async (req, res) => {
 export const updateUser = async (req, res) => {
   try {
     const userId = req.user._id;
-    const { email } = req.body;
+    const { email, name } = req.body;
 
     const updateData = {};
+
     if (email) {
       updateData.email = email;
-    } else {
+      updateData.emailVerified = false;
+    }
+
+    if (name) {
+      updateData.name = name;
+    }
+
+    if (Object.keys(updateData).length === 0) {
       return res.status(400).json({ message: "No updatable fields provided." });
     }
 

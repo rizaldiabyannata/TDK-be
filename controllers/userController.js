@@ -206,7 +206,7 @@ export const getUserProfile = async (req, res) => {
 export const updateUser = async (req, res) => {
   try {
     const userId = req.user._id;
-    const { email, name } = req.body;
+    const { email, name, password } = req.body;
 
     const updateData = {};
 
@@ -217,6 +217,11 @@ export const updateUser = async (req, res) => {
 
     if (name) {
       updateData.name = name;
+    }
+
+    if (password) {
+      const salt = await bcrypt.genSalt(10);
+      updateData.password = await bcrypt.hash(password, salt);
     }
 
     if (Object.keys(updateData).length === 0) {

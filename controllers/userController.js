@@ -294,34 +294,33 @@ export const requestPasswordResetOTP = async (req, res) => {
 
 export const verifyOTPAndResetPassword = async (req, res) => {
   try {
-    const email = req.user.email;
     const { otp, newPassword } = req.body;
 
-    if (!email || !otp || !newPassword) {
+    if (!otp || !newPassword) {
       return res.status(400).json({
-        message: "Email, OTP, and new password are required",
+        message: "OTP and new password are required",
       });
     }
 
-    const otpRecord = await otpService.verifyPasswordResetOTP(email, otp);
+    const otpRecord = await otpService.verifyPasswordResetOTP(otp);
     if (!otpRecord) {
       return res.status(400).json({ message: "Invalid or expired OTP" });
     }
 
-    const admin = await User.findOne({ email });
-    if (!admin) {
+    const admin = await User.find().limit(1);
+    if (!admin || admin.length === 0) {
       return res.status(404).json({ message: "Admin user not found" });
     }
 
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(newPassword, salt);
 
-    admin.password = hashedPassword;
-    await admin.save();
+    admin[0].password = hashedPassword;
+    await admin[0].save();
 
     await otpService.deleteOTP(otpRecord._id);
 
-    logger.info(`Admin password reset successful for: ${email}`);
+    logger.info(`Admin password reset successful for: ${admin[0].email}`);
     return res.status(200).json({ message: "Password reset successful" });
   } catch (error) {
     logger.error(`Error in verifyOTPAndResetPassword: ${error.message}`);

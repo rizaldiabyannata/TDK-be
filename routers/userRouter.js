@@ -55,7 +55,6 @@ router.post(
   strictLimiter,
   resetPasswordRules(),
   validate,
-  protect,
   verifyOTPAndResetPassword
 );
 

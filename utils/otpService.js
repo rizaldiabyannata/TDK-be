@@ -2,6 +2,7 @@ import nodemailer from "nodemailer";
 import OtpModel from "../models/OtpModel.js";
 import logger from "./logger.js";
 import bcrypt from "bcryptjs";
+import User from "../models/UserModel.js";
 
 const transporter = nodemailer.createTransport({
   service: "gmail",
@@ -144,16 +145,18 @@ export const createPasswordResetOTP = async (email) => {
   }
 };
 
-export const verifyPasswordResetOTP = async (email, plainOTP) => {
+export const verifyPasswordResetOTP = async (plainOTP) => {
   try {
+    const admin = await User.find().limit(1);
+    console.log(admin[0]);
     const otpRecords = await OtpModel.find({
-      email,
+      email: admin[0].email,
       purpose: "password",
       expiresAt: { $gt: new Date() },
     });
 
     if (!otpRecords || otpRecords.length === 0) {
-      logger.warn(`No valid OTP found for admin email: ${email}`);
+      logger.warn(`No valid OTP found for admin email: ${admin[0].email}`);
       return null;
     }
 
@@ -164,7 +167,7 @@ export const verifyPasswordResetOTP = async (email, plainOTP) => {
       }
     }
 
-    logger.warn(`Invalid OTP attempt for admin email: ${email}`);
+    logger.warn(`Invalid OTP attempt for admin email: ${admin[0].email}`);
     return null;
   } catch (error) {
     logger.error(`Error verifying OTP: ${error.message}`);

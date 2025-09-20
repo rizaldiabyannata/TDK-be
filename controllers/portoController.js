@@ -51,7 +51,17 @@ const invalidatePortoCache = async (slug = null) => {
 export const getAllPortos = async (req, res) => {
   try {
     const page = parseInt(req.query.page, 10) || 1;
-    const limit = parseInt(req.query.limit, 10) || 10;
+    let limit = parseInt(req.query.limit, 10);
+
+    // If limit is not a number or less than 1, set to default
+    if (isNaN(limit) || limit < 1) {
+      limit = 10;
+    }
+
+    // If limit exceeds max, send error
+    if (limit > 10) {
+      return res.status(400).json({ message: "The limit cannot exceed 10." });
+    }
 
     const searchTerm = req.query.search || "";
     let status = req.query.status || "active";

@@ -7,8 +7,8 @@ services:
         limits:
           memory: 512M
     restart: always
-    ports:
-      - "6379:6379"
+    expose:
+      - "6379"
     command: redis-server /usr/local/etc/redis/redis.conf
     volumes:
       - ./redis.conf:/usr/local/etc/redis/redis.conf
@@ -24,8 +24,8 @@ services:
         limits:
           memory: 2G
     restart: always
-    ports:
-      - "27017:27017"
+    expose:
+      - "27017"
     volumes:
       - mongo-data:/data/db
     networks:
@@ -39,12 +39,22 @@ services:
     restart: always
     ports:
       - "5000:5000"
+    depends_on:
+      - redis
+      - mongo
+    env_file:
+      - .env
+    volumes:
+      - uploads-data:/usr/src/app/public/uploads
+      - logs-data:/usr/src/app/utils/logs
     networks:
       - app-network
 
 volumes:
   redis-data:
   mongo-data:
+  uploads-data:
+  logs-data:
 
 networks:
   app-network:

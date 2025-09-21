@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "nodemon index.js",
-    "start": "node index.js",
+    "start": "bun index.js",
     "create-index": "bun ./maintain/create-indexes.js",
     "test": "bun test/smoke-test.js"
   },

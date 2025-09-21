@@ -37,14 +37,7 @@ const lenientLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-router.post(
-  "/login",
-  ipBlockMiddleware,
-  strictLimiter,
-  loginRules(),
-  validate,
-  loginUser
-);
+router.post("/login", strictLimiter, loginRules(), validate, loginUser);
 
 router.post("/refresh-token", lenientLimiter, refreshToken);
 

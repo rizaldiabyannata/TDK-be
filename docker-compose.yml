@@ -26,10 +26,39 @@ services:
     restart: always
     expose:
       - "27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-strongpassword123}
+      MONGO_INITDB_DATABASE: tdk-db
     volumes:
       - mongo-data:/data/db
     networks:
       - app-network
+
+  minio:
+    image: minio/minio
+    container_name: minio-tdk
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+    restart: always
+    ports:
+      - "9004:9000"
+      - "9005:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin123
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio-data:/data
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
 
   app:
     build:
@@ -42,17 +71,26 @@ services:
     depends_on:
       - redis
       - mongo
+      - minio
     env_file:
       - .env
+    environment:
+      REDIS_HOST: redis
+      MONGO_URI: mongodb://admin:${MONGO_ROOT_PASSWORD:-strongpassword123}@mongo:27017/tdk-db?authSource=admin
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: 9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin123
+      MINIO_BUCKET: tdk-uploads
     volumes:
       - uploads-data:/usr/src/app/public/uploads
       - logs-data:/usr/src/app/utils/logs
     networks:
       - app-network
-
 volumes:
   redis-data:
   mongo-data:
+  minio-data:
   uploads-data:
   logs-data:
 

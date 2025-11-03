@@ -28,6 +28,7 @@ if (!fs.existsSync(imagesDir)) fs.mkdirSync(imagesDir, { recursive: true });
 import seedAdmin from "./seeder/seedAdmin.js";
 import connectDB from "./config/db.js";
 import routes from "./routers/index.js";
+import { initializeBucket } from "./services/minioService.js";
 
 const app = express();
 
@@ -115,6 +116,14 @@ const startServer = async () => {
   try {
     await connectDB();
     await seedAdmin();
+
+    // Initialize MinIO bucket
+    if (process.env.MINIO_ENDPOINT) {
+      await initializeBucket();
+    } else {
+      logger.warn("MinIO not configured. Skipping bucket initialization.");
+    }
+
     const PORT = process.env.PORT || 5000;
     const server = app.listen(PORT, "0.0.0.0", () => {
       logger.info(`Server is running on port ${PORT}`);

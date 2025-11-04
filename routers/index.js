@@ -7,6 +7,7 @@ import portfolioRouters from "./portoRouter.js";
 import statisticRouter from "./statisticRouter.js";
 import contentTrackRouter from "./contentTrackRouter.js";
 import contactFormRouter from "./contactFormRouter.js";
+import serviceRouter from "./serviceRouter.js";
 import logger from "../utils/logger.js";
 import { uploadSingleFile } from "../middleware/multerMiddleware.js";
 import { protect } from "../middleware/authMiddleware.js";
@@ -18,6 +19,7 @@ router.use("/test", (req, res) => {
 router.use("/user", userRouters);
 router.use("/blogs", blogRouters);
 router.use("/portfolios", portfolioRouters);
+router.use("/services", serviceRouter);
 router.use("/statistic", statisticRouter);
 router.use("/content-tracking", contentTrackRouter);
 router.use("/contact-form", contactFormRouter);

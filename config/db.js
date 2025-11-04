@@ -4,6 +4,7 @@ import logger from "../utils/logger.js";
 const MONGO_URI =
   process.env.MONGO_URI || "mongodb://localhost:27017/mydatabase";
 const connectDB = async () => {
+  logger.info(`Attempting to connect to MongoDB at ${MONGO_URI}`);
   try {
     const conn = await mongoose.connect(MONGO_URI);
     logger.info(`MongoDB Connected: ${conn.connection.host}`);

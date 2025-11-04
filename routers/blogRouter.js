@@ -20,7 +20,7 @@ import {
   convertToWebp,
   uploadSingleFileOptional,
 } from "../middleware/multerMiddleware.js";
-import { validate } from "../middleware/validationMiddleware.js";
+import { validationMiddleware as validate } from "../middleware/validationMiddleware.js";
 
 const slugValidation = [param("slug").isSlug(), validate];
 

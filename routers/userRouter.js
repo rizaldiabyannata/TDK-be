@@ -12,7 +12,7 @@ import {
   logoutUser,
 } from "../controllers/userController.js";
 import { protect } from "../middleware/authMiddleware.js";
-import { validate } from "../middleware/validationMiddleware.js";
+import { validationMiddleware as validate } from "../middleware/validationMiddleware.js";
 import {
   loginRules,
   resetPasswordRules,

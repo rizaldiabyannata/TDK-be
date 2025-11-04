@@ -2,7 +2,7 @@ import { validationResult } from "express-validator";
 import logger from "../utils/logger.js";
 
 // Middleware untuk menangani hasil dari aturan validasi express-validator
-export const validate = (req, res, next) => {
+export const validationMiddleware = (req, res, next) => {
   const errors = validationResult(req);
   if (errors.isEmpty()) {
     return next(); // Tidak ada error, lanjutkan ke controller

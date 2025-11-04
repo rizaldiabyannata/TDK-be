@@ -4,7 +4,7 @@
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "dev": "nodemon index.js",
+    "dev": "bun --watch index.js",
     "start": "bun index.js",
     "create-index": "bun ./maintain/create-indexes.js",
     "test": "bun test/smoke-test.js"

@@ -8,7 +8,7 @@ services:
           memory: 512M
     restart: always
     ports:
-      - "6379:6379"
+      - "0.0.0.0:6379:6379"
     command: redis-server /usr/local/etc/redis/redis.conf
     volumes:
       - ./redis.conf:/usr/local/etc/redis/redis.conf
@@ -25,7 +25,7 @@ services:
           memory: 2G
     restart: always
     ports:
-      - "27017:27017"
+      - "0.0.0.0:27017:27017"
     environment:
       MONGO_INITDB_ROOT_USERNAME: admin
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-strongpassword123}
@@ -44,8 +44,8 @@ services:
           memory: 1G
     restart: always
     ports:
-      - "9004:9000"
-      - "9005:9001"
+      - "0.0.0.0:9004:9000"
+      - "0.0.0.0:9005:9001"
     environment:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin123
@@ -67,7 +67,7 @@ services:
     container_name: app-tdk
     restart: always
     ports:
-      - "5000:5000"
+      - "0.0.0.0:5000:5000"
     depends_on:
       - redis
       - mongo

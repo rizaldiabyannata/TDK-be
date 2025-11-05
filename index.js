@@ -5,7 +5,7 @@ import cookieParser from "cookie-parser";
 import morgan from "morgan";
 import fs from "fs";
 import path from "path";
-import helmet from "helmet";
+// import helmet from "helmet";
 import mongoose from "mongoose";
 import { fileURLToPath } from "url";
 
@@ -70,33 +70,34 @@ app.use(express.json());
 // [FIX] Membuat Content Security Policy (CSP) lebih fleksibel untuk development
 const isDevelopment = process.env.BUN_ENV === "development";
 
-app.use(
-  helmet({
-    crossOriginResourcePolicy: {
-      policy: "cross-origin",
-    },
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'self'"],
-        scriptSrc: ["'self'"],
-        styleSrc: ["'self'", "'unsafe-inline'"],
-        imgSrc: ["'self'", "data:", "*"],
-        connectSrc: isDevelopment
-          ? ["*"]
-          : [
-              "'self'",
-              "http://localhost:3000",
-              "http://36.69.250.114:3000",
-              "https://tdk.frontend.rizaldiabyannata.dev",
-            ],
-        fontSrc: ["'self'", "https:"],
-        objectSrc: ["'none'"],
-        scriptSrcAttr: ["'none'"],
-        upgradeInsecureRequests: [],
-      },
-    },
-  })
-);
+// app.use(
+//   helmet({
+//     crossOriginResourcePolicy: {
+//       policy: "cross-origin",
+//     },
+//     contentSecurityPolicy: {
+//       directives: {
+//         defaultSrc: ["'self'"],
+//         scriptSrc: ["'self'"],
+//         styleSrc: ["'self'", "'unsafe-inline'"],
+//         imgSrc: ["'self'", "data:", "*"],
+//         connectSrc: isDevelopment
+//           ? ["*"]
+//           : [
+//               "'self'",
+//               "http://localhost:3000",
+//               "http://36.69.250.114:3000",
+//               "http://36.85.101.180:3000",
+//               "https://tdk.frontend.rizaldiabyannata.dev",
+//             ],
+//         fontSrc: ["'self'", "https:"],
+//         objectSrc: ["'none'"],
+//         scriptSrcAttr: ["'none'"],
+//         upgradeInsecureRequests: [],
+//       },
+//     },
+//   })
+// );
 
 if (isDevelopment) {
   app.use(morgan("dev"));

@@ -37,7 +37,7 @@ const lenientLimiter = rateLimit({
 
 router.post("/login", strictLimiter, loginRules(), validate, loginUser);
 
-router.post("/refresh-token", lenientLimiter, refreshToken);
+// router.post("/refresh-token", lenientLimiter, refreshToken);
 
 router.post("/request-password-reset", strictLimiter, requestPasswordResetOTP);
 
@@ -49,7 +49,7 @@ router.post(
   verifyOTPAndResetPassword
 );
 
-router.get("/profile", lenientLimiter, protect, getUserProfile);
+router.get("/profile", lenientLimiter, getUserProfile);
 
 router.put(
   "/update",

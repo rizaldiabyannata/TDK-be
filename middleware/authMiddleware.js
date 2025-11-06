@@ -33,12 +33,78 @@ export const protect = async (req, res, next) => {
       next();
     } catch (error) {
       logger.error(`Authentication error: ${error.message}`);
+
+      // If access token is expired, try to refresh it automatically
       if (error.name === "TokenExpiredError") {
+        const refreshToken = req.cookies.refreshToken;
+
+        if (refreshToken) {
+          try {
+            // Verify refresh token
+            const refreshDecoded = jwt.verify(
+              refreshToken,
+              process.env.JWT_REFRESH_SECRET
+            );
+
+            // Check if refresh token is revoked
+            const isRefreshRevoked = await redisClient.get(
+              `denylist:${refreshToken}`
+            );
+            if (isRefreshRevoked) {
+              return res.status(401).json({
+                success: false,
+                message: "Not authorized, refresh token has been revoked.",
+              });
+            }
+
+            // Find user
+            const user = await User.findById(refreshDecoded.id);
+            if (!user) {
+              return res.status(401).json({
+                success: false,
+                message: "Not authorized, user not found.",
+              });
+            }
+
+            // Generate new access token
+            const newAccessToken = jwt.sign(
+              { id: user._id },
+              process.env.JWT_SECRET,
+              {
+                expiresIn: "15m",
+              }
+            );
+
+            // Set new access token cookie
+            res.cookie("accessToken", newAccessToken, {
+              httpOnly: true,
+              secure: process.env.BUN_ENV === "production",
+              sameSite: "none",
+              maxAge: 15 * 60 * 1000, // 15 minutes
+            });
+
+            // Set user in request
+            req.user = user;
+
+            logger.info(
+              `Access token refreshed automatically for user: ${user.name}`
+            );
+            return next();
+          } catch (refreshError) {
+            logger.error(`Refresh token error: ${refreshError.message}`);
+            return res.status(401).json({
+              success: false,
+              message: "Not authorized, refresh token invalid.",
+            });
+          }
+        }
+
         return res.status(401).json({
           success: false,
           message: "Not authorized, token expired.",
         });
       }
+
       return res.status(401).json({
         success: false,
         message: "Not authorized, token failed.",

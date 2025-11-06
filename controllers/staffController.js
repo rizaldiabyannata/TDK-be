@@ -126,3 +126,17 @@ export const toggleStaffStatus = async (req, res, next) => {
     next(error);
   }
 };
+
+export const deleteStaff = async (req, res, next) => {
+  try {
+    const staff = await staffService.deleteStaff(req.params.id);
+    res.status(200).json({
+      success: true,
+      message: "Staff berhasil dihapus",
+      data: staff,
+    });
+  } catch (error) {
+    logger.error(`Error deleting staff: ${error.message}`);
+    next(error);
+  }
+};

@@ -7,7 +7,7 @@ import redisClient from "../config/redisConfig.js";
 
 const generateTokens = (user) => {
   const accessToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
-    expiresIn: "15m",
+    expiresIn: "2h", // Increased from 15m to 2 hours for better development experience
   });
 
   const refreshToken = jwt.sign(
@@ -58,7 +58,7 @@ export const loginUser = async (req, res) => {
       httpOnly: true,
       secure: process.env.BUN_ENV === "production",
       sameSite: "none",
-      maxAge: 7 * 24 * 60 * 60 * 1000,
+      maxAge: 2 * 60 * 60 * 1000, // 2 hours to match JWT expiration
     });
 
     res.cookie("refreshToken", refreshToken, {
@@ -94,7 +94,7 @@ export const refreshToken = async (req, res) => {
   }
 
   try {
-    // Periksa apakah refresh token lama ada di denylist
+    // Check if refresh token is in denylist
     const isRevoked = await redisClient.get(`denylist:${oldRefreshToken}`);
     if (isRevoked) {
       logger.warn(`Attempt to use a revoked refresh token.`);
@@ -108,10 +108,10 @@ export const refreshToken = async (req, res) => {
       return res.status(403).json({ message: "Invalid refresh token." });
     }
 
-    // Hasilkan token baru
+    // Generate new tokens
     const { accessToken, refreshToken: newRefreshToken } = generateTokens(user);
 
-    // Tambahkan refresh token lama ke denylist untuk mencegah penggunaan kembali
+    // Add old refresh token to denylist to prevent reuse
     const oldTokenDecoded = jwt.decode(oldRefreshToken);
     if (oldTokenDecoded && oldTokenDecoded.exp) {
       const expiresIn = oldTokenDecoded.exp - Math.floor(Date.now() / 1000);
@@ -122,15 +122,28 @@ export const refreshToken = async (req, res) => {
       }
     }
 
-    // Atur refresh token baru di cookie
+    // Set new access token cookie
+    res.cookie("accessToken", accessToken, {
+      httpOnly: true,
+      secure: process.env.BUN_ENV === "production",
+      sameSite: "none",
+      maxAge: 2 * 60 * 60 * 1000, // 2 hours to match JWT expiration
+    });
+
+    // Set new refresh token cookie
     res.cookie("refreshToken", newRefreshToken, {
       httpOnly: true,
       secure: process.env.BUN_ENV === "production",
       sameSite: "none",
-      maxAge: 7 * 24 * 60 * 60 * 1000,
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });
 
-    res.status(200).json({ accessToken });
+    logger.info(`Token refreshed for user: ${user.name}`);
+
+    res.status(200).json({
+      message: "Token refreshed successfully",
+      accessToken,
+    });
   } catch (error) {
     logger.error(`Error refreshing token: ${error.message}`);
     return res.status(403).json({
@@ -144,6 +157,7 @@ export const refreshToken = async (req, res) => {
 
 export const logoutUser = async (req, res) => {
   try {
+    // Handle access token from Authorization header
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith("Bearer ")) {
       const token = authHeader.split(" ")[1];
@@ -156,12 +170,31 @@ export const logoutUser = async (req, res) => {
             EX: expiresIn,
           });
           logger.info(
-            `Token untuk user ${req.user?.name} ditambahkan ke denylist.`
+            `Access token untuk user ${req.user?.name} ditambahkan ke denylist.`
           );
         }
       }
     }
 
+    // Handle refresh token from cookie
+    const refreshToken = req.cookies.refreshToken;
+    if (refreshToken) {
+      const decoded = jwt.decode(refreshToken);
+
+      if (decoded && decoded.exp) {
+        const expiresIn = decoded.exp - Math.floor(Date.now() / 1000);
+        if (expiresIn > 0) {
+          await redisClient.set(`denylist:${refreshToken}`, "revoked", {
+            EX: expiresIn,
+          });
+          logger.info(
+            `Refresh token untuk user ${req.user?.name} ditambahkan ke denylist.`
+          );
+        }
+      }
+    }
+
+    // Clear cookies
     res.clearCookie("accessToken");
     res.clearCookie("refreshToken");
 
@@ -340,6 +373,60 @@ export const verifyOTPAndResetPassword = async (req, res) => {
         process.env.BUN_ENV === "production"
           ? "An internal server error occurred."
           : "An internal server error occurred.",
+    });
+  }
+};
+
+export const checkSession = async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: "No active session",
+        authenticated: false,
+      });
+    }
+
+    // Check if access token is close to expiry (within 5 minutes)
+    const accessToken = req.cookies.accessToken;
+    if (accessToken) {
+      const decoded = jwt.decode(accessToken);
+      if (decoded && decoded.exp) {
+        const expiresIn = decoded.exp - Math.floor(Date.now() / 1000);
+        const needsRefresh = expiresIn < 300; // Less than 5 minutes
+
+        return res.status(200).json({
+          success: true,
+          message: "Session active",
+          authenticated: true,
+          user: {
+            name: req.user.name,
+            email: req.user.email || null,
+          },
+          needsRefresh,
+          expiresIn,
+        });
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Session active",
+      authenticated: true,
+      user: {
+        name: req.user.name,
+        email: req.user.email || null,
+      },
+    });
+  } catch (error) {
+    logger.error(`Error checking session: ${error.message}`);
+    res.status(500).json({
+      success: false,
+      message:
+        process.env.BUN_ENV === "production"
+          ? "An internal server error occurred."
+          : "Error checking session",
+      authenticated: false,
     });
   }
 };

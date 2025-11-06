@@ -171,3 +171,26 @@ export const toggleStaffStatus = async (staffId, isActive) => {
 
   return staff;
 };
+
+/**
+ * Menghapus staf berdasarkan ID.
+ * @param {string} staffId - ID staf yang akan dihapus.
+ * @returns {Promise<object>} Staf yang telah dihapus.
+ */
+export const deleteStaff = async (staffId) => {
+  const staff = await Staff.findById(staffId);
+
+  if (!staff) {
+    throw new Error("Staff tidak ditemukan");
+  }
+
+  // Hapus foto jika ada
+  if (staff.photoUrl) {
+    await deleteFile(staff.photoUrl);
+  }
+
+  // Hapus staf dari database
+  await Staff.findByIdAndDelete(staffId);
+
+  return staff;
+};

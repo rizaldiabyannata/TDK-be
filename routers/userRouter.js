@@ -10,6 +10,7 @@ import {
   requestPasswordResetOTP,
   verifyOTPAndResetPassword,
   logoutUser,
+  checkSession,
 } from "../controllers/userController.js";
 import { protect } from "../middleware/authMiddleware.js";
 import { validationMiddleware as validate } from "../middleware/validationMiddleware.js";
@@ -37,7 +38,9 @@ const lenientLimiter = rateLimit({
 
 router.post("/login", strictLimiter, loginRules(), validate, loginUser);
 
-// router.post("/refresh-token", lenientLimiter, refreshToken);
+router.post("/refresh-token", lenientLimiter, refreshToken);
+
+router.get("/session", lenientLimiter, checkSession);
 
 router.post("/request-password-reset", strictLimiter, requestPasswordResetOTP);
 

@@ -54,6 +54,27 @@ const corsOptions = {
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps, curl, etc)
     if (!origin) return callback(null, true);
+
+    // In development, allow localhost with any port and common development origins
+    if (process.env.BUN_ENV === "development") {
+      const allowedPatterns = [
+        /^http:\/\/localhost:\d+$/, // localhost:any-port
+        /^http:\/\/127\.0\.0\.1:\d+$/, // 127.0.0.1:any-port
+        /^http:\/\/192\.168\.\d+\.\d+:\d+$/, // local network IPs
+        /^http:\/\/10\.\d+\.\d+\.\d+:\d+$/, // private network IPs
+        /^https:\/\/tdk\.frontend\..*\.dev$/, // production frontend domains
+      ];
+
+      const isAllowed =
+        allowedPatterns.some((pattern) => pattern.test(origin)) ||
+        ORIGIN_WHITELIST.includes(origin);
+
+      if (isAllowed) {
+        return callback(null, true);
+      }
+    }
+
+    // In production, only allow whitelisted origins
     if (ORIGIN_WHITELIST.includes(origin)) {
       return callback(null, true);
     } else {

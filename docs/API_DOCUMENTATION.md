@@ -41,7 +41,6 @@ POST /api/user/login
 ```json
 {
   "message": "Login successful",
-  "accessToken": "eyJhbGciOiJIUzI1NiIs...",
   "user": {
     "name": "admin",
     "email": "admin@example.com"
@@ -49,7 +48,68 @@ POST /api/user/login
 }
 ```
 
+**Cookies Set:**
+
+- `accessToken`: JWT token (expires in 15 minutes)
+- `refreshToken`: JWT refresh token (expires in 7 days)
+
 **Rate Limit:** 10 requests per 15 minutes
+
+---
+
+### Check Session Status
+
+```http
+GET /api/user/session
+```
+
+**Response (200 - Authenticated):**
+
+```json
+{
+  "success": true,
+  "message": "Session active",
+  "authenticated": true,
+  "user": {
+    "name": "admin",
+    "email": "admin@example.com"
+  },
+  "needsRefresh": false,
+  "expiresIn": 780
+}
+```
+
+**Response (401 - Not Authenticated):**
+
+```json
+{
+  "success": false,
+  "message": "No active session",
+  "authenticated": false
+}
+```
+
+---
+
+### Refresh Token
+
+```http
+POST /api/user/refresh-token
+```
+
+**Response (200):**
+
+```json
+{
+  "message": "Token refreshed successfully",
+  "accessToken": "eyJhbGciOiJIUzI1NiIs..."
+}
+```
+
+**Cookies Updated:**
+
+- `accessToken`: New JWT token (expires in 15 minutes)
+- `refreshToken`: New JWT refresh token (expires in 7 days)
 
 ---
 
@@ -73,9 +133,53 @@ Authorization: Bearer {accessToken}
 }
 ```
 
+**Cookies Cleared:**
+
+- `accessToken`
+- `refreshToken`
+
+**Note:** Both access and refresh tokens are added to denylist to prevent reuse.
+
 ---
 
-### Get User Profile (Temporary - No Auth)
+## 🔄 Session Management
+
+### Automatic Token Refresh
+
+The authentication middleware automatically refreshes expired access tokens using the refresh token when:
+
+1. Access token is expired
+2. Valid refresh token exists in cookies
+3. Refresh token is not revoked
+
+### Token Expiration Times
+
+- **Access Token**: 15 minutes
+- **Refresh Token**: 7 days
+- **Cookie maxAge**: Matches token expiration
+
+### Development with Multiple Devices
+
+For development with frontend and backend on different devices/ports:
+
+1. **CORS Configuration**: Automatically allows localhost with any port and local network IPs
+2. **Cookie Settings**: `sameSite: "none"` for cross-origin requests
+3. **Secure Cookies**: Disabled in development, enabled in production
+
+### Environment Variables Required
+
+```bash
+# JWT Configuration
+JWT_SECRET=your-super-secret-jwt-key
+JWT_REFRESH_SECRET=your-super-secret-refresh-key
+
+# CORS (optional - defaults allow development origins)
+ORIGIN_WHITELIST=http://localhost:3000,http://localhost:3001,http://192.168.1.100:3000
+```
+
+---
+
+### Get User Profile
 
 ```http
 GET /api/user/profile
@@ -85,10 +189,10 @@ GET /api/user/profile
 
 ```json
 {
-  "message": "Profile endpoint (temporary no auth)",
+  "message": "Admin profile fetched",
   "user": {
-    "username": "guest",
-    "email": null
+    "name": "admin",
+    "email": "admin@example.com"
   }
 }
 ```

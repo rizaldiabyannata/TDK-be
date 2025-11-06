@@ -566,7 +566,7 @@ Same as blog archive/unarchive
 
 ## 👥 Staff
 
-### Get All Staff
+### Get All Staff (Organizational Structure)
 
 ```http
 GET /api/staff
@@ -580,17 +580,127 @@ GET /api/staff
     "_id": "...",
     "name": "John Doe",
     "position": "CEO",
-    "photo": "http://...",
-    "bio": "Biography...",
-    "email": "john@example.com",
-    "phone": "+1234567890",
-    "socialMedia": {
-      "linkedin": "https://...",
-      "twitter": "https://..."
-    },
+    "photoUrl": "http://...",
+    "short_description": "CEO description...",
+    "socialMedia": [
+      {
+        "platform": "linkedin",
+        "url": "https://..."
+      }
+    ],
+    "parent": null,
+    "level": 1,
+    "order": 0,
+    "isActive": true,
+    "children": [
+      {
+        "_id": "...",
+        "name": "Jane Smith",
+        "position": "CTO",
+        "level": 2,
+        "children": [...]
+      }
+    ],
     "createdAt": "2025-11-05T..."
   }
 ]
+```
+
+---
+
+### Get Organizational Structure (Flat)
+
+```http
+GET /api/staff/structure
+```
+
+**Response (200):**
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "_id": "...",
+      "name": "John Doe",
+      "position": "CEO",
+      "level": 1,
+      "parent": null
+    },
+    {
+      "_id": "...",
+      "name": "Jane Smith",
+      "position": "CTO",
+      "level": 2,
+      "parent": {
+        "_id": "...",
+        "name": "John Doe",
+        "position": "CEO",
+        "level": 1
+      }
+    }
+  ],
+  "count": 10
+}
+```
+
+---
+
+### Get Staff by Level
+
+```http
+GET /api/staff/level/:level
+```
+
+**Parameters:**
+
+- `level` (required): Level number (1, 2, 3, etc.)
+
+**Response (200):**
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "_id": "...",
+      "name": "John Doe",
+      "position": "CEO",
+      "level": 1,
+      "parent": null
+    }
+  ],
+  "count": 1
+}
+```
+
+---
+
+### Get Staff Children
+
+```http
+GET /api/staff/children/:parentId
+```
+
+**Parameters:**
+
+- `parentId` (required): Parent staff ID
+
+**Response (200):**
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "_id": "...",
+      "name": "Jane Smith",
+      "position": "CTO",
+      "level": 2
+    }
+  ],
+  "count": 1
+}
 ```
 
 ---
@@ -608,8 +718,14 @@ GET /api/staff/:id
   "_id": "...",
   "name": "John Doe",
   "position": "CEO",
-  "photo": "http://...",
-  "bio": "Biography..."
+  "photoUrl": "http://...",
+  "short_description": "CEO description...",
+  "socialMedia": [...],
+  "parent": null,
+  "level": 1,
+  "order": 0,
+  "isActive": true,
+  "children": [...]
 }
 ```
 
@@ -624,7 +740,6 @@ POST /api/staff
 **Headers:**
 
 ```
-Authorization: Bearer {accessToken}
 Content-Type: multipart/form-data
 ```
 
@@ -632,11 +747,13 @@ Content-Type: multipart/form-data
 
 - `name` (required)
 - `position` (required)
+- `short_description` (required)
 - `photo` (required): Image file
-- `bio` (optional)
-- `email` (optional)
-- `phone` (optional)
-- `socialMedia` (optional): JSON object
+- `socialMedia` (optional): JSON array `[{"platform": "linkedin", "url": "https://..."}]`
+- `parent` (optional): Parent staff ID
+- `level` (optional): Level number (auto-calculated if not provided)
+- `order` (optional): Display order (default: 0)
+- `isActive` (optional): Active status (default: true)
 
 **Response (201):**
 
@@ -645,7 +762,9 @@ Content-Type: multipart/form-data
   "_id": "...",
   "name": "John Doe",
   "position": "CEO",
-  "photo": "http://..."
+  "photoUrl": "http://...",
+  "level": 1,
+  "parent": null
 }
 ```
 
@@ -660,7 +779,6 @@ PUT /api/staff/:id
 **Headers:**
 
 ```
-Authorization: Bearer {accessToken}
 Content-Type: multipart/form-data
 ```
 
@@ -672,7 +790,87 @@ Content-Type: multipart/form-data
 {
   "_id": "...",
   "name": "John Doe Updated",
-  "position": "CTO"
+  "position": "CTO",
+  "level": 2
+}
+```
+
+---
+
+### Move Staff in Organization
+
+```http
+PATCH /api/staff/:staffId/move
+```
+
+**Headers:**
+
+```
+Authorization: Bearer {accessToken}
+```
+
+**Request Body:**
+
+```json
+{
+  "newParentId": "parent_staff_id_or_null"
+}
+```
+
+**Response (200):**
+
+```json
+{
+  "success": true,
+  "message": "Staff berhasil dipindahkan",
+  "data": {
+    "_id": "...",
+    "name": "John Doe",
+    "position": "CTO",
+    "level": 2,
+    "parent": {
+      "_id": "...",
+      "name": "Jane Smith",
+      "position": "Manager",
+      "level": 1
+    }
+  }
+}
+```
+
+---
+
+### Toggle Staff Status
+
+```http
+PATCH /api/staff/:staffId/status
+```
+
+**Headers:**
+
+```
+Authorization: Bearer {accessToken}
+```
+
+**Request Body:**
+
+```json
+{
+  "isActive": false
+}
+```
+
+**Response (200):**
+
+```json
+{
+  "success": true,
+  "message": "Staff dinonaktifkan",
+  "data": {
+    "_id": "...",
+    "name": "John Doe",
+    "isActive": false
+  }
 }
 ```
 
@@ -691,6 +889,32 @@ Authorization: Bearer {accessToken}
 ```
 
 **Response (204):** No content
+
+---
+
+## 📊 Organizational Structure Features
+
+### Hierarchy Levels
+
+- **Level 1**: Top management (CEO, Directors)
+- **Level 2**: Middle management (Managers, Department Heads)
+- **Level 3**: Team leads and senior staff
+- **Level 4+**: Regular staff and subordinates
+
+### Automatic Level Calculation
+
+- Levels are automatically calculated based on parent-child relationships
+- Moving a staff member updates all descendants' levels recursively
+
+### Display Order
+
+- `order` field controls display sequence within the same level
+- Lower numbers appear first
+
+### Active Status
+
+- `isActive: false` hides staff from organizational charts
+- Inactive staff are filtered out from most queries
 
 ---
 

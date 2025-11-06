@@ -21,19 +21,24 @@ export const createStaffValidator = [
     .if(body("socialMedia").exists())
     .isURL()
     .withMessage("URL media sosial tidak valid"),
-  body("parent")
+  body("parent").optional().isMongoId().withMessage("ID parent tidak valid"),
+  body("level")
     .optional()
-    .isMongoId()
-    .withMessage("ID parent tidak valid"),
+    .isInt({ min: 1 })
+    .withMessage("Level harus berupa angka positif"),
+  body("order")
+    .optional()
+    .isInt({ min: 0 })
+    .withMessage("Order harus berupa angka non-negatif"),
+  body("isActive")
+    .optional()
+    .isBoolean()
+    .withMessage("Status aktif harus berupa boolean"),
   validationMiddleware,
 ];
 
 export const updateStaffValidator = [
-  body("name")
-    .optional()
-    .isString()
-    .notEmpty()
-    .withMessage("Nama wajib diisi"),
+  body("name").optional().isString().notEmpty().withMessage("Nama wajib diisi"),
   body("position")
     .optional()
     .isString()
@@ -57,9 +62,31 @@ export const updateStaffValidator = [
     .if(body("socialMedia").exists())
     .isURL()
     .withMessage("URL media sosial tidak valid"),
-  body("parent")
+  body("parent").optional().isMongoId().withMessage("ID parent tidak valid"),
+  body("level")
+    .optional()
+    .isInt({ min: 1 })
+    .withMessage("Level harus berupa angka positif"),
+  body("order")
+    .optional()
+    .isInt({ min: 0 })
+    .withMessage("Order harus berupa angka non-negatif"),
+  body("isActive")
+    .optional()
+    .isBoolean()
+    .withMessage("Status aktif harus berupa boolean"),
+  validationMiddleware,
+];
+
+export const moveStaffValidator = [
+  body("newParentId")
     .optional()
     .isMongoId()
-    .withMessage("ID parent tidak valid"),
+    .withMessage("ID parent baru tidak valid"),
+  validationMiddleware,
+];
+
+export const toggleStatusValidator = [
+  body("isActive").isBoolean().withMessage("Status aktif harus berupa boolean"),
   validationMiddleware,
 ];

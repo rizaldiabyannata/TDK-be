@@ -1,11 +1,10 @@
 import winston from "winston";
 import path from "path";
-import { fileURLToPath } from "url";
 import { v4 as uuidv4 } from "uuid";
 
-// Adjust __dirname for ES Modules
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// Adjust __dirname for ES Modules - Jest compatible
+// Use process.cwd() as base directory for both environments
+const __dirname = path.resolve(process.cwd(), "utils");
 
 // Get environment
 const ENV = process.env.BUN_ENV || "development";

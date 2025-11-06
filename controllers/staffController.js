@@ -51,15 +51,78 @@ export const updateStaff = async (req, res, next) => {
   }
 };
 
-export const deleteStaff = async (req, res, next) => {
+export const getOrganizationalStructure = async (req, res, next) => {
   try {
-    const staff = await staffService.deleteStaff(req.params.id);
-    if (!staff) {
-      return res.status(404).json({ message: "Staff not found" });
-    }
-    res.status(204).send();
+    const staff = await staffService.getOrganizationalStructure();
+    res.status(200).json({
+      success: true,
+      data: staff,
+      count: staff.length,
+    });
   } catch (error) {
-    logger.error(`Error deleting staff: ${error.message}`);
+    logger.error(`Error getting organizational structure: ${error.message}`);
+    next(error);
+  }
+};
+
+export const getStaffByLevel = async (req, res, next) => {
+  try {
+    const { level } = req.params;
+    const staff = await staffService.getStaffByLevel(parseInt(level));
+    res.status(200).json({
+      success: true,
+      data: staff,
+      count: staff.length,
+    });
+  } catch (error) {
+    logger.error(`Error getting staff by level: ${error.message}`);
+    next(error);
+  }
+};
+
+export const getStaffChildren = async (req, res, next) => {
+  try {
+    const { parentId } = req.params;
+    const children = await staffService.getStaffChildren(parentId);
+    res.status(200).json({
+      success: true,
+      data: children,
+      count: children.length,
+    });
+  } catch (error) {
+    logger.error(`Error getting staff children: ${error.message}`);
+    next(error);
+  }
+};
+
+export const moveStaff = async (req, res, next) => {
+  try {
+    const { staffId } = req.params;
+    const { newParentId } = req.body;
+    const staff = await staffService.moveStaff(staffId, newParentId);
+    res.status(200).json({
+      success: true,
+      message: "Staff berhasil dipindahkan",
+      data: staff,
+    });
+  } catch (error) {
+    logger.error(`Error moving staff: ${error.message}`);
+    next(error);
+  }
+};
+
+export const toggleStaffStatus = async (req, res, next) => {
+  try {
+    const { staffId } = req.params;
+    const { isActive } = req.body;
+    const staff = await staffService.toggleStaffStatus(staffId, isActive);
+    res.status(200).json({
+      success: true,
+      message: `Staff ${isActive ? "diaktifkan" : "dinonaktifkan"}`,
+      data: staff,
+    });
+  } catch (error) {
+    logger.error(`Error toggling staff status: ${error.message}`);
     next(error);
   }
 };

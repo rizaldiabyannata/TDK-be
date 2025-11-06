@@ -1,23 +1,20 @@
 # ==================================
 #      Stage 1: Builder
 # ==================================
-FROM oven/bun:1.0 AS builder
+FROM node:18-alpine AS builder
 
 WORKDIR /usr/src/app
 
 # Copy dependency files first for better caching
-COPY package.json bun.lockb ./
+COPY package.json package-lock.json* ./
 
-# Install dependencies with strict lockfile
-RUN bun install
-
-# Copy the rest of the application code
-COPY . .
+# Install dependencies
+RUN npm ci --only=production && npm cache clean --force
 
 # ==================================
 #      Stage 2: Production
 # ==================================
-FROM oven/bun:slim AS production
+FROM node:18-alpine AS production
 
 WORKDIR /usr/src/app
 
@@ -27,6 +24,8 @@ RUN addgroup --system appgroup && adduser --system --ingroup appgroup --no-creat
 # Copy built app and dependencies from builder stage
 COPY --from=builder /usr/src/app ./
 
+# Copy application code
+COPY . .
 
 # Create uploads and logs directories with correct ownership
 RUN mkdir -p public/uploads/images utils/logs && \
@@ -36,4 +35,4 @@ USER appuser
 
 EXPOSE 5000
 
-CMD ["bun", "index.js"]
+CMD ["node", "index.js"]

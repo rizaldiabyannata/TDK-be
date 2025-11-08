@@ -105,6 +105,40 @@ This is a backend boilerplate built with Express.js, MongoDB, and Redis. It prov
   ```
   The application will be accessible at `http://localhost:5000`.
 
+## 🌐 CORS Configuration & Tunneling
+
+This application supports cross-origin requests for development and production environments. The CORS configuration automatically allows:
+
+- **Local Development**: `localhost` and `127.0.0.1` on any port (HTTP/HTTPS)
+- **Local Network**: Private IP ranges (`192.168.x.x`, `10.x.x.x`)
+- **Tunneling Services**: ngrok, localtunnel, and similar services (HTTP/HTTPS)
+- **Production**: Whitelisted domains via `ORIGIN_WHITELIST` environment variable
+
+### For Team Development with Tunneling
+
+When working with teammates using different networks:
+
+1. **Your colleague provides their public IP** (e.g., `192.168.1.100`)
+2. **Add both HTTP and HTTPS versions** to your `.env` file:
+
+   ```env
+   ORIGIN_WHITELIST=http://localhost:3000,https://localhost:3000,http://127.0.0.1:3000,https://127.0.0.1:3000,http://192.168.1.100:3000,https://192.168.1.100:3000
+   ```
+
+3. **If using tunneling services** (ngrok, etc.), set:
+
+   ```env
+   FORCE_HTTPS=true
+   ```
+
+4. **Restart the server** to apply CORS changes.
+
+### Tunneling Setup Examples
+
+- **ngrok**: `ngrok http 5000` → Add `https://abc123.ngrok.io` to whitelist
+- **localtunnel**: `lt --port 5000` → Add the generated URL to whitelist
+- **Cloudflare Tunnel**: Add the tunnel domain to whitelist
+
 ## 🧪 Testing
 
 This project includes a basic smoke test to verify that the application server is running correctly after deployment.

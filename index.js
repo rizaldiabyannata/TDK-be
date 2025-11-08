@@ -58,10 +58,16 @@ const corsOptions = {
     // In development, allow localhost with any port and common development origins
     if (process.env.BUN_ENV === "development") {
       const allowedPatterns = [
-        /^http:\/\/localhost:\d+$/, // localhost:any-port
-        /^http:\/\/127\.0\.0\.1:\d+$/, // 127.0.0.1:any-port
-        /^http:\/\/192\.168\.\d+\.\d+:\d+$/, // local network IPs
-        /^http:\/\/10\.\d+\.\d+\.\d+:\d+$/, // private network IPs
+        /^http:\/\/localhost:\d+$/, // localhost:any-port (HTTP)
+        /^https:\/\/localhost:\d+$/, // localhost:any-port (HTTPS)
+        /^http:\/\/127\.0\.0\.1:\d+$/, // 127.0.0.1:any-port (HTTP)
+        /^https:\/\/127\.0\.0\.1:\d+$/, // 127.0.0.1:any-port (HTTPS)
+        /^http:\/\/192\.168\.\d+\.\d+:\d+$/, // local network IPs (HTTP)
+        /^https:\/\/192\.168\.\d+\.\d+:\d+$/, // local network IPs (HTTPS)
+        /^http:\/\/10\.\d+\.\d+\.\d+:\d+$/, // private network IPs (HTTP)
+        /^https:\/\/10\.\d+\.\d+\.\d+:\d+$/, // private network IPs (HTTPS)
+        /^https?:\/\/.*\.ngrok.*$/, // ngrok tunneling URLs (HTTP/HTTPS)
+        /^https?:\/\/.*\.tunnel.*$/, // other tunneling services
         /^https:\/\/tdk\.frontend\..*\.dev$/, // production frontend domains
       ];
 

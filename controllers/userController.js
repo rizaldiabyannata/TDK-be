@@ -5,6 +5,13 @@ import jwt from "jsonwebtoken";
 import * as otpService from "../utils/otpService.js";
 import redisClient from "../config/redisConfig.js";
 
+const isSecureCookie = () => {
+  // Set secure cookies for production or when using HTTPS tunneling
+  return process.env.BUN_ENV === "production" || 
+         process.env.FORCE_HTTPS === "true" ||
+         (process.env.NODE_ENV === "production" && process.env.BUN_ENV !== "development");
+};
+
 const generateTokens = (user) => {
   const accessToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
     expiresIn: "2h", // Increased from 15m to 2 hours for better development experience
@@ -56,14 +63,14 @@ export const loginUser = async (req, res) => {
 
     res.cookie("accessToken", accessToken, {
       httpOnly: true,
-      secure: process.env.BUN_ENV === "production",
+      secure: isSecureCookie(),
       sameSite: "none",
       maxAge: 2 * 60 * 60 * 1000, // 2 hours to match JWT expiration
     });
 
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
-      secure: process.env.BUN_ENV === "production",
+      secure: isSecureCookie(),
       sameSite: "none",
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
@@ -125,7 +132,7 @@ export const refreshToken = async (req, res) => {
     // Set new access token cookie
     res.cookie("accessToken", accessToken, {
       httpOnly: true,
-      secure: process.env.BUN_ENV === "production",
+      secure: isSecureCookie(),
       sameSite: "none",
       maxAge: 2 * 60 * 60 * 1000, // 2 hours to match JWT expiration
     });
@@ -133,7 +140,7 @@ export const refreshToken = async (req, res) => {
     // Set new refresh token cookie
     res.cookie("refreshToken", newRefreshToken, {
       httpOnly: true,
-      secure: process.env.BUN_ENV === "production",
+      secure: isSecureCookie(),
       sameSite: "none",
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });

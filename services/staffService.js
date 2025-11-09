@@ -13,37 +13,33 @@ export const createStaff = async (staffData, photoUrl) => {
 };
 
 /**
- * Mendapatkan semua staf dalam struktur organisasi.
- * @returns {Promise<Array<object>>} Daftar semua staf dengan struktur hierarki.
+ * Mendapatkan semua staf yang aktif, dikelompokkan berdasarkan level.
+ * @returns {Promise<Array<object>>} Daftar semua staf diurutkan berdasarkan level dan order.
  */
 export const getAllStaff = async () => {
-  return await Staff.find({ parent: null, isActive: true })
-    .sort({ level: 1, order: 1 })
-    .populate({
-      path: "children",
-      match: { isActive: true },
-      options: { sort: { order: 1 } },
-      populate: {
-        path: "children",
-        match: { isActive: true },
-        options: { sort: { order: 1 } },
-        populate: {
-          path: "children",
-          match: { isActive: true },
-          options: { sort: { order: 1 } },
-        },
-      },
-    });
+  return await Staff.find({ isActive: true }).sort({ level: 1, order: 1 });
 };
 
 /**
- * Mendapatkan struktur organisasi lengkap dalam format flat.
- * @returns {Promise<Array<object>>} Daftar semua staf dalam format flat dengan informasi hierarki.
+ * Mendapatkan semua staf yang aktif, dikelompokkan berdasarkan level.
+ * @returns {Promise<object>} Object dengan key level dan value array staf pada level tersebut.
  */
 export const getOrganizationalStructure = async () => {
-  return await Staff.find({ isActive: true })
-    .sort({ level: 1, order: 1 })
-    .populate("parent", "name position level");
+  const allStaff = await Staff.find({ isActive: true }).sort({
+    level: 1,
+    order: 1,
+  });
+
+  // Kelompokkan staf berdasarkan level
+  const staffByLevel = {};
+  allStaff.forEach((staff) => {
+    if (!staffByLevel[staff.level]) {
+      staffByLevel[staff.level] = [];
+    }
+    staffByLevel[staff.level].push(staff);
+  });
+
+  return staffByLevel;
 };
 
 /**
@@ -52,20 +48,7 @@ export const getOrganizationalStructure = async () => {
  * @returns {Promise<Array<object>>} Daftar staf pada level tertentu.
  */
 export const getStaffByLevel = async (level) => {
-  return await Staff.find({ level, isActive: true })
-    .sort({ order: 1 })
-    .populate("parent", "name position");
-};
-
-/**
- * Mendapatkan children langsung dari staf tertentu.
- * @param {string} parentId - ID staf parent.
- * @returns {Promise<Array<object>>} Daftar children dari staf tertentu.
- */
-export const getStaffChildren = async (parentId) => {
-  return await Staff.find({ parent: parentId, isActive: true }).sort({
-    order: 1,
-  });
+  return await Staff.find({ level, isActive: true }).sort({ order: 1 });
 };
 
 /**
@@ -74,7 +57,7 @@ export const getStaffChildren = async (parentId) => {
  * @returns {Promise<object>} Staf yang ditemukan.
  */
 export const getStaffById = async (id) => {
-  return await Staff.findById(id).populate("children");
+  return await Staff.findById(id);
 };
 
 /**
@@ -98,58 +81,6 @@ export const updateStaff = async (id, staffData, photoUrl) => {
   }
 
   return await Staff.findByIdAndUpdate(id, staffData, { new: true });
-};
-
-/**
- * Memindahkan staf ke parent baru dan memperbarui level secara rekursif.
- * @param {string} staffId - ID staf yang akan dipindahkan.
- * @param {string|null} newParentId - ID parent baru (null untuk root level).
- * @returns {Promise<object>} Staf yang telah dipindahkan.
- */
-export const moveStaff = async (staffId, newParentId) => {
-  const staff = await Staff.findById(staffId);
-  if (!staff) {
-    throw new Error("Staff tidak ditemukan");
-  }
-
-  // Cek circular reference
-  if (newParentId) {
-    let currentParent = newParentId;
-    while (currentParent) {
-      if (currentParent === staffId) {
-        throw new Error(
-          "Tidak dapat memindahkan staf ke bawah dirinya sendiri"
-        );
-      }
-      const parent = await Staff.findById(currentParent);
-      currentParent = parent?.parent;
-    }
-  }
-
-  staff.parent = newParentId;
-  await staff.save(); // Level akan dihitung otomatis oleh pre-save middleware
-
-  // Update level semua children secara rekursif
-  await updateChildrenLevels(staffId);
-
-  return await Staff.findById(staffId).populate(
-    "parent",
-    "name position level"
-  );
-};
-
-/**
- * Helper function untuk update level children secara rekursif.
- * @param {string} parentId - ID parent.
- */
-const updateChildrenLevels = async (parentId) => {
-  const children = await Staff.find({ parent: parentId });
-
-  for (const child of children) {
-    await child.calculateLevel();
-    await child.save();
-    await updateChildrenLevels(child._id);
-  }
 };
 
 /**

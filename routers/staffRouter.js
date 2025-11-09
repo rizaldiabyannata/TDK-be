@@ -9,7 +9,6 @@ import { protect } from "../middleware/authMiddleware.js";
 import {
   createStaffValidator,
   updateStaffValidator,
-  moveStaffValidator,
   toggleStatusValidator,
 } from "../validators/staffValidator.js";
 
@@ -17,7 +16,7 @@ const router = Router();
 
 router.post(
   "/",
-  // protect,
+  protect,
   uploadSingleFile("photo"),
   convertToWebp,
   createStaffValidator,
@@ -26,21 +25,14 @@ router.post(
 router.get("/", staffController.getAllStaff);
 router.get("/structure", staffController.getOrganizationalStructure);
 router.get("/level/:level", staffController.getStaffByLevel);
-router.get("/children/:parentId", staffController.getStaffChildren);
 router.get("/:id", staffController.getStaffById);
 router.put(
   "/:id",
-  // protect,
+  protect,
   uploadSingleFileOptional("photo"),
   convertToWebp,
   updateStaffValidator,
   staffController.updateStaff
-);
-router.patch(
-  "/:staffId/move",
-  protect,
-  moveStaffValidator,
-  staffController.moveStaff
 );
 router.patch(
   "/:staffId/status",

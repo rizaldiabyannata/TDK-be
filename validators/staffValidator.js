@@ -21,11 +21,9 @@ export const createStaffValidator = [
     .if(body("socialMedia").exists())
     .isURL()
     .withMessage("URL media sosial tidak valid"),
-  body("parent").optional().isMongoId().withMessage("ID parent tidak valid"),
   body("level")
-    .optional()
     .isInt({ min: 1 })
-    .withMessage("Level harus berupa angka positif"),
+    .withMessage("Level wajib diisi dan harus berupa angka positif minimal 1"),
   body("order")
     .optional()
     .isInt({ min: 0 })
@@ -62,11 +60,10 @@ export const updateStaffValidator = [
     .if(body("socialMedia").exists())
     .isURL()
     .withMessage("URL media sosial tidak valid"),
-  body("parent").optional().isMongoId().withMessage("ID parent tidak valid"),
   body("level")
     .optional()
     .isInt({ min: 1 })
-    .withMessage("Level harus berupa angka positif"),
+    .withMessage("Level harus berupa angka positif minimal 1"),
   body("order")
     .optional()
     .isInt({ min: 0 })
@@ -75,14 +72,6 @@ export const updateStaffValidator = [
     .optional()
     .isBoolean()
     .withMessage("Status aktif harus berupa boolean"),
-  validationMiddleware,
-];
-
-export const moveStaffValidator = [
-  body("newParentId")
-    .optional()
-    .isMongoId()
-    .withMessage("ID parent baru tidak valid"),
   validationMiddleware,
 ];
 

@@ -1,0 +1,1037 @@
+{
+  "info": {
+    "name": "TDK Backend API Collection",
+    "description": "Complete API collection for TDK Backend (Express.js + MongoDB + Redis)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "2.1.0"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{auth_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:5000/api",
+      "type": "string"
+    },
+    {
+      "key": "auth_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "refresh_token",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@tdk.com\",\n  \"password\": \"Tdk@123456\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/user/login",
+              "host": ["{{base_url}}"],
+              "path": ["user", "login"]
+            },
+            "description": "Login dengan kredensial admin untuk mendapatkan access token"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('auth_token', response.data.accessToken);",
+                  "    pm.collectionVariables.set('refresh_token', response.data.refreshToken);",
+                  "    console.log('Token saved successfully');",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refresh_token}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/user/refresh-token",
+              "host": ["{{base_url}}"],
+              "path": ["user", "refresh-token"]
+            },
+            "description": "Refresh access token menggunakan refresh token"
+          }
+        },
+        {
+          "name": "Check Session",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/user/session",
+              "host": ["{{base_url}}"],
+              "path": ["user", "session"]
+            },
+            "description": "Check status session user"
+          }
+        },
+        {
+          "name": "Get User Profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/user/profile",
+              "host": ["{{base_url}}"],
+              "path": ["user", "profile"]
+            },
+            "description": "Get informasi profile user"
+          }
+        },
+        {
+          "name": "Update User Profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Admin Updated\",\n  \"email\": \"admin@tdk.com\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/user/update",
+              "host": ["{{base_url}}"],
+              "path": ["user", "update"]
+            },
+            "description": "Update informasi profile user"
+          }
+        },
+        {
+          "name": "Request Password Reset",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@tdk.com\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/user/request-password-reset",
+              "host": ["{{base_url}}"],
+              "path": ["user", "request-password-reset"]
+            },
+            "description": "Request OTP untuk reset password"
+          }
+        },
+        {
+          "name": "Reset Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@tdk.com\",\n  \"otp\": \"123456\",\n  \"newPassword\": \"NewPassword123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/user/reset-password",
+              "host": ["{{base_url}}"],
+              "path": ["user", "reset-password"]
+            },
+            "description": "Reset password menggunakan OTP"
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/user/logout",
+              "host": ["{{base_url}}"],
+              "path": ["user", "logout"]
+            },
+            "description": "Logout dan invalidate token"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Staff Management (NEW)",
+      "item": [
+        {
+          "name": "Get All Staff",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/staff",
+              "host": ["{{base_url}}"],
+              "path": ["staff"]
+            },
+            "description": "Get semua data staff dengan pagination dan filter"
+          }
+        },
+        {
+          "name": "Get Organizational Structure",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/staff/structure",
+              "host": ["{{base_url}}"],
+              "path": ["staff", "structure"]
+            },
+            "description": "Get struktur organisasi berdasarkan level"
+          }
+        },
+        {
+          "name": "Get Staff by Level",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/staff/level/1",
+              "host": ["{{base_url}}"],
+              "path": ["staff", "level", "1"]
+            },
+            "description": "Get staff berdasarkan level (1, 2, 3, ...)"
+          }
+        },
+        {
+          "name": "Get Staff by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/staff/{{staff_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["staff", "{{staff_id}}"]
+            },
+            "description": "Get detail staff berdasarkan ID"
+          }
+        },
+        {
+          "name": "Create Staff",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "multipart/form-data"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "name",
+                  "value": "John Doe",
+                  "type": "text"
+                },
+                {
+                  "key": "position",
+                  "value": "Software Developer",
+                  "type": "text"
+                },
+                {
+                  "key": "level",
+                  "value": "1",
+                  "type": "text"
+                },
+                {
+                  "key": "short_description",
+                  "value": "Experienced developer with 5+ years",
+                  "type": "text"
+                },
+                {
+                  "key": "description",
+                  "value": "Full-stack developer specializing in Node.js and React",
+                  "type": "text"
+                },
+                {
+                  "key": "photo",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/staff",
+              "host": ["{{base_url}}"],
+              "path": ["staff"]
+            },
+            "description": "Create staff baru dengan foto (required: name, position, level, short_description)"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('staff_id', response.data._id);",
+                  "    console.log('Staff ID saved:', response.data._id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Staff",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "multipart/form-data"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "name",
+                  "value": "John Doe Updated",
+                  "type": "text"
+                },
+                {
+                  "key": "position",
+                  "value": "Senior Software Developer",
+                  "type": "text"
+                },
+                {
+                  "key": "level",
+                  "value": "2",
+                  "type": "text"
+                },
+                {
+                  "key": "short_description",
+                  "value": "Senior developer with 8+ years experience",
+                  "type": "text"
+                },
+                {
+                  "key": "description",
+                  "value": "Senior full-stack developer with leadership experience",
+                  "type": "text"
+                },
+                {
+                  "key": "order",
+                  "value": "1",
+                  "type": "text"
+                },
+                {
+                  "key": "photo",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/staff/{{staff_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["staff", "{{staff_id}}"]
+            },
+            "description": "Update staff data (foto optional)"
+          }
+        },
+        {
+          "name": "Toggle Staff Status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isActive\": false\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/staff/{{staff_id}}/status",
+              "host": ["{{base_url}}"],
+              "path": ["staff", "{{staff_id}}", "status"]
+            },
+            "description": "Toggle status aktif/non-aktif staff"
+          }
+        },
+        {
+          "name": "Delete Staff",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/staff/{{staff_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["staff", "{{staff_id}}"]
+            },
+            "description": "Delete staff (soft delete)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Blog Management",
+      "item": [
+        {
+          "name": "Get All Blogs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/blogs?page=1&limit=10&status=published",
+              "host": ["{{base_url}}"],
+              "path": ["blogs"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "status",
+                  "value": "published"
+                }
+              ]
+            },
+            "description": "Get semua blog dengan pagination dan filter"
+          }
+        },
+        {
+          "name": "Get Blog Archives",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/blogs/archives",
+              "host": ["{{base_url}}"],
+              "path": ["blogs", "archives"]
+            },
+            "description": "Get data arsip blog berdasarkan tahun dan bulan"
+          }
+        },
+        {
+          "name": "Get Blog by Slug",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/blogs/sample-blog-post",
+              "host": ["{{base_url}}"],
+              "path": ["blogs", "sample-blog-post"]
+            },
+            "description": "Get blog berdasarkan slug"
+          }
+        },
+        {
+          "name": "Create Blog",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "multipart/form-data"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "title",
+                  "value": "Sample Blog Post",
+                  "type": "text"
+                },
+                {
+                  "key": "content",
+                  "value": "This is a sample blog content...",
+                  "type": "text"
+                },
+                {
+                  "key": "excerpt",
+                  "value": "Short excerpt for the blog",
+                  "type": "text"
+                },
+                {
+                  "key": "tags",
+                  "value": "technology, programming",
+                  "type": "text"
+                },
+                {
+                  "key": "status",
+                  "value": "draft",
+                  "type": "text"
+                },
+                {
+                  "key": "coverImage",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/blogs",
+              "host": ["{{base_url}}"],
+              "path": ["blogs"]
+            },
+            "description": "Create blog baru dengan cover image"
+          }
+        },
+        {
+          "name": "Update Blog",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "multipart/form-data"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "title",
+                  "value": "Updated Blog Title",
+                  "type": "text"
+                },
+                {
+                  "key": "content",
+                  "value": "Updated content...",
+                  "type": "text"
+                },
+                {
+                  "key": "status",
+                  "value": "published",
+                  "type": "text"
+                },
+                {
+                  "key": "coverImage",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/blogs/sample-blog-post",
+              "host": ["{{base_url}}"],
+              "path": ["blogs", "sample-blog-post"]
+            },
+            "description": "Update blog (cover image optional)"
+          }
+        },
+        {
+          "name": "Archive Blog",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/blogs/sample-blog-post/archive",
+              "host": ["{{base_url}}"],
+              "path": ["blogs", "sample-blog-post", "archive"]
+            },
+            "description": "Archive blog post"
+          }
+        },
+        {
+          "name": "Unarchive Blog",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/blogs/sample-blog-post/unarchive",
+              "host": ["{{base_url}}"],
+              "path": ["blogs", "sample-blog-post", "unarchive"]
+            },
+            "description": "Unarchive blog post"
+          }
+        },
+        {
+          "name": "Delete Blog",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/blogs/sample-blog-post",
+              "host": ["{{base_url}}"],
+              "path": ["blogs", "sample-blog-post"]
+            },
+            "description": "Delete blog post"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Portfolio Management",
+      "item": [
+        {
+          "name": "Get All Portfolios",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/portfolios?page=1&limit=10&status=published",
+              "host": ["{{base_url}}"],
+              "path": ["portfolios"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "status",
+                  "value": "published"
+                }
+              ]
+            },
+            "description": "Get semua portfolio dengan pagination dan filter"
+          }
+        },
+        {
+          "name": "Get Portfolio Archives",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/portfolios/archives",
+              "host": ["{{base_url}}"],
+              "path": ["portfolios", "archives"]
+            },
+            "description": "Get data arsip portfolio"
+          }
+        },
+        {
+          "name": "Get Portfolio by Slug",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/portfolios/sample-portfolio",
+              "host": ["{{base_url}}"],
+              "path": ["portfolios", "sample-portfolio"]
+            },
+            "description": "Get portfolio berdasarkan slug"
+          }
+        },
+        {
+          "name": "Create Portfolio",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "multipart/form-data"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "title",
+                  "value": "Sample Portfolio Project",
+                  "type": "text"
+                },
+                {
+                  "key": "description",
+                  "value": "Detailed project description...",
+                  "type": "text"
+                },
+                {
+                  "key": "technologies",
+                  "value": "React, Node.js, MongoDB",
+                  "type": "text"
+                },
+                {
+                  "key": "githubUrl",
+                  "value": "https://github.com/example/project",
+                  "type": "text"
+                },
+                {
+                  "key": "liveUrl",
+                  "value": "https://example.com",
+                  "type": "text"
+                },
+                {
+                  "key": "status",
+                  "value": "draft",
+                  "type": "text"
+                },
+                {
+                  "key": "coverImage",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/portfolios",
+              "host": ["{{base_url}}"],
+              "path": ["portfolios"]
+            },
+            "description": "Create portfolio baru dengan cover image"
+          }
+        },
+        {
+          "name": "Update Portfolio",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "multipart/form-data"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "title",
+                  "value": "Updated Portfolio Title",
+                  "type": "text"
+                },
+                {
+                  "key": "description",
+                  "value": "Updated description...",
+                  "type": "text"
+                },
+                {
+                  "key": "status",
+                  "value": "published",
+                  "type": "text"
+                },
+                {
+                  "key": "coverImage",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/portfolios/sample-portfolio",
+              "host": ["{{base_url}}"],
+              "path": ["portfolios", "sample-portfolio"]
+            },
+            "description": "Update portfolio (cover image optional)"
+          }
+        },
+        {
+          "name": "Archive Portfolio",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/portfolios/sample-portfolio/archive",
+              "host": ["{{base_url}}"],
+              "path": ["portfolios", "sample-portfolio", "archive"]
+            },
+            "description": "Archive portfolio"
+          }
+        },
+        {
+          "name": "Unarchive Portfolio",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/portfolios/sample-portfolio/unarchive",
+              "host": ["{{base_url}}"],
+              "path": ["portfolios", "sample-portfolio", "unarchive"]
+            },
+            "description": "Unarchive portfolio"
+          }
+        },
+        {
+          "name": "Delete Portfolio",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/portfolios/sample-portfolio",
+              "host": ["{{base_url}}"],
+              "path": ["portfolios", "sample-portfolio"]
+            },
+            "description": "Delete portfolio"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Contact Form",
+      "item": [
+        {
+          "name": "Submit Contact Form",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"John Doe\",\n  \"email\": \"john@example.com\",\n  \"subject\": \"Project Inquiry\",\n  \"message\": \"Hello, I am interested in your services...\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/contact-form",
+              "host": ["{{base_url}}"],
+              "path": ["contact-form"]
+            },
+            "description": "Submit contact form (rate limited: 10 submissions per 15 minutes)"
+          }
+        },
+        {
+          "name": "Get All Contact Forms",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/contact-form",
+              "host": ["{{base_url}}"],
+              "path": ["contact-form"]
+            },
+            "description": "Get semua contact form submissions (admin only)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Statistics & Analytics",
+      "item": [
+        {
+          "name": "Get Dashboard Statistics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/statistic",
+              "host": ["{{base_url}}"],
+              "path": ["statistic"]
+            },
+            "description": "Get dashboard statistics (blogs, portfolios, contact forms, etc.)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Content Tracking",
+      "item": [
+        {
+          "name": "Get Home Page Content",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/content-tracking",
+              "host": ["{{base_url}}"],
+              "path": ["content-tracking"]
+            },
+            "description": "Get featured blogs and highlighted portfolios for home page"
+          }
+        },
+        {
+          "name": "Add Featured Blog",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"blogId\": \"blog_id_here\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/content-tracking/featured-blogs",
+              "host": ["{{base_url}}"],
+              "path": ["content-tracking", "featured-blogs"]
+            },
+            "description": "Add blog to featured list"
+          }
+        },
+        {
+          "name": "Add Highlighted Portfolio",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"portfolioId\": \"portfolio_id_here\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/content-tracking/highlighted-portfolios",
+              "host": ["{{base_url}}"],
+              "path": ["content-tracking", "highlighted-portfolios"]
+            },
+            "description": "Add portfolio to highlighted list"
+          }
+        },
+        {
+          "name": "Reset Home Page Content",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/content-tracking/reset",
+              "host": ["{{base_url}}"],
+              "path": ["content-tracking", "reset"]
+            },
+            "description": "Reset all featured content to default"
+          }
+        },
+        {
+          "name": "Remove Featured Blog",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/content-tracking/featured-blogs/blog_id_here",
+              "host": ["{{base_url}}"],
+              "path": ["content-tracking", "featured-blogs", "blog_id_here"]
+            },
+            "description": "Remove blog from featured list"
+          }
+        }
+      ]
+    },
+    {
+      "name": "File Upload",
+      "item": [
+        {
+          "name": "Upload Image",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "multipart/form-data"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "image",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/upload/image",
+              "host": ["{{base_url}}"],
+              "path": ["upload", "image"]
+            },
+            "description": "Upload image file (auto converted to WebP, stored in MinIO)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "System & Testing",
+      "item": [
+        {
+          "name": "Test Route",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/test",
+              "host": ["{{base_url}}"],
+              "path": ["test"]
+            },
+            "description": "Simple test route to check if API is running"
+          }
+        },
+        {
+          "name": "Server Runtime Info",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/../runtime",
+              "host": ["{{base_url}}"],
+              "path": ["..", "runtime"]
+            },
+            "description": "Get server uptime information"
+          }
+        },
+        {
+          "name": "Redis Connection Test",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/../test-redis-connection",
+              "host": ["{{base_url}}"],
+              "path": ["..", "test-redis-connection"]
+            },
+            "description": "Test Redis connection"
+          }
+        }
+      ]
+    }
+  ]
+}

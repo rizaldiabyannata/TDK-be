@@ -3,8 +3,34 @@ import logger from "../utils/logger.js";
 
 export const createStaff = async (req, res, next) => {
   try {
+    // Validasi tambahan untuk level
+    if (!req.body.level) {
+      return res.status(400).json({
+        success: false,
+        message: "Level wajib diisi",
+        errors: [{ field: "level", message: "Level tidak boleh kosong" }],
+      });
+    }
+
+    const levelInt = parseInt(req.body.level, 10);
+    if (isNaN(levelInt) || levelInt < 1) {
+      return res.status(400).json({
+        success: false,
+        message: "Level tidak valid",
+        errors: [
+          {
+            field: "level",
+            message: "Level harus berupa angka positif minimal 1",
+          },
+        ],
+      });
+    }
+
     const staff = await staffService.createStaff(req.body, req.fileUrl);
-    res.status(201).json(staff);
+    res.status(201).json({
+      success: true,
+      data: staff,
+    });
   } catch (error) {
     logger.error(`Error creating staff: ${error.message}`);
     next(error);
@@ -14,7 +40,11 @@ export const createStaff = async (req, res, next) => {
 export const getAllStaff = async (req, res, next) => {
   try {
     const staff = await staffService.getAllStaff();
-    res.status(200).json(staff);
+    res.status(200).json({
+      success: true,
+      data: staff,
+      count: staff.length,
+    });
   } catch (error) {
     logger.error(`Error getting all staff: ${error.message}`);
     next(error);
@@ -25,9 +55,15 @@ export const getStaffById = async (req, res, next) => {
   try {
     const staff = await staffService.getStaffById(req.params.id);
     if (!staff) {
-      return res.status(404).json({ message: "Staff not found" });
+      return res.status(404).json({
+        success: false,
+        message: "Staff not found",
+      });
     }
-    res.status(200).json(staff);
+    res.status(200).json({
+      success: true,
+      data: staff,
+    });
   } catch (error) {
     logger.error(`Error getting staff by id: ${error.message}`);
     next(error);
@@ -36,15 +72,38 @@ export const getStaffById = async (req, res, next) => {
 
 export const updateStaff = async (req, res, next) => {
   try {
+    // Validasi tambahan untuk level jika disertakan
+    if (req.body.level !== undefined) {
+      const levelInt = parseInt(req.body.level, 10);
+      if (isNaN(levelInt) || levelInt < 1) {
+        return res.status(400).json({
+          success: false,
+          message: "Level tidak valid",
+          errors: [
+            {
+              field: "level",
+              message: "Level harus berupa angka positif minimal 1",
+            },
+          ],
+        });
+      }
+    }
+
     const staff = await staffService.updateStaff(
       req.params.id,
       req.body,
       req.fileUrl
     );
     if (!staff) {
-      return res.status(404).json({ message: "Staff not found" });
+      return res.status(404).json({
+        success: false,
+        message: "Staff not found",
+      });
     }
-    res.status(200).json(staff);
+    res.status(200).json({
+      success: true,
+      data: staff,
+    });
   } catch (error) {
     logger.error(`Error updating staff: ${error.message}`);
     next(error);

@@ -10,7 +10,9 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
-    "test:smoke": "node test/smoke-test.js"
+    "test:smoke": "node test/smoke-test.js",
+    "test:staff-api": "node test/staff-api.test.js",
+    "test:staff-types": "node test/staff-type-conversion.test.js"
   },
   "keywords": [],
   "author": "",
@@ -49,8 +51,10 @@
     "@eslint/js": "^9.32.0",
     "@eslint/json": "^0.13.1",
     "eslint": "^9.32.0",
+    "form-data": "^4.0.4",
     "globals": "^16.3.0",
     "jest": "^29.7.0",
+    "node-fetch": "^3.3.2",
     "nodemon": "3.1.9"
   }
 }

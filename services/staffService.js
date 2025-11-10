@@ -8,6 +8,16 @@ import { deleteFile } from "./imageService.js";
  * @returns {Promise<object>} Staf yang baru dibuat.
  */
 export const createStaff = async (staffData, photoUrl) => {
+  // Konversi level ke integer jika belum
+  if (staffData.level) {
+    staffData.level = parseInt(staffData.level, 10);
+  }
+
+  // Konversi order ke integer jika belum dan tersedia
+  if (staffData.order) {
+    staffData.order = parseInt(staffData.order, 10);
+  }
+
   const staff = new Staff({ ...staffData, photoUrl });
   return await staff.save();
 };
@@ -71,6 +81,20 @@ export const updateStaff = async (id, staffData, photoUrl) => {
   const staffToUpdate = await Staff.findById(id);
   if (!staffToUpdate) {
     throw new Error("Staff tidak ditemukan");
+  }
+
+  // Konversi level ke integer jika tersedia
+  if (staffData.level) {
+    staffData.level = parseInt(staffData.level, 10);
+  }
+
+  // Konversi order ke integer jika tersedia
+  if (
+    staffData.order !== undefined &&
+    staffData.order !== null &&
+    staffData.order !== ""
+  ) {
+    staffData.order = parseInt(staffData.order, 10);
   }
 
   if (photoUrl) {

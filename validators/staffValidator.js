@@ -22,8 +22,11 @@ export const createStaffValidator = [
     .isURL()
     .withMessage("URL media sosial tidak valid"),
   body("level")
+    .notEmpty()
+    .withMessage("Level wajib diisi")
     .isInt({ min: 1 })
-    .withMessage("Level wajib diisi dan harus berupa angka positif minimal 1"),
+    .withMessage("Level harus berupa angka positif minimal 1")
+    .toInt(), // Konversi string ke integer
   body("order")
     .optional()
     .isInt({ min: 0 })
@@ -62,8 +65,11 @@ export const updateStaffValidator = [
     .withMessage("URL media sosial tidak valid"),
   body("level")
     .optional()
+    .notEmpty()
+    .withMessage("Level tidak boleh kosong")
     .isInt({ min: 1 })
-    .withMessage("Level harus berupa angka positif minimal 1"),
+    .withMessage("Level harus berupa angka positif minimal 1")
+    .toInt(), // Konversi string ke integer
   body("order")
     .optional()
     .isInt({ min: 0 })

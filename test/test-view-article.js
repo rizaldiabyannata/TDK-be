@@ -48,7 +48,7 @@ export default function () {
     "GET /blogs/:slug - status is 200": (r) => r.status === 200,
     "GET /blogs/:slug - response contains correct slug": (r) => {
       try {
-        return r.json("slug") === randomSlug;
+        return r.json("data.slug") === randomSlug;
       } catch (e) {
         return false;
       }

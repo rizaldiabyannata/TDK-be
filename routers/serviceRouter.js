@@ -1,5 +1,6 @@
 import { Router } from "express";
 import * as serviceController from "../controllers/serviceController.js";
+import { protect } from "../middleware/authMiddleware.js";
 import {
   createServiceValidator,
   updateServiceValidator,
@@ -14,6 +15,7 @@ const router = Router();
 
 router.post(
   "/",
+  protect,
   uploadSingleFile("image"),
   convertToWebp,
   createServiceValidator,
@@ -23,11 +25,12 @@ router.get("/", serviceController.getAllServices);
 router.get("/:id", serviceController.getServiceById);
 router.put(
   "/:id",
+  protect,
   uploadSingleFileOptional("image"),
   convertToWebp,
   updateServiceValidator,
   serviceController.updateService
 );
-router.delete("/:id", serviceController.deleteService);
+router.delete("/:id", protect, serviceController.deleteService);
 
 export default router;

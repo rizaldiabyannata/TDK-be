@@ -8,6 +8,7 @@ export const createServiceValidator = [
     .isString()
     .notEmpty()
     .withMessage("List items cannot be empty"),
+  validationMiddleware,
 ];
 
 export const updateServiceValidator = [

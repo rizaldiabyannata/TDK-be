@@ -8,6 +8,29 @@ import redisClient from "../config/redisConfig.js";
 const HOME_PAGE_CONTENT_CACHE_KEY = "home_page_content";
 const CACHE_EXPIRY_SECONDS_HOME = 300;
 
+const normalizeHomePageContent = (content = {}) => {
+  const payload = content.data || content;
+
+  return {
+    highlightedPortfolios: payload.highlightedPortfolios || [],
+    featuredBlogs: payload.featuredBlogs || [],
+    lastUpdated: payload.lastUpdated || null,
+  };
+};
+
+const parseCachedHomePageContent = (cachedData) => {
+  if (typeof cachedData !== "string") {
+    return normalizeHomePageContent(cachedData);
+  }
+
+  try {
+    return normalizeHomePageContent(JSON.parse(cachedData));
+  } catch (error) {
+    logger.warn(`Invalid home page content cache ignored: ${error.message}`);
+    return null;
+  }
+};
+
 const clearHomePageContentCache = async () => {
   try {
     await redisClient.delete(HOME_PAGE_CONTENT_CACHE_KEY);
@@ -22,7 +45,10 @@ export const getHomePageContent = async (req, res) => {
     const cachedData = await redisClient.get(HOME_PAGE_CONTENT_CACHE_KEY);
     if (cachedData) {
       logger.info(`Cache hit for: ${HOME_PAGE_CONTENT_CACHE_KEY}`);
-      return res.status(200).json(cachedData); // Return cached data directly
+      const data = parseCachedHomePageContent(cachedData);
+      if (data) {
+        return res.status(200).json({ data });
+      }
     }
 
     logger.info(
@@ -60,20 +86,16 @@ export const getHomePageContent = async (req, res) => {
       }
     }
 
+    const data = normalizeHomePageContent(homePageContent);
+
     await redisClient.set(
       HOME_PAGE_CONTENT_CACHE_KEY,
-      JSON.stringify(homePageContent),
+      { data },
       { EX: CACHE_EXPIRY_SECONDS_HOME }
     );
 
     logger.info(`Retrieved home page content (${homePageContent._id})`);
-    return res.status(200).json({
-      data: {
-        highlightedPortfolios: homePageContent.highlightedPortfolios || [],
-        featuredBlogs: homePageContent.featuredBlogs || [],
-        lastUpdated: homePageContent.lastUpdated || null,
-      },
-    });
+    return res.status(200).json({ data });
   } catch (error) {
     logger.error(`Error fetching home page content: ${error.message}`, {
       error,

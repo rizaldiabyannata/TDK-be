@@ -60,33 +60,33 @@ services:
       timeout: 20s
       retries: 3
 
-  app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: app-tdk
-    restart: always
-    ports:
-      - "0.0.0.0:5000:5000"
-    depends_on:
-      - redis
-      - mongo
-      - minio
-    env_file:
-      - .env
-    environment:
-      REDIS_HOST: redis
-      MONGO_URI: mongodb://admin:${MONGO_ROOT_PASSWORD:-strongpassword123}@mongo:27017/tdk-db?authSource=admin
-      MINIO_ENDPOINT: minio
-      MINIO_PORT: 9000
-      MINIO_ACCESS_KEY: minioadmin
-      MINIO_SECRET_KEY: minioadmin123
-      MINIO_BUCKET: tdk-uploads
-    volumes:
-      - uploads-data:/usr/src/app/public/uploads
-      - logs-data:/usr/src/app/utils/logs
-    networks:
-      - app-network
+  # app:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #   container_name: app-tdk
+  #   restart: always
+  #   ports:
+  #     - "0.0.0.0:5000:5000"
+  #   depends_on:
+  #     - redis
+  #     - mongo
+  #     - minio
+  #   env_file:
+  #     - .env
+  #   environment:
+  #     REDIS_HOST: redis
+  #     MONGO_URI: mongodb://admin:${MONGO_ROOT_PASSWORD:-strongpassword123}@mongo:27017/tdk-db?authSource=admin
+  #     MINIO_ENDPOINT: minio
+  #     MINIO_PORT: 9000
+  #     MINIO_ACCESS_KEY: minioadmin
+  #     MINIO_SECRET_KEY: minioadmin123
+  #     MINIO_BUCKET: tdk-uploads
+  #   volumes:
+  #     - uploads-data:/usr/src/app/public/uploads
+  #     - logs-data:/usr/src/app/utils/logs
+  #   networks:
+  #     - app-network
 volumes:
   redis-data:
   mongo-data:

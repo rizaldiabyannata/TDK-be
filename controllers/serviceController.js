@@ -3,7 +3,7 @@ import * as serviceService from "../services/serviceService.js";
 export const createService = async (req, res, next) => {
   try {
     const service = await serviceService.createService(req.body, req.fileUrl);
-    res.status(201).json(service);
+    res.status(201).json({ success: true, data: service });
   } catch (error) {
     next(error);
   }
@@ -12,7 +12,7 @@ export const createService = async (req, res, next) => {
 export const getAllServices = async (req, res, next) => {
   try {
     const services = await serviceService.getAllServices();
-    res.status(200).json(services);
+    res.status(200).json({ success: true, data: services });
   } catch (error) {
     next(error);
   }
@@ -24,7 +24,7 @@ export const getServiceById = async (req, res, next) => {
     if (!service) {
       return res.status(404).json({ message: "Service not found" });
     }
-    res.status(200).json(service);
+    res.status(200).json({ success: true, data: service });
   } catch (error) {
     next(error);
   }
@@ -40,7 +40,7 @@ export const updateService = async (req, res, next) => {
     if (!service) {
       return res.status(404).json({ message: "Service not found" });
     }
-    res.status(200).json(service);
+    res.status(200).json({ success: true, data: service });
   } catch (error) {
     next(error);
   }
@@ -52,7 +52,7 @@ export const deleteService = async (req, res, next) => {
     if (!service) {
       return res.status(404).json({ message: "Service not found" });
     }
-    res.status(204).send();
+    res.status(200).json({ success: true, message: "Service deleted successfully" });
   } catch (error) {
     next(error);
   }

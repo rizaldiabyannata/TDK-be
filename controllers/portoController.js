@@ -91,6 +91,7 @@ export const getAllPortos = async (req, res) => {
     const totalPages = Math.ceil(totalPortos / limit);
 
     res.json({
+      success: true,
       data: portos,
       pagination: {
         currentPage: page,
@@ -123,11 +124,13 @@ export const getPortoBySlug = async (req, res) => {
     }
     if (req.user) {
       res.json({
+        success: true,
         message: "Portfolio retrieved successfully",
         data: porto,
       });
     } else {
       res.json({
+        success: true,
         message: "Portfolio retrieved successfully",
         data: {
           slug: porto.slug,
@@ -169,6 +172,7 @@ export const createPorto = async (req, res) => {
     await invalidatePortoCache();
 
     res.status(201).json({
+      success: true,
       message: "Portfolio created successfully",
       data: {
         slug: savedPorto.slug,
@@ -228,6 +232,7 @@ export const updatePorto = async (req, res) => {
     }
 
     res.json({
+      success: true,
       message: "Portfolio updated successfully",
       data: {
         slug: updatedPorto.slug,
@@ -261,7 +266,7 @@ export const deletePorto = async (req, res) => {
 
     await Porto.deleteOne({ slug });
     await invalidatePortoCache(slug);
-    res.json({ message: "Portfolio deleted successfully" });
+    res.json({ success: true, message: "Portfolio deleted successfully" });
   } catch (error) {
     logger.error(`Error on deletePorto: ${error.message}`);
     res.status(500).json({ message: "An internal server error occurred." });
@@ -281,6 +286,7 @@ export const archivePorto = async (req, res) => {
     }
     await invalidatePortoCache(slug);
     res.json({
+      success: true,
       message: "Portfolio archived successfully",
       data: {
         slug: updatedPorto.slug,
@@ -312,6 +318,7 @@ export const unarchivePorto = async (req, res) => {
     }
     await invalidatePortoCache(slug);
     res.json({
+      success: true,
       message: "Portfolio unarchived successfully",
       data: {
         slug: updatedPorto.slug,
@@ -354,7 +361,7 @@ export const getPortoArchive = async (req, res) => {
         { $sort: { year: -1 } },
       ])
     );
-    res.json(archives);
+    res.json({ success: true, data: archives });
   } catch (error) {
     logger.error(`Error on getPortoArchive: ${error.message}`);
     res.status(500).json({ message: "An internal server error occurred." });

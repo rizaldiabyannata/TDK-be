@@ -93,6 +93,7 @@ export const getAllBlogs = async (req, res) => {
     const totalPages = Math.ceil(totalBlogs / limit);
 
     res.json({
+      success: true,
       data: blogs,
       pagination: {
         currentPage: page,
@@ -151,7 +152,7 @@ export const getBlogArchive = async (req, res) => {
         },
       ])
     );
-    res.json(archives);
+    res.json({ success: true, data: archives });
   } catch (error) {
     logger.error(`Error di getBlogArchive: ${error.message}`);
     res.status(500).json({ message: "An internal server error occurred." });
@@ -177,11 +178,13 @@ export const getBlogBySlug = async (req, res) => {
 
     if (req.user) {
       res.json({
+        success: true,
         message: "Blog retrieved successfully",
         data: blog,
       });
     } else {
       res.json({
+        success: true,
         message: "Blog retrieved successfully",
         data: {
           slug: blog.slug,
@@ -219,6 +222,7 @@ export const createBlog = async (req, res) => {
     await invalidateBlogCache();
 
     res.status(201).json({
+      success: true,
       message: "Blog created successfully",
       data: {
         slug: savedBlog.slug,
@@ -275,6 +279,7 @@ export const updateBlog = async (req, res) => {
     }
 
     res.json({
+      success: true,
       message: "Blog updated successfully",
       data: {
         slug: updatedBlog.slug,
@@ -305,7 +310,7 @@ export const deleteBlog = async (req, res) => {
     }
     await Blog.deleteOne({ slug });
     await invalidateBlogCache(slug);
-    res.json({ message: "Blog deleted successfully" });
+    res.json({ success: true, message: "Blog deleted successfully" });
   } catch (error) {
     logger.error(`Error in deleteBlog: ${error.message}`);
     res.status(500).json({ message: "An internal server error occurred." });
@@ -327,6 +332,7 @@ export const archiveBlog = async (req, res) => {
 
     await invalidateBlogCache(slug);
     res.json({
+      success: true,
       message: "Blog archived successfully",
       data: {
         slug: updatedBlog.slug,
@@ -358,6 +364,7 @@ export const unarchiveBlog = async (req, res) => {
 
     await invalidateBlogCache(slug);
     res.json({
+      success: true,
       message: "Blog unarchived successfully",
       data: {
         slug: updatedBlog.slug,

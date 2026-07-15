@@ -21,6 +21,7 @@ export const submitContactForm = async (req, res) => {
     logger.info(`✅ New contact form submitted by: ${name}, Email: ${email}`);
 
     return res.status(201).json({
+      success: true,
       message: "Your message has been received. We'll get back to you soon!",
     });
   } catch (error) {
@@ -37,7 +38,7 @@ export const getAllContactForms = async (req, res) => {
 
     logger.info("✅ Retrieved all contact forms");
 
-    return res.status(200).json(contactForms);
+    return res.status(200).json({ success: true, data: contactForms });
   } catch (error) {
     logger.error(`❌ Error fetching contact forms: ${error.message}`);
     return res

@@ -47,7 +47,7 @@ export const getHomePageContent = async (req, res) => {
       logger.info(`Cache hit for: ${HOME_PAGE_CONTENT_CACHE_KEY}`);
       const data = parseCachedHomePageContent(cachedData);
       if (data) {
-        return res.status(200).json({ data });
+        return res.status(200).json({ success: true, data });
       }
     }
 
@@ -95,7 +95,7 @@ export const getHomePageContent = async (req, res) => {
     );
 
     logger.info(`Retrieved home page content (${homePageContent._id})`);
-    return res.status(200).json({ data });
+    return res.status(200).json({ success: true, data });
   } catch (error) {
     logger.error(`Error fetching home page content: ${error.message}`, {
       error,
@@ -124,6 +124,7 @@ export const resetHomePageContent = async (req, res) => {
     await clearHomePageContentCache();
 
     return res.status(200).json({
+      success: true,
       message: "Home page content reset successfully",
       data: {
         featuredBlogs: homePageContent.featuredBlogs || [],
@@ -247,6 +248,7 @@ export const removeFeaturedBlog = async (req, res) => {
     logger.info(`Removed blog ${blogId} from featured blogs`);
 
     return res.status(200).json({
+      success: true,
       message: "Blog removed from featured blogs successfully",
       data: {
         featuredBlogs: homePageContent.featuredBlogs || [],
@@ -316,6 +318,7 @@ export const addHighlightedPortfolio = async (req, res) => {
     await clearHomePageContentCache();
 
     return res.status(200).json({
+      success: true,
       message: "Portfolio added to highlighted portfolios successfully",
       data: {
         featuredBlogs: homePageContent.featuredBlogs || [],

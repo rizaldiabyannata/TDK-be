@@ -176,7 +176,7 @@ const runStaffAPITests = async () => {
       formData.append("position", "CEO");
       formData.append("level", "1");
       formData.append("order", "0");
-      formData.append("short_description", "Chief Executive Officer");
+      formData.append("shortDescription", "Chief Executive Officer");
       formData.append(
         "socialMedia",
         JSON.stringify([
@@ -223,7 +223,7 @@ const runStaffAPITests = async () => {
       formData.append("position", "VP Engineering");
       formData.append("level", "2");
       formData.append("order", "0");
-      formData.append("short_description", "Vice President of Engineering");
+      formData.append("shortDescription", "Vice President of Engineering");
       formData.append("socialMedia", JSON.stringify([]));
 
       const response = await fetch(`${BASE_URL}/staff`, {
@@ -254,7 +254,7 @@ const runStaffAPITests = async () => {
       const formData = new FormData();
       formData.append("name", "Invalid Staff");
       formData.append("position", "Invalid Position");
-      formData.append("short_description", "Missing level");
+      formData.append("shortDescription", "Missing level");
       // Not appending level field
 
       const response = await fetch(`${BASE_URL}/staff`, {
@@ -284,7 +284,7 @@ const runStaffAPITests = async () => {
         formData.append("name", "Invalid Staff");
         formData.append("position", "Invalid Position");
         formData.append("level", "abc"); // Invalid
-        formData.append("short_description", "Invalid level");
+        formData.append("shortDescription", "Invalid level");
 
         const response = await fetch(`${BASE_URL}/staff`, {
           method: "POST",
@@ -331,7 +331,7 @@ const runStaffAPITests = async () => {
       await runTest("PUT /staff/:id - Update staff", async () => {
         const formData = new FormData();
         formData.append("position", "Chief Executive Officer - Updated");
-        formData.append("short_description", "Updated description");
+        formData.append("shortDescription", "Updated description");
 
         const response = await fetch(`${BASE_URL}/staff/${staffIds[0]}`, {
           method: "PUT",
@@ -453,7 +453,7 @@ const runStaffAPITests = async () => {
         formData.append("name", "Unauthorized Staff");
         formData.append("position", "Test Position");
         formData.append("level", "1");
-        formData.append("short_description", "Test");
+        formData.append("shortDescription", "Test");
 
         const response = await fetch(`${BASE_URL}/staff`, {
           method: "POST",

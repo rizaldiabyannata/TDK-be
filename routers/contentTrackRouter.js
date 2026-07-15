@@ -5,18 +5,6 @@ import { protect } from "../middleware/authMiddleware.js";
 
 router.get("/", contentTrackingController.getHomePageContent);
 
-router.put(
-  "/featured-blogs",
-  protect,
-  contentTrackingController.addFeaturedBlog
-);
-
-router.put(
-  "/highlighted-portfolios",
-  protect,
-  contentTrackingController.addHighlightedPortfolio
-);
-
 router.post("/reset", protect, contentTrackingController.resetHomePageContent);
 
 router.post(

@@ -12,7 +12,7 @@ const staffSchema = new mongoose.Schema(
       required: [true, "Posisi wajib diisi"],
       trim: true,
     },
-    short_description: {
+    shortDescription: {
       type: String,
       required: [true, "Deskripsi singkat wajib diisi"],
       trim: true,

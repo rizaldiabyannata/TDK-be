@@ -54,15 +54,7 @@ const portfolioSchema = new mongoose.Schema({
       },
     },
   ],
-  createdAt: {
-    type: Date,
-    default: Date.now,
-  },
-  updateAt: {
-    type: Date,
-    default: Date.now,
-  },
-});
+}, { timestamps: true });
 
 portfolioSchema.pre("validate", function (next) {
   if (this.title && !this.slug) {

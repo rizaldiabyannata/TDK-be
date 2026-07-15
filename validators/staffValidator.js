@@ -4,7 +4,7 @@ import { validationMiddleware } from "../middleware/validationMiddleware.js";
 export const createStaffValidator = [
   body("name").isString().notEmpty().withMessage("Nama wajib diisi"),
   body("position").isString().notEmpty().withMessage("Posisi wajib diisi"),
-  body("short_description")
+  body("shortDescription")
     .isString()
     .notEmpty()
     .withMessage("Deskripsi singkat wajib diisi"),
@@ -45,7 +45,7 @@ export const updateStaffValidator = [
     .isString()
     .notEmpty()
     .withMessage("Posisi wajib diisi"),
-  body("short_description")
+  body("shortDescription")
     .optional()
     .isString()
     .notEmpty()

@@ -56,15 +56,7 @@ const blogSchema = new mongoose.Schema({
       },
     },
   ],
-  createdAt: {
-    type: Date,
-    default: Date.now,
-  },
-  updatedAt: {
-    type: Date,
-    default: Date.now,
-  },
-});
+}, { timestamps: true });
 
 blogSchema.pre("validate", function (next) {
   if (this.title && !this.slug) {

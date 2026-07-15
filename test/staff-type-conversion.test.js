@@ -103,7 +103,7 @@ const runTypeConversionTests = async () => {
         formData.append("position", "Test Position");
         formData.append("level", "1"); // String
         formData.append("order", "0");
-        formData.append("short_description", "Testing type conversion");
+        formData.append("shortDescription", "Testing type conversion");
 
         const response = await fetch(`${BASE_URL}/staff`, {
           method: "POST",
@@ -142,7 +142,7 @@ const runTypeConversionTests = async () => {
         formData.append("name", "Test Level 2");
         formData.append("position", "Test Position");
         formData.append("level", "2"); // String
-        formData.append("short_description", "Testing type conversion");
+        formData.append("shortDescription", "Testing type conversion");
 
         const response = await fetch(`${BASE_URL}/staff`, {
           method: "POST",
@@ -239,7 +239,7 @@ const runTypeConversionTests = async () => {
       formData.append("name", "Invalid Level");
       formData.append("position", "Test Position");
       formData.append("level", "0"); // Invalid
-      formData.append("short_description", "Testing validation");
+      formData.append("shortDescription", "Testing validation");
 
       const response = await fetch(`${BASE_URL}/staff`, {
         method: "POST",
@@ -265,7 +265,7 @@ const runTypeConversionTests = async () => {
       formData.append("name", "Negative Level");
       formData.append("position", "Test Position");
       formData.append("level", "-5"); // Invalid
-      formData.append("short_description", "Testing validation");
+      formData.append("shortDescription", "Testing validation");
 
       const response = await fetch(`${BASE_URL}/staff`, {
         method: "POST",
@@ -291,7 +291,7 @@ const runTypeConversionTests = async () => {
       formData.append("name", "Non-numeric Level");
       formData.append("position", "Test Position");
       formData.append("level", "abc"); // Invalid
-      formData.append("short_description", "Testing validation");
+      formData.append("shortDescription", "Testing validation");
 
       const response = await fetch(`${BASE_URL}/staff`, {
         method: "POST",
@@ -320,7 +320,7 @@ const runTypeConversionTests = async () => {
         formData.append("position", "Test Position");
         formData.append("level", "1");
         formData.append("order", "5"); // String
-        formData.append("short_description", "Testing order conversion");
+        formData.append("shortDescription", "Testing order conversion");
 
         const response = await fetch(`${BASE_URL}/staff`, {
           method: "POST",
@@ -354,7 +354,7 @@ const runTypeConversionTests = async () => {
         formData.append("name", "Test Update Level");
         formData.append("position", "Test Position");
         formData.append("level", "1");
-        formData.append("short_description", "Testing update conversion");
+        formData.append("shortDescription", "Testing update conversion");
 
         const createResponse = await fetch(`${BASE_URL}/staff`, {
           method: "POST",

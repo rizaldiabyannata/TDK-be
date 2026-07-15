@@ -124,11 +124,11 @@ describe("Validators Tests", () => {
     test("should validate staff creation fields", () => {
       body("name");
       body("position");
-      body("short_description");
+      body("shortDescription");
 
       expect(body).toHaveBeenCalledWith("name");
       expect(body).toHaveBeenCalledWith("position");
-      expect(body).toHaveBeenCalledWith("short_description");
+      expect(body).toHaveBeenCalledWith("shortDescription");
     });
 
     test("should validate parent relationship", () => {

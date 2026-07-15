@@ -27,7 +27,7 @@ describe("Staff Organizational Structure Tests", () => {
       const ceo = new Staff({
         name: "John CEO",
         position: "CEO",
-        short_description: "Company CEO",
+        shortDescription: "Company CEO",
         photoUrl: "http://example.com/photo.jpg",
         socialMedia: [],
       });
@@ -39,7 +39,7 @@ describe("Staff Organizational Structure Tests", () => {
       const manager = new Staff({
         name: "Jane Manager",
         position: "Manager",
-        short_description: "Department Manager",
+        shortDescription: "Department Manager",
         photoUrl: "http://example.com/photo2.jpg",
         socialMedia: [],
         parent: ceo._id,
@@ -52,7 +52,7 @@ describe("Staff Organizational Structure Tests", () => {
       const employee = new Staff({
         name: "Bob Employee",
         position: "Employee",
-        short_description: "Regular Employee",
+        shortDescription: "Regular Employee",
         photoUrl: "http://example.com/photo3.jpg",
         socialMedia: [],
         parent: manager._id,
@@ -67,7 +67,7 @@ describe("Staff Organizational Structure Tests", () => {
       const ceo = await Staff.create({
         name: "John CEO",
         position: "CEO",
-        short_description: "Company CEO",
+        shortDescription: "Company CEO",
         photoUrl: "http://example.com/photo.jpg",
         socialMedia: [],
       });
@@ -75,7 +75,7 @@ describe("Staff Organizational Structure Tests", () => {
       const manager = await Staff.create({
         name: "Jane Manager",
         position: "Manager",
-        short_description: "Department Manager",
+        shortDescription: "Department Manager",
         photoUrl: "http://example.com/photo2.jpg",
         socialMedia: [],
         parent: ceo._id,
@@ -97,7 +97,7 @@ describe("Staff Organizational Structure Tests", () => {
       const ceo = await Staff.create({
         name: "John CEO",
         position: "CEO",
-        short_description: "Company CEO",
+        shortDescription: "Company CEO",
         photoUrl: "http://example.com/photo.jpg",
         socialMedia: [],
       });
@@ -105,7 +105,7 @@ describe("Staff Organizational Structure Tests", () => {
       const manager = await Staff.create({
         name: "Jane Manager",
         position: "Manager",
-        short_description: "Department Manager",
+        shortDescription: "Department Manager",
         photoUrl: "http://example.com/photo2.jpg",
         socialMedia: [],
         parent: ceo._id,
@@ -123,7 +123,7 @@ describe("Staff Organizational Structure Tests", () => {
       await Staff.create({
         name: "John CEO",
         position: "CEO",
-        short_description: "Company CEO",
+        shortDescription: "Company CEO",
         photoUrl: "http://example.com/photo.jpg",
         socialMedia: [],
       });
@@ -131,7 +131,7 @@ describe("Staff Organizational Structure Tests", () => {
       await Staff.create({
         name: "Jane Manager",
         position: "Manager",
-        short_description: "Department Manager",
+        shortDescription: "Department Manager",
         photoUrl: "http://example.com/photo2.jpg",
         socialMedia: [],
         parent: null, // Same level as CEO
@@ -148,7 +148,7 @@ describe("Staff Organizational Structure Tests", () => {
       const ceo = await Staff.create({
         name: "John CEO",
         position: "CEO",
-        short_description: "Company CEO",
+        shortDescription: "Company CEO",
         photoUrl: "http://example.com/photo.jpg",
         socialMedia: [],
       });
@@ -156,7 +156,7 @@ describe("Staff Organizational Structure Tests", () => {
       const manager1 = await Staff.create({
         name: "Jane Manager",
         position: "Manager 1",
-        short_description: "Department Manager",
+        shortDescription: "Department Manager",
         photoUrl: "http://example.com/photo2.jpg",
         socialMedia: [],
         parent: ceo._id,
@@ -165,7 +165,7 @@ describe("Staff Organizational Structure Tests", () => {
       const manager2 = await Staff.create({
         name: "Bob Manager",
         position: "Manager 2",
-        short_description: "Department Manager",
+        shortDescription: "Department Manager",
         photoUrl: "http://example.com/photo3.jpg",
         socialMedia: [],
         parent: ceo._id,
@@ -174,7 +174,7 @@ describe("Staff Organizational Structure Tests", () => {
       const employee = await Staff.create({
         name: "Alice Employee",
         position: "Employee",
-        short_description: "Regular Employee",
+        shortDescription: "Regular Employee",
         photoUrl: "http://example.com/photo4.jpg",
         socialMedia: [],
         parent: manager1._id,
@@ -197,7 +197,7 @@ describe("Staff Organizational Structure Tests", () => {
       const ceo = await Staff.create({
         name: "John CEO",
         position: "CEO",
-        short_description: "Company CEO",
+        shortDescription: "Company CEO",
         photoUrl: "http://example.com/photo.jpg",
         socialMedia: [],
       });
@@ -205,7 +205,7 @@ describe("Staff Organizational Structure Tests", () => {
       const manager = await Staff.create({
         name: "Jane Manager",
         position: "Manager",
-        short_description: "Department Manager",
+        shortDescription: "Department Manager",
         photoUrl: "http://example.com/photo2.jpg",
         socialMedia: [],
         parent: ceo._id,
@@ -223,7 +223,7 @@ describe("Staff Organizational Structure Tests", () => {
       const staff = await Staff.create({
         name: "John Doe",
         position: "Employee",
-        short_description: "Regular Employee",
+        shortDescription: "Regular Employee",
         photoUrl: "http://example.com/photo.jpg",
         socialMedia: [],
         isActive: true,
